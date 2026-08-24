@@ -145,10 +145,12 @@ mod tests {
 
     #[test]
     fn a_product_type_is_indistinguishable_from_a_builtin() {
-        let camera = PortType::new_static("camera");
-        assert_eq!(serde_json::to_string(&camera).unwrap(), "\"camera\"");
-        assert!(compatible(&camera, &camera));
-        assert!(!compatible(&camera, &PortType::TEXT));
+        // A deliberately meaningless noun. The CI guard greps this crate for real product
+        // vocabulary and does not exempt tests — an exemption is where the words come back in.
+        let sprocket = PortType::new_static("sprocket");
+        assert_eq!(serde_json::to_string(&sprocket).unwrap(), "\"sprocket\"");
+        assert!(compatible(&sprocket, &sprocket));
+        assert!(!compatible(&sprocket, &PortType::TEXT));
     }
 
     #[test]
