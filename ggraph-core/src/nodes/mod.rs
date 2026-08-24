@@ -17,7 +17,10 @@ pub mod cooldown;
 pub mod debounce;
 pub mod for_each;
 pub mod format;
+pub mod http_request;
+pub mod llm;
 pub mod print;
+pub mod variables;
 pub mod wait;
 
 /// Register the standard set into a product's registry.
@@ -28,7 +31,13 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(debounce::spec());
     reg.register(compare::spec());
     reg.register(for_each::spec());
+    reg.register(http_request::spec());
+    reg.register(llm::ask_spec());
+    reg.register(llm::decide_spec());
+    reg.register(llm::extract_spec());
     reg.register(format::spec());
     reg.register(print::spec());
+    reg.register(variables::get_spec());
+    reg.register(variables::set_spec());
     reg.register(wait::spec());
 }

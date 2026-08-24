@@ -1,0 +1,504 @@
+{
+  "kinds": [
+    {
+      "category": "Approval",
+      "default_config": {
+        "audience": "",
+        "expires_in_secs": "300",
+        "prompt": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "audience",
+          "required": false,
+          "type": "any"
+        },
+        {
+          "name": "prompt",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "label": "Ask a Person",
+      "outputs": [
+        {
+          "name": "approved",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "denied",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "unanswered",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "answered_by",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "slug": "approval"
+    },
+    {
+      "category": "Control",
+      "default_config": {
+        "unknown_arm": false
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "condition",
+          "required": true,
+          "type": "bool"
+        }
+      ],
+      "label": "Branch",
+      "outputs": [
+        {
+          "name": "true",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "false",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "if"
+    },
+    {
+      "category": "Control",
+      "default_config": {
+        "window_secs": "60"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "label": "Cooldown",
+      "outputs": [
+        {
+          "name": "passed",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "blocked",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "cooldown"
+    },
+    {
+      "category": "Control",
+      "default_config": {
+        "window_secs": "30"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "label": "Start and Stop",
+      "outputs": [
+        {
+          "name": "start",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "stop",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "held_secs",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "debounce"
+    },
+    {
+      "category": "Logic",
+      "default_config": {
+        "a": "",
+        "b": "",
+        "operator": "=="
+      },
+      "inputs": [
+        {
+          "name": "a",
+          "required": false,
+          "type": "any"
+        },
+        {
+          "name": "b",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Compare",
+      "outputs": [
+        {
+          "name": "result",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "slug": "compare"
+    },
+    {
+      "category": "Control",
+      "default_config": {
+        "items": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "items",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "For Each",
+      "outputs": [
+        {
+          "name": "loop_body",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "completed",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "item",
+          "required": false,
+          "type": "any"
+        },
+        {
+          "name": "index",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "for_each"
+    },
+    {
+      "category": "Network",
+      "default_config": {
+        "headers": {},
+        "method": "GET",
+        "timeout_secs": "30",
+        "url": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "url",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "headers",
+          "required": false,
+          "type": "dictionary"
+        },
+        {
+          "name": "body",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "HTTP Request",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "num"
+        },
+        {
+          "name": "ok",
+          "required": false,
+          "type": "bool"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "type": "text"
+        },
+        {
+          "name": "json",
+          "required": false,
+          "type": "json"
+        }
+      ],
+      "slug": "http_request"
+    },
+    {
+      "category": "AI",
+      "default_config": {
+        "prompt": "",
+        "timeout_secs": "60"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "prompt",
+          "required": false,
+          "type": "text"
+        },
+        {
+          "name": "attachment",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Ask a Model",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "answer",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "slug": "ask_llm"
+    },
+    {
+      "category": "AI",
+      "default_config": {
+        "question": "",
+        "timeout_secs": "60"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "question",
+          "required": false,
+          "type": "text"
+        },
+        {
+          "name": "attachment",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Ask a Model to Decide",
+      "outputs": [
+        {
+          "name": "yes",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "no",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "unknown",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "answer",
+          "required": false,
+          "type": "bool"
+        }
+      ],
+      "slug": "llm_decide"
+    },
+    {
+      "category": "AI",
+      "default_config": {
+        "fields": [],
+        "instruction": "",
+        "text": "",
+        "timeout_secs": "60"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "type": "text"
+        },
+        {
+          "name": "attachment",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Extract Fields",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "fields",
+          "required": false,
+          "type": "dictionary"
+        }
+      ],
+      "slug": "llm_extract"
+    },
+    {
+      "category": "Text",
+      "default_config": {
+        "template": ""
+      },
+      "inputs": [],
+      "label": "Format",
+      "outputs": [
+        {
+          "name": "text",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "slug": "format"
+    },
+    {
+      "category": "Debug",
+      "default_config": {
+        "label": "",
+        "message": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "message",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Print",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "print"
+    },
+    {
+      "category": "Variables",
+      "default_config": {
+        "variable": ""
+      },
+      "inputs": [],
+      "label": "Get Variable",
+      "outputs": [],
+      "slug": "get_variable"
+    },
+    {
+      "category": "Variables",
+      "default_config": {
+        "variable": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "label": "Set Variable",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "set_variable"
+    },
+    {
+      "category": "Control",
+      "default_config": {
+        "seconds": "1"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "seconds",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "label": "Wait",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "wait"
+    }
+  ]
+}

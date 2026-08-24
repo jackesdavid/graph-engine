@@ -56,12 +56,41 @@ ggraph-core/src/
   graph.rs     Graph<M>, GraphNode, Edge, and every wiring rule
   topo.rs      topological order, back edges, entry nodes
   host.rs      the seam: StateStore, Observer, ValueIo, Approvals, Http, Llm, TableStore
+  spec.rs      NodeSpec — one declaration per node, and the three behaviours
+  registry.rs  where a product's nodes meet the engine
+  exec.rs      the scheduler: epochs, dead branches, pull-not-push
+  nodes/       the standard set, one file each
 ```
+
+## The standard set
+
+Fifteen nodes so far, and they exist to prove the design as much as to be useful:
+
+| | |
+|---|---|
+| Control | `if` · `for_each` · `wait` · `cooldown` · `debounce` |
+| Approval | `approval` |
+| Logic / Text | `compare` · `format` |
+| Variables | `get_variable` · `set_variable` |
+| Network | `http_request` |
+| AI | `ask_llm` · `llm_decide` · `llm_extract` |
+| Debug | `print` |
+
+`wait`, `approval` and `debounce` are the ones that matter for the architecture: none of them
+sleeps, all of them keep durable state, and none of them imports a database or a runtime. If the
+`Host` traits could not carry those three, the seam would be wrong.
+
+A theme runs through several of them. `if` has a third arm, `llm_decide` has a third arm,
+`approval` has a third arm, `compare` produces no answer rather than a wrong one, and
+`get_variable` reads as absent rather than as zero. **Not knowing is an ordinary outcome**, and a
+graph that cannot see the difference between "no" and "could not tell" quietly does the wrong
+thing to whichever one it collapsed.
 
 ## Status
 
-Early. The topology, port, value and host layers are in place with tests; the registry,
-scheduler and standard node set are landing next.
+Early, and honest about it. Topology, ports, values, the host seam, the registry, the scheduler
+and fifteen nodes are in place with 92 tests. Not there yet: durable run checkpointing (resume a
+crashed run from the node it died on), the table nodes, and the persistence adapter.
 
 ## Licence
 
