@@ -87,11 +87,14 @@ pub struct Edge {
 
 /// Where the canvas was left. View state, not behaviour — but it belongs to the document,
 /// because reopening a graph somewhere else and finding it scrolled to the origin is a bug.
+///
+/// `f64` rather than `f32`: these are read back from JSON, where a number is a double, and
+/// narrowing on the way in means a pan position that does not survive a round trip.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Viewport {
-    pub x: f32,
-    pub y: f32,
-    pub zoom: f32,
+    pub x: f64,
+    pub y: f64,
+    pub zoom: f64,
 }
 
 impl Default for Viewport {
