@@ -282,3 +282,249 @@ pub trait Host: Send + Sync + Clone + 'static {
 pub fn input<'a>(inputs: &'a PortValues, name: &str) -> Option<&'a Value> {
     inputs.get(&PortName::new(name))
 }
+
+#[cfg(test)]
+// The test surface is deliberately wider than any single test uses: `advance` and `inner`
+// are how a scheduler test moves a time window and reads back what was scheduled.
+#[allow(dead_code)]
+pub(crate) mod testkit {
+    //! A host that does nothing, for testing nodes and topology.
+    //!
+    //! Its value is that it is *complete*: a node test needs no database, no blob store, no
+    //! model and no clock that moves. State lives in a map, time is a number you set, and the
+    //! observer records what happened so a test can assert on it.
+
+    use super::*;
+    use std::sync::Arc;
+
+    #[derive(Default)]
+    pub struct MemState(Mutex<HashMap<String, Json>>);
+
+    fn k(key: &StateKey) -> String {
+        format!(
+            "{}/{}/{}/{:?}",
+            key.target.graph, key.target.node, key.target.instance, key.slot
+        )
+    }
+
+    impl StateStore for MemState {
+        fn get(&self, key: &StateKey) -> Option<Json> {
+            self.0.lock().unwrap().get(&k(key)).cloned()
+        }
+        fn set(&self, key: &StateKey, value: &Json) {
+            self.0.lock().unwrap().insert(k(key), value.clone());
+        }
+        fn clear(&self, key: &StateKey) {
+            self.0.lock().unwrap().remove(&k(key));
+        }
+        fn try_arm(&self, key: &StateKey, expires_at: &str) -> bool {
+            let mut m = self.0.lock().unwrap();
+            let armed = m
+                .get(&k(key))
+                .and_then(|v| v.get("state"))
+                .and_then(Json::as_str)
+                == Some("armed");
+            if armed {
+                return false;
+            }
+            m.insert(
+                k(key),
+                serde_json::json!({ "state": "armed", "expires_at": expires_at }),
+            );
+            true
+        }
+        fn extend(&self, key: &StateKey, expires_at: &str) {
+            let mut m = self.0.lock().unwrap();
+            if let Some(v) = m.get_mut(&k(key)) {
+                if v.get("state").and_then(Json::as_str) == Some("armed") {
+                    v["expires_at"] = serde_json::json!(expires_at);
+                }
+            }
+        }
+        fn try_disarm_expired(&self, key: &StateKey) -> bool {
+            let mut m = self.0.lock().unwrap();
+            let armed = m
+                .get(&k(key))
+                .and_then(|v| v.get("state"))
+                .and_then(Json::as_str)
+                == Some("armed");
+            if !armed {
+                return false;
+            }
+            m.insert(k(key), serde_json::json!({ "state": "idle" }));
+            true
+        }
+    }
+
+    /// Records what the engine reported, so a test can assert on it.
+    #[derive(Default, Debug)]
+    pub struct Recorder {
+        pub started: Mutex<Vec<u32>>,
+        pub finished: Mutex<Vec<(u32, String)>>,
+        pub events: Mutex<Vec<String>>,
+    }
+
+    impl Observer for Recorder {
+        fn node_started(&self, node: u32) {
+            self.started.lock().unwrap().push(node);
+        }
+        fn node_finished(&self, node: u32, summary: &str, _ms: u128) {
+            self.finished
+                .lock()
+                .unwrap()
+                .push((node, summary.to_string()));
+        }
+        fn emitted(&self, event: &str, _payload: &PortValues) {
+            self.events.lock().unwrap().push(event.to_string());
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Refuses;
+
+    impl Approvals for Refuses {
+        fn ask(&self, _: ApprovalRequest) -> Result<Uuid, HostError> {
+            Err(HostError("no approval channel in tests".into()))
+        }
+    }
+    impl Http for Refuses {
+        fn send(&self, _: HttpRequest) -> Result<HttpResponse, HostError> {
+            Err(HostError("no network in tests".into()))
+        }
+    }
+    impl Llm for Refuses {
+        fn ask_text(&self, _: LlmRequest) -> Result<String, HostError> {
+            Err(HostError("no model in tests".into()))
+        }
+        fn ask_bool(&self, _: LlmRequest) -> Result<Option<bool>, HostError> {
+            Err(HostError("no model in tests".into()))
+        }
+        fn classify(&self, _: LlmRequest, _: &[String]) -> Result<Option<String>, HostError> {
+            Err(HostError("no model in tests".into()))
+        }
+    }
+    impl TableStore for Refuses {
+        fn list(&self) -> Result<Vec<String>, HostError> {
+            Ok(Vec::new())
+        }
+        fn read(&self, _: &str) -> Result<Vec<Vec<(String, Value)>>, HostError> {
+            Err(HostError("no tables in tests".into()))
+        }
+        fn row_count(&self, _: &str) -> Result<u64, HostError> {
+            Ok(0)
+        }
+        fn append(&self, _: &str, _: &[(String, Value)]) -> Result<(), HostError> {
+            Err(HostError("no tables in tests".into()))
+        }
+        fn set_cell(&self, _: &str, _: u64, _: &str, _: &Value) -> Result<(), HostError> {
+            Err(HostError("no tables in tests".into()))
+        }
+        fn delete_row(&self, _: &str, _: u64) -> Result<(), HostError> {
+            Err(HostError("no tables in tests".into()))
+        }
+        fn clear(&self, _: &str) -> Result<(), HostError> {
+            Err(HostError("no tables in tests".into()))
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct TestHost {
+        inner: Arc<Inner>,
+    }
+
+    #[derive(Debug)]
+    pub struct Inner {
+        state: MemState,
+        io: Disabled,
+        pub observer: Recorder,
+        approvals: Refuses,
+        http: Refuses,
+        llm: Refuses,
+        tables: Refuses,
+        vars: Mutex<HashMap<String, Value>>,
+        run: Uuid,
+        /// Settable, so a test makes a ten-minute window pass without waiting ten minutes.
+        pub now: Mutex<i64>,
+        pub scheduled: Mutex<Vec<(i64, NodeTarget)>>,
+    }
+
+    impl std::fmt::Debug for MemState {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MemState")
+        }
+    }
+
+    impl Default for TestHost {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl TestHost {
+        pub fn new() -> Self {
+            TestHost {
+                inner: Arc::new(Inner {
+                    state: MemState::default(),
+                    io: Disabled,
+                    observer: Recorder::default(),
+                    approvals: Refuses,
+                    http: Refuses,
+                    llm: Refuses,
+                    tables: Refuses,
+                    vars: Mutex::new(HashMap::new()),
+                    run: Uuid::from_bytes([9; 16]),
+                    now: Mutex::new(1_700_000_000),
+                    scheduled: Mutex::new(Vec::new()),
+                }),
+            }
+        }
+
+        pub fn inner(&self) -> &Inner {
+            &self.inner
+        }
+
+        /// Move the clock. The reason `now_epoch_secs` is on the trait at all.
+        pub fn advance(&self, secs: i64) {
+            *self.inner.now.lock().unwrap() += secs;
+        }
+    }
+
+    impl Host for TestHost {
+        type Meta = ();
+
+        fn state(&self) -> &dyn StateStore {
+            &self.inner.state
+        }
+        fn io(&self) -> &dyn ValueIo {
+            &self.inner.io
+        }
+        fn observer(&self) -> &dyn Observer {
+            &self.inner.observer
+        }
+        fn approvals(&self) -> &dyn Approvals {
+            &self.inner.approvals
+        }
+        fn http(&self) -> &dyn Http {
+            &self.inner.http
+        }
+        fn llm(&self) -> &dyn Llm {
+            &self.inner.llm
+        }
+        fn tables(&self) -> &dyn TableStore {
+            &self.inner.tables
+        }
+        fn vars(&self) -> &Mutex<HashMap<String, Value>> {
+            &self.inner.vars
+        }
+        fn run_id(&self) -> Uuid {
+            self.inner.run
+        }
+        fn now_epoch_secs(&self) -> i64 {
+            *self.inner.now.lock().unwrap()
+        }
+        fn schedule(&self, at: i64, target: NodeTarget) -> Result<(), HostError> {
+            self.inner.scheduled.lock().unwrap().push((at, target));
+            Ok(())
+        }
+    }
+}
