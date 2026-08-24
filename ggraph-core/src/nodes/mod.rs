@@ -10,17 +10,25 @@
 use crate::host::Host;
 use crate::registry::NodeRegistry;
 
+pub mod approval;
 pub mod branch;
 pub mod compare;
+pub mod cooldown;
+pub mod debounce;
 pub mod for_each;
 pub mod format;
 pub mod print;
+pub mod wait;
 
 /// Register the standard set into a product's registry.
 pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
+    reg.register(approval::spec());
     reg.register(branch::spec());
+    reg.register(cooldown::spec());
+    reg.register(debounce::spec());
     reg.register(compare::spec());
     reg.register(for_each::spec());
     reg.register(format::spec());
     reg.register(print::spec());
+    reg.register(wait::spec());
 }

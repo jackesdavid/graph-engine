@@ -93,13 +93,21 @@ pub trait StateStore: Send + Sync {
     fn clear(&self, key: &StateKey);
 
     /// Move to armed, only if not already armed. `true` means this caller won.
-    fn try_arm(&self, key: &StateKey, expires_at: &str) -> bool;
+    ///
+    /// Deadlines are epoch seconds rather than a formatted timestamp: a string deadline means
+    /// two components have to agree on a format and a zone, and the day they disagree the window
+    /// closes at the wrong time with nothing in the logs to say why.
+    fn try_arm(&self, key: &StateKey, expires_at: i64) -> bool;
 
     /// Push an armed window's deadline out. A no-op if not armed.
-    fn extend(&self, key: &StateKey, expires_at: &str);
+    fn extend(&self, key: &StateKey, expires_at: i64);
 
     /// Move an armed-and-expired window to idle. `true` means this caller won.
-    fn try_disarm_expired(&self, key: &StateKey) -> bool;
+    ///
+    /// `now` comes from the engine's clock. A store whose backend has an authoritative clock —
+    /// a database doing this as one conditional UPDATE — should prefer its own, since that is
+    /// the only one every pod agrees on.
+    fn try_disarm_expired(&self, key: &StateKey, now: i64) -> bool;
 }
 
 /// What the engine reports as it runs: to a live editor, to a run log, to a trace.
@@ -172,6 +180,13 @@ pub struct ApprovalRequest {
     pub expires_in_secs: u64,
 }
 
+/// The port name an entry payload carries a verdict on.
+///
+/// A resumption is an ordinary entry that happens to carry an answer, so the answer travels the
+/// same way every other value does. One well-known name rather than a side channel: a side
+/// channel is a thing the run log cannot see.
+pub const VERDICT_PORT: &str = "__verdict";
+
 /// How an approval came back.
 ///
 /// Three states, not two, and the third is the reason this type exists: `Denied` is an *answer*,
@@ -183,6 +198,40 @@ pub enum Verdict {
     Approved,
     Denied,
     Unanswered,
+}
+
+impl Verdict {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Verdict::Approved => "approved",
+            Verdict::Denied => "denied",
+            Verdict::Unanswered => "unanswered",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Verdict> {
+        match s {
+            "approved" => Some(Verdict::Approved),
+            "denied" => Some(Verdict::Denied),
+            "unanswered" => Some(Verdict::Unanswered),
+            _ => None,
+        }
+    }
+
+    /// The verdict an entry payload is delivering, if it is delivering one.
+    pub fn from_payload(payload: &PortValues) -> Option<Verdict> {
+        payload
+            .get(&PortName::new(VERDICT_PORT))
+            .and_then(Value::as_text)
+            .and_then(|s| Verdict::parse(&s))
+    }
+
+    /// Build the payload that delivers this verdict back to a waiting node.
+    pub fn into_payload(self) -> PortValues {
+        let mut p = PortValues::new();
+        p.insert(PortName::new(VERDICT_PORT), Value::text(self.as_str()));
+        p
+    }
 }
 
 /// An outbound request. A conector, behind a trait, so the core has no notion of a network.
@@ -316,7 +365,7 @@ pub mod testkit {
         fn clear(&self, key: &StateKey) {
             self.0.lock().unwrap().remove(&k(key));
         }
-        fn try_arm(&self, key: &StateKey, expires_at: &str) -> bool {
+        fn try_arm(&self, key: &StateKey, expires_at: i64) -> bool {
             let mut m = self.0.lock().unwrap();
             let armed = m
                 .get(&k(key))
@@ -332,7 +381,7 @@ pub mod testkit {
             );
             true
         }
-        fn extend(&self, key: &StateKey, expires_at: &str) {
+        fn extend(&self, key: &StateKey, expires_at: i64) {
             let mut m = self.0.lock().unwrap();
             if let Some(v) = m.get_mut(&k(key)) {
                 if v.get("state").and_then(Json::as_str) == Some("armed") {
@@ -340,14 +389,17 @@ pub mod testkit {
                 }
             }
         }
-        fn try_disarm_expired(&self, key: &StateKey) -> bool {
+        fn try_disarm_expired(&self, key: &StateKey, now: i64) -> bool {
             let mut m = self.0.lock().unwrap();
-            let armed = m
-                .get(&k(key))
-                .and_then(|v| v.get("state"))
-                .and_then(Json::as_str)
-                == Some("armed");
-            if !armed {
+            let Some(v) = m.get(&k(key)) else {
+                return false;
+            };
+            if v.get("state").and_then(Json::as_str) != Some("armed") {
+                return false;
+            }
+            if v.get("expires_at").and_then(Json::as_i64).unwrap_or(0) > now {
+                // Someone pushed the deadline out after this wake-up was scheduled. Their later
+                // wake-up closes the window; this one does nothing.
                 return false;
             }
             m.insert(k(key), serde_json::json!({ "state": "idle" }));
