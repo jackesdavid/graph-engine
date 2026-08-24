@@ -24,6 +24,12 @@
 //! outputs, arms, re-enter, log — which is exactly [`Step`].
 
 use crate::graph::PortLookup;
+
+/// Builds a port list from a node's configuration.
+pub type PortsFn = Arc<dyn Fn(&Json) -> Vec<Port> + Send + Sync>;
+
+/// Builds a node kind's default configuration.
+pub type ConfigFn = Arc<dyn Fn() -> Json + Send + Sync>;
 use crate::host::Host;
 use crate::id::{NodeId, PortName};
 use crate::port::Port;
@@ -98,11 +104,18 @@ impl From<crate::host::HostError> for NodeError {
 /// than the scheduler.
 pub enum Ports {
     Static(&'static [Port]),
-    Dynamic(fn(&Json) -> Vec<Port>),
+    /// A closure rather than a plain `fn` pointer, so a product can build the port list from
+    /// whatever it already has — a table, an enum, a catalogue loaded at boot — instead of
+    /// having to reach everything it needs through a function that captures nothing.
+    Dynamic(PortsFn),
 }
 
 impl Ports {
     pub const NONE: Ports = Ports::Static(&[]);
+
+    pub fn dynamic(f: impl Fn(&Json) -> Vec<Port> + Send + Sync + 'static) -> Self {
+        Ports::Dynamic(Arc::new(f))
+    }
 
     pub fn resolve(&self, config: &Json) -> Vec<Port> {
         match self {
@@ -157,12 +170,16 @@ pub enum ExecOut {
     None,
     Static(&'static [Port]),
     /// Arms declared by configuration — a switch.
-    Dynamic(fn(&Json) -> Vec<Port>),
+    Dynamic(PortsFn),
 }
 
 impl ExecOut {
     /// The single "and then" arm most nodes have.
     pub const DEFAULT: ExecOut = ExecOut::Static(&[crate::port::EXEC_OUT]);
+
+    pub fn dynamic(f: impl Fn(&Json) -> Vec<Port> + Send + Sync + 'static) -> Self {
+        ExecOut::Dynamic(Arc::new(f))
+    }
 
     pub fn resolve(&self, config: &Json) -> Vec<Port> {
         match self {
@@ -381,7 +398,6 @@ impl<H: Host> std::fmt::Debug for Behavior<H> {
 }
 
 /// Everything about one kind of node.
-#[derive(Debug)]
 pub struct NodeSpec<H: Host> {
     pub id: NodeId,
     /// Names this kind also answers to. Needed the day a node is renamed: without it, every
@@ -399,10 +415,24 @@ pub struct NodeSpec<H: Host> {
     pub inputs: Ports,
     pub outputs: Ports,
     pub exec_out: ExecOut,
-    pub default_config: fn() -> Json,
+    pub default_config: ConfigFn,
     pub purity: Purity,
     pub timeout: Timeout,
     pub behavior: Behavior<H>,
+}
+
+impl<H: Host> std::fmt::Debug for NodeSpec<H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Hand-written because the config builder is a closure. Reports what a person debugging
+        // a registry actually wants: which node, and what shape it has.
+        f.debug_struct("NodeSpec")
+            .field("id", &self.id)
+            .field("category", &self.category)
+            .field("purity", &self.purity)
+            .field("timeout", &self.timeout)
+            .field("behavior", &self.behavior)
+            .finish()
+    }
 }
 
 impl<H: Host> NodeSpec<H> {
@@ -417,7 +447,7 @@ impl<H: Host> NodeSpec<H> {
             inputs: Ports::NONE,
             outputs: Ports::NONE,
             exec_out: ExecOut::DEFAULT,
-            default_config: || Json::Object(Default::default()),
+            default_config: Arc::new(|| Json::Object(Default::default())),
             purity: Purity::Effectful,
             timeout: Timeout::Secs(30),
             behavior: Behavior::Inert,
@@ -446,8 +476,8 @@ impl<H: Host> NodeSpec<H> {
         self.exec_out = e;
         self
     }
-    pub fn with_config(mut self, f: fn() -> Json) -> Self {
-        self.default_config = f;
+    pub fn with_config(mut self, f: impl Fn() -> Json + Send + Sync + 'static) -> Self {
+        self.default_config = Arc::new(f);
         self
     }
     pub fn with_timeout(mut self, t: Timeout) -> Self {

@@ -47,8 +47,8 @@ pub use id::{NodeId, PortName};
 pub use port::{compatible, Port, PortType, EXEC_IN, EXEC_OUT};
 pub use registry::{NodeRegistry, RegistryError};
 pub use spec::{
-    Behavior, ExecOut, NodeCx, NodeError, NodeRoute, NodeRun, NodeSpec, NodeStep, Ports, Purity,
-    Step, StepCx, Timeout,
+    Behavior, ConfigFn, ExecOut, NodeCx, NodeError, NodeRoute, NodeRun, NodeSpec, NodeStep,
+    Ports, PortsFn, Purity, Step, StepCx, Timeout,
 };
 pub use topo::{back_edges, entry_nodes, ordering_pairs, topo_order};
 pub use value::{Bytes, ExternValue, Num, PortValues, Value};

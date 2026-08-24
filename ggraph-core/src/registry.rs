@@ -352,7 +352,7 @@ mod tests {
         let mut r = NodeRegistry::new();
         r.add(
             spec("switch")
-                .with_exec_out(ExecOut::Dynamic(arms))
+                .with_exec_out(ExecOut::dynamic(arms))
                 .with_config(|| json!({ "arms": ["alpha", "beta"] })),
         )
         .unwrap();

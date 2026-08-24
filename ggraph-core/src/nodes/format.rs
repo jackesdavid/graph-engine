@@ -73,7 +73,7 @@ impl<H: Host> NodeRun<H> for Format {
 
 pub fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("format", "Format", "Text")
-        .with_inputs(Ports::Dynamic(inputs))
+        .with_inputs(Ports::dynamic(inputs))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "template": "" }))
         .running(Format)

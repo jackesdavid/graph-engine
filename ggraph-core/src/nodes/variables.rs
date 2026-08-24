@@ -78,7 +78,7 @@ impl<H: Host> NodeRun<H> for GetVariable {
 
 pub fn set_spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::effectful("set_variable", "Set Variable", "Variables")
-        .with_inputs(Ports::Dynamic(named_port))
+        .with_inputs(Ports::dynamic(named_port))
         .with_config(|| json!({ "variable": "" }))
         .with_timeout(Timeout::Inline)
         .running(SetVariable)
@@ -86,7 +86,7 @@ pub fn set_spec<H: Host>() -> NodeSpec<H> {
 
 pub fn get_spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
-        .with_outputs(Ports::Dynamic(named_port))
+        .with_outputs(Ports::dynamic(named_port))
         .with_config(|| json!({ "variable": "" }))
         // Re-read every time it is asked: a variable set inside a loop must be visible to a
         // reader later in the same loop, not frozen at the value it had on the first pass.

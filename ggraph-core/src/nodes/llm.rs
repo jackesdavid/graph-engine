@@ -205,7 +205,7 @@ impl<H: Host> NodeRun<H> for Extract {
 pub fn extract_spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::effectful("llm_extract", "Extract Fields", "AI")
         .with_aliases(&["ai_extract"])
-        .with_inputs(Ports::Dynamic(|cfg| {
+        .with_inputs(Ports::dynamic(|cfg: &Json| {
             let mut p = vec![
                 Port::opt("text", PortType::TEXT),
                 Port::opt("attachment", PortType::ANY),
@@ -213,7 +213,7 @@ pub fn extract_spec<H: Host>() -> NodeSpec<H> {
             p.extend(extract_ports(cfg));
             p
         }))
-        .with_outputs(Ports::Dynamic(|cfg| {
+        .with_outputs(Ports::dynamic(|cfg: &Json| {
             let mut p = extract_ports(cfg);
             p.extend(EXTRACT_OUT.to_vec());
             p

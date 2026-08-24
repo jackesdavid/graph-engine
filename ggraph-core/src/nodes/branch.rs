@@ -89,7 +89,7 @@ impl<H: Host> NodeRoute<H> for Branch {
 pub fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::effectful("if", "Branch", "Control")
         .with_inputs(Ports::Static(&IN))
-        .with_exec_out(ExecOut::Dynamic(arms))
+        .with_exec_out(ExecOut::dynamic(arms))
         .with_config(|| json!({ "unknown_arm": false }))
         .routing(Branch)
 }

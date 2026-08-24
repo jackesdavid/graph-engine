@@ -45,7 +45,7 @@ impl<H: Host> NodeRun<H> for Append {
 
 pub fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::effectful("table_append", "Add a Row", "Tables")
-        .with_inputs(Ports::Dynamic(ports))
+        .with_inputs(Ports::dynamic(ports))
         .with_config(|| json!({ "table": "", "columns": [] }))
         .with_timeout(Timeout::Secs(30))
         .running(Append)
