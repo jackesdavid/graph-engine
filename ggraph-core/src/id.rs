@@ -5,10 +5,11 @@
 //! into one crate; a string resolved through a [`NodeRegistry`](crate::NodeRegistry) lets each
 //! product register its own and keeps the core ignorant of both.
 //!
-//! **They serialize transparently**, as bare strings. That is what made the extraction from
-//! Sentinel a refactor rather than a migration: its `NodeKind` was
-//! `#[serde(rename_all = "snake_case")]` and its hand-written `slug()` returned byte-identical
-//! text for all 91 kinds, so stored graph documents load unchanged.
+//! **They serialize transparently**, as bare strings. That is what made the original extraction
+//! a refactor rather than a migration: the closed enum it replaced was
+//! `#[serde(rename_all = "snake_case")]` and its hand-written slug method returned
+//! byte-identical text for all ninety-one of its variants, so stored graph documents load
+//! unchanged.
 //!
 //! `SmolStr` rather than `String` or `Arc<str>`: the scheduler clones port names in its inner
 //! loop, and a `SmolStr` clone is a 24-byte memcpy with no allocation and no atomic. Names up to

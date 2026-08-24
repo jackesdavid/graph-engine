@@ -3,10 +3,11 @@
 //! This is why `ggraph-core` has four dependencies and no tokio: the scheduler never opens a
 //! socket, never touches a database and never reads a clock directly. It asks the [`Host`].
 //!
-//! The seam is small, and it is smaller than it first looks. Sentinel's engine threaded a
-//! 14-field context through every node; the *scheduler* used six of those fields, and of the
-//! six, `tenant_id` was only ever an argument to a store call and `active_gates` only ever used
-//! inside one node. What is actually needed is four capabilities and a run id.
+//! The seam is small, and it is smaller than it first looks. The engine this was extracted from
+//! threaded a fourteen-field context through every node; the *scheduler* used six of those
+//! fields, and of the six, the tenant id was only ever an argument to a store call and one more
+//! was only ever used inside a single node. What is actually needed is four capabilities and a
+//! run id.
 //!
 //! Note what is NOT here: no tenant. A [`StateStore`] is constructed already scoped to its
 //! tenant, so the scheduler cannot address another one — not by mistake, not by a shifted

@@ -45,6 +45,21 @@ jobs:
           fi
           echo "clean"
 
+      # 2. No consumer NAMES, anywhere — including in comments, which the rule above exempts.
+      #    The lessons those comments carry are worth keeping and are written without the name:
+      #    "the codebase this was extracted from" says the same thing and does not tell a reader
+      #    of a public repository what somebody's private products are called.
+      - name: no consumer names
+        run: |
+          set -o pipefail
+          names='olhar ?ai|redoma|sentinel|bishop'
+          if grep -rniE "($names)" --include='*.rs' --include='*.md' --include='*.toml' --include='*.yml' \
+               ggraph-core Cargo.toml README.md 2>/dev/null; then
+            echo "::error::a consumer is named in the engine (see the lines above)"
+            exit 1
+          fi
+          echo "clean"
+
       # 2. No runtime, no I/O client. The execution model must not leak into the topology, and a
       #    dependency added here is paid for by every consumer forever.
       - name: no runtime and no I/O dependencies

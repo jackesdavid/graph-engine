@@ -1,8 +1,8 @@
 # ggraph — a domain-agnostic graph execution engine.
 #
-# One workspace, versions moving in lockstep, one tag per release. Two consumers today:
-# OlharAI/Sentinel (camera monitoring, continuous dataflow) and Redoma (local AI platform,
-# durable task runs). Neither product's vocabulary may appear in here — see CONTRIBUTING.
+# One workspace, versions moving in lockstep, one tag per release. Two consumers today, one
+# continuous-dataflow and one durable-task-orchestration. No consumer's vocabulary may appear in
+# here — CI greps for it.
 [workspace]
 members = ["ggraph-core"]
 resolver = "2"

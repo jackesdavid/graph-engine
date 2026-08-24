@@ -36,11 +36,17 @@ git-fetch-with-cli = true
 
 ## Why it exists
 
-Two products need the same engine and share nothing else: **OlharAI** (camera monitoring —
-continuous dataflow, millisecond nodes, ephemeral state) and **Redoma** (local AI platform —
-task orchestration, durable runs, human approval steps). The engine was extracted from the
-first while the second was being designed, on the theory that an engine extracted with one
-consumer comes out shaped like that consumer.
+Two products need the same engine and share nothing else.
+
+One is **continuous dataflow**: signals arriving around the clock, nodes measured in
+milliseconds, state that dies with the run and is not missed. The other is **task
+orchestration**: a run started on demand, nodes measured in seconds or minutes, state that has
+to survive a restart and a person taking until Monday to answer a question.
+
+The engine was extracted from the first while the second was still being designed, on the
+theory that an engine extracted with one consumer comes out shaped like that consumer. Most of
+what is here that looks opinionated is a place where those two disagreed and the disagreement
+had to be resolved in the open.
 
 ## The rules it keeps
 

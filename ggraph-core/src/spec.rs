@@ -19,9 +19,9 @@
 //! - [`Behavior::Step`] — cooperates with the scheduler: it can re-enter itself (a loop), end
 //!   the run without firing anything (waiting for a person), or read durable state.
 //!
-//! Sentinel had eleven nodes whose real semantics lived inline inside the scheduler because
-//! there was no third shape for them. Every one of the eleven ends in the same four moves —
-//! outputs, arms, re-enter, log — which is exactly [`Step`].
+//! The engine this was extracted from had eleven nodes whose real semantics lived inline inside
+//! the scheduler, because there was no third shape for them. Every one of the eleven ends in the
+//! same four moves — outputs, arms, re-enter, log — which is exactly [`Step`].
 
 use crate::graph::PortLookup;
 

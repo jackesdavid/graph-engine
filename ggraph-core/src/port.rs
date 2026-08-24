@@ -35,9 +35,10 @@ impl PortType {
         self.0.as_str()
     }
 
-    // The builtin set. The strings are the ones Sentinel already had on the wire, including
-    // where the Rust name has since changed (`BYTES` is `"file"`, `MAP` is `"dictionary"`) —
-    // renaming them would have meant migrating every stored graph for a tidier identifier.
+    // The builtin set. The strings are the ones the first consumer already had on the wire,
+    // including where the Rust name has since changed (`BYTES` is `"file"`, `MAP` is
+    // `"dictionary"`) — renaming them would have meant migrating every stored graph in exchange
+    // for a tidier identifier.
 
     /// Free text.
     pub const TEXT: PortType = PortType::new_static("text");

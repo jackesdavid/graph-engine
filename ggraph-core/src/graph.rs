@@ -37,8 +37,9 @@ impl<T: Serialize + DeserializeOwned + Clone + Default + Send + Sync + 'static> 
 /// Edge validation has to ask, because ports are not always static: a node that emits an event
 /// grows one input per field of that event, a switch grows one exec arm per configured label.
 /// A validator that reads only the static table gives a different answer than the engine does —
-/// which is a real bug, not a hypothetical one: Sentinel's catalog endpoint and its scheduler
-/// disagreed about exactly those nodes.
+/// which is a real bug, not a hypothetical one: in the codebase this was extracted from, the
+/// endpoint that fed the editor's palette and the scheduler that ran the graph disagreed about
+/// exactly those nodes, and had for a long time.
 pub trait PortLookup {
     fn inputs(&self, kind: &NodeId, config: &Json) -> Option<Vec<Port>>;
     fn outputs(&self, kind: &NodeId, config: &Json) -> Option<Vec<Port>>;
