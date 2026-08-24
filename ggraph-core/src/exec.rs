@@ -34,11 +34,13 @@ use crate::graph::{Graph, GraphMeta};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::registry::NodeRegistry;
-use crate::spec::{Behavior, NodeCx, NodeSpec, Purity, Step, StepCx};
+use crate::spec::{Behavior, NodeCx, NodeError, NodeRun, NodeSpec, Purity, Step, StepCx, Timeout};
 use crate::topo::{back_edges, ordering_pairs};
 use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// Why a run stopped early.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -46,11 +48,13 @@ pub enum RunError {
     /// A node named in the document is not registered. Named, because "unknown node kind" with
     /// no name sends people reading the whole graph.
     UnknownKind { node: u32, kind: String },
-    /// A node refused.
+    /// A node refused. Carries the node's own judgement about whether trying again could help,
+    /// so a durable host does not have to match on the message to decide.
     Node {
         node: u32,
         kind: String,
         message: String,
+        retry: crate::host::Retry,
     },
     /// The step ceiling was reached — almost always a loop with no exit.
     Budget { limit: u32 },
@@ -66,6 +70,7 @@ impl std::fmt::Display for RunError {
                 node,
                 kind,
                 message,
+                ..
             } => {
                 write!(f, "node {node} ({kind}): {message}")
             }
@@ -366,6 +371,13 @@ fn should_run<M: GraphMeta, H: Host>(
     if forced.contains(&nid) {
         return true;
     }
+
+    // A memoized node runs once per run and its result is reused, even when control reaches it
+    // again through a loop. This is how a graph reads a table once and iterates it, rather than
+    // re-reading it on every pass.
+    if graph.node(nid).is_some_and(|n| n.memoize) && st.ran.contains(&nid) {
+        return false;
+    }
     // Note there is no "already ran" guard here. A node reached again through a different arm
     // may legitimately run again — that is what a join inside a loop is — and the thing that
     // stops runaway repetition is the step budget, which reports itself, rather than a silent
@@ -405,10 +417,11 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
 ) -> Result<bool, RunError> {
     let node = graph.node(nid).expect("node exists");
 
-    let fail = |m: String| RunError::Node {
+    let fail = |e: crate::spec::NodeError| RunError::Node {
         node: nid,
         kind: node.kind.as_str().to_string(),
-        message: m,
+        message: e.message,
+        retry: e.retry,
     };
 
     match &spec.behavior {
@@ -425,15 +438,9 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             // thing it consumes.
             let inputs = gather(graph, reg, host, nid, st)?;
             host.observer().node_started(nid);
-            let cx = NodeCx {
-                config: &node.config,
-                inputs: &inputs,
-                node: nid,
-                host,
-            };
-            let out = runner.run(&cx).map_err(|e| fail(e.0))?;
-            let summary = runner.summary(&cx, &out);
-            host.observer().node_finished(nid, &summary, 0);
+            let (out, summary, ms) =
+                run_timed(runner, spec.timeout, &node.config, &inputs, nid, host).map_err(fail)?;
+            host.observer().node_finished(nid, &summary, ms);
             record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
             st.ran.insert(nid);
@@ -447,16 +454,17 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             // thing it consumes.
             let inputs = gather(graph, reg, host, nid, st)?;
             host.observer().node_started(nid);
+            let as_run: Arc<dyn NodeRun<H>> = router.clone();
+            let (out, summary, ms) =
+                run_timed(&as_run, spec.timeout, &node.config, &inputs, nid, host).map_err(fail)?;
             let cx = NodeCx {
                 config: &node.config,
                 inputs: &inputs,
                 node: nid,
                 host,
             };
-            let out = router.run(&cx).map_err(|e| fail(e.0))?;
             let arms = router.arms(&cx, &out);
-            let summary = router.summary(&cx, &out);
-            host.observer().node_finished(nid, &summary, 0);
+            host.observer().node_finished(nid, &summary, ms);
             for a in arms {
                 st.live_arms.insert((nid, a));
             }
@@ -484,11 +492,17 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
                 host,
                 scratch: &mut scratch,
             };
-            let step: Step = stepper.step(&mut cx).map_err(|e| fail(e.0))?;
+            // Measured, but never abandoned. A cooperating node owns durable state and a
+            // scratch the scheduler is holding a mutable borrow of; walking away from one
+            // mid-flight leaves an armed window nobody will ever close. Timing out here would
+            // trade a stuck run for corrupt state, which is the worse of the two.
+            let started = Instant::now();
+            let step: Step = stepper.step(&mut cx).map_err(fail)?;
             st.scratch.insert(nid, scratch);
 
             if let Some(msg) = &step.log {
-                host.observer().node_finished(nid, msg, 0);
+                host.observer()
+                    .node_finished(nid, msg, started.elapsed().as_millis());
             }
             for a in &step.arms {
                 st.live_arms.insert((nid, a.clone()));
@@ -502,6 +516,72 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             Ok(step.reenter)
         }
     }
+}
+
+/// Run a node, giving up on it if it takes longer than it declared.
+///
+/// A node with [`Timeout::Inline`] runs in place: it declared that it cannot block, and paying
+/// for a thread to supervise arithmetic is worse than the risk.
+///
+/// Anything else runs on its own thread and is **abandoned** if it overruns. Abandoned, not
+/// killed — a thread cannot be killed, so the overrunning work carries on and its result is
+/// dropped when it finally arrives. That is the honest trade: the alternative is one wedged
+/// socket holding a run open until somebody restarts the process.
+fn run_timed<H: Host>(
+    runner: &Arc<dyn NodeRun<H>>,
+    timeout: Timeout,
+    config: &Json,
+    inputs: &PortValues,
+    nid: u32,
+    host: &H,
+) -> Result<(PortValues, String, u128), NodeError> {
+    let started = Instant::now();
+
+    if let Timeout::Secs(secs) = timeout {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let runner = Arc::clone(runner);
+        // Cloning the inputs is cheap where it matters: `Bytes` holds an `Arc<[u8]>`, so a frame
+        // on a wire is a refcount bump rather than a copy.
+        let (config, inputs, host) = (config.clone(), inputs.clone(), host.clone());
+        std::thread::spawn(move || {
+            let cx = NodeCx {
+                config: &config,
+                inputs: &inputs,
+                node: nid,
+                host: &host,
+            };
+            let out = runner.run(&cx);
+            let summary = match &out {
+                Ok(o) => runner.summary(&cx, o),
+                Err(_) => String::new(),
+            };
+            // The receiver is gone if we already gave up. Nothing to report to.
+            let _ = tx.send(out.map(|o| (o, summary)));
+        });
+
+        return match rx.recv_timeout(Duration::from_secs(secs)) {
+            Ok(Ok((out, summary))) => Ok((out, summary, started.elapsed().as_millis())),
+            Ok(Err(e)) => Err(e),
+            // Transient by construction: a node that ran out of time is the definition of
+            // something that might work on a less busy afternoon.
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                Err(NodeError::transient(format!("gave up after {secs}s")))
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                Err(NodeError::transient("the node stopped without answering"))
+            }
+        };
+    }
+
+    let cx = NodeCx {
+        config,
+        inputs,
+        node: nid,
+        host,
+    };
+    let out = runner.run(&cx)?;
+    let summary = runner.summary(&cx, &out);
+    Ok((out, summary, started.elapsed().as_millis()))
 }
 
 /// Commit a node's outputs, if this run is committing them.
@@ -600,7 +680,8 @@ fn pull<M: GraphMeta, H: Host<Meta = M>>(
     let out = runner.run(&cx).map_err(|e| RunError::Node {
         node: nid,
         kind: node.kind.as_str().to_string(),
-        message: e.0,
+        message: e.message,
+        retry: e.retry,
     })?;
     let summary = runner.summary(&cx, &out);
     host.observer().node_finished(nid, &summary, 0);

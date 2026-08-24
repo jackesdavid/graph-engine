@@ -37,12 +37,12 @@ impl<H: Host> NodeRun<H> for SetVariable {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
         let name = name_of(cx.config);
         if name.is_empty() {
-            return Err(NodeError("this node has no variable name".into()));
+            return Err(NodeError::new("this node has no variable name"));
         }
         let Some(v) = cx.input(&name).cloned() else {
             // Storing nothing would leave the previous value in place, which reads downstream as
             // a fresh one. Refusing says which node and which name.
-            return Err(NodeError(format!("nothing wired into {name:?}")));
+            return Err(NodeError::new(format!("nothing wired into {name:?}")));
         };
         cx.host.vars().lock().unwrap().insert(name, v);
         Ok(PortValues::new())
@@ -63,7 +63,7 @@ impl<H: Host> NodeRun<H> for GetVariable {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
         let name = name_of(cx.config);
         if name.is_empty() {
-            return Err(NodeError("this node has no variable name".into()));
+            return Err(NodeError::new("this node has no variable name"));
         }
         let mut out = PortValues::new();
         // An unset variable produces nothing rather than a default. A zero here is
@@ -167,9 +167,9 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            err.0.contains("count"),
+            err.message.contains("count"),
             "the message must name the variable: {}",
-            err.0
+            err.message
         );
     }
 

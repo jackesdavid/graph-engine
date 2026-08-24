@@ -73,23 +73,23 @@ struct Absent;
 
 impl Approvals for Absent {
     fn ask(&self, _: ApprovalRequest) -> Result<uuid::Uuid, HostError> {
-        Err(HostError("no approval channel".into()))
+        Err(HostError::permanent("no approval channel"))
     }
 }
 impl Http for Absent {
     fn send(&self, _: HttpRequest) -> Result<HttpResponse, HostError> {
-        Err(HostError("no network".into()))
+        Err(HostError::permanent("no network"))
     }
 }
 impl Llm for Absent {
     fn ask_text(&self, _: LlmRequest) -> Result<String, HostError> {
-        Err(HostError("no model".into()))
+        Err(HostError::permanent("no model"))
     }
     fn ask_bool(&self, _: LlmRequest) -> Result<Option<bool>, HostError> {
-        Err(HostError("no model".into()))
+        Err(HostError::permanent("no model"))
     }
     fn classify(&self, _: LlmRequest, _: &[String]) -> Result<Option<String>, HostError> {
-        Err(HostError("no model".into()))
+        Err(HostError::permanent("no model"))
     }
 }
 impl TableStore for Absent {

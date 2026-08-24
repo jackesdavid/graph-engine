@@ -15,7 +15,7 @@ struct Clear;
 
 impl<H: Host> NodeRun<H> for Clear {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let table = table_name(cx.config).ok_or(NodeError("no table name".into()))?;
+        let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
         cx.host.tables().clear(&table)?;
         Ok(PortValues::new())
     }

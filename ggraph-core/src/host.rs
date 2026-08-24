@@ -21,13 +21,51 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
+/// Whether the same call might work if it were tried again.
+///
+/// This exists so retry is a decision somebody made rather than a guess. Without it a retry
+/// policy has to match on error text, which is how "connection refused" gets retried forever
+/// alongside "that table does not exist".
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Retry {
+    /// The world was busy, unreachable or slow. Trying again later is reasonable.
+    #[default]
+    Maybe,
+    /// It will fail the same way every time — a missing table, a malformed request, a
+    /// credential that is wrong rather than expired. Retrying only delays the report.
+    Never,
+}
+
 /// Something the world refused to do. The engine surfaces these; it does not interpret them.
+///
+/// Defaults to [`Retry::Maybe`], because a *host* failure is usually about the world rather
+/// than about the request. A host that knows better says so with [`HostError::permanent`].
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HostError(pub String);
+pub struct HostError {
+    pub retry: Retry,
+    pub message: String,
+}
+
+impl HostError {
+    pub fn new(message: impl Into<String>) -> Self {
+        HostError {
+            retry: Retry::Maybe,
+            message: message.into(),
+        }
+    }
+
+    /// It will fail the same way next time.
+    pub fn permanent(message: impl Into<String>) -> Self {
+        HostError {
+            retry: Retry::Never,
+            message: message.into(),
+        }
+    }
+}
 
 impl std::fmt::Display for HostError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.message)
     }
 }
 
@@ -35,13 +73,13 @@ impl std::error::Error for HostError {}
 
 impl From<String> for HostError {
     fn from(s: String) -> Self {
-        HostError(s)
+        HostError::new(s)
     }
 }
 
 impl From<&str> for HostError {
     fn from(s: &str) -> Self {
-        HostError(s.to_string())
+        HostError::new(s)
     }
 }
 
@@ -152,10 +190,10 @@ impl ValueIo for Disabled {
         false
     }
     fn put(&self, _: &[u8], _: &str) -> Result<String, HostError> {
-        Err(HostError("no blob store configured".into()))
+        Err(HostError::permanent("no blob store configured"))
     }
     fn get(&self, _: &str) -> Result<Vec<u8>, HostError> {
-        Err(HostError("no blob store configured".into()))
+        Err(HostError::permanent("no blob store configured"))
     }
 }
 
@@ -413,17 +451,28 @@ pub mod testkit {
         pub started: Mutex<Vec<u32>>,
         pub finished: Mutex<Vec<(u32, String)>>,
         pub events: Mutex<Vec<String>>,
+        /// Kept separately from `finished` so that adding it did not change what every existing
+        /// assertion compares against.
+        pub elapsed: Mutex<Vec<u128>>,
+    }
+
+    impl Recorder {
+        /// The most recent elapsed time reported. Zero if nothing finished.
+        pub fn last_elapsed_ms(&self) -> u128 {
+            self.elapsed.lock().unwrap().last().copied().unwrap_or(0)
+        }
     }
 
     impl Observer for Recorder {
         fn node_started(&self, node: u32) {
             self.started.lock().unwrap().push(node);
         }
-        fn node_finished(&self, node: u32, summary: &str, _ms: u128) {
+        fn node_finished(&self, node: u32, summary: &str, ms: u128) {
             self.finished
                 .lock()
                 .unwrap()
                 .push((node, summary.to_string()));
+            self.elapsed.lock().unwrap().push(ms);
         }
         fn emitted(&self, event: &str, _payload: &PortValues) {
             self.events.lock().unwrap().push(event.to_string());
@@ -435,23 +484,23 @@ pub mod testkit {
 
     impl Approvals for Refuses {
         fn ask(&self, _: ApprovalRequest) -> Result<Uuid, HostError> {
-            Err(HostError("no approval channel in tests".into()))
+            Err(HostError::permanent("no approval channel in tests"))
         }
     }
     impl Http for Refuses {
         fn send(&self, _: HttpRequest) -> Result<HttpResponse, HostError> {
-            Err(HostError("no network in tests".into()))
+            Err(HostError::permanent("no network in tests"))
         }
     }
     impl Llm for Refuses {
         fn ask_text(&self, _: LlmRequest) -> Result<String, HostError> {
-            Err(HostError("no model in tests".into()))
+            Err(HostError::permanent("no model in tests"))
         }
         fn ask_bool(&self, _: LlmRequest) -> Result<Option<bool>, HostError> {
-            Err(HostError("no model in tests".into()))
+            Err(HostError::permanent("no model in tests"))
         }
         fn classify(&self, _: LlmRequest, _: &[String]) -> Result<Option<String>, HostError> {
-            Err(HostError("no model in tests".into()))
+            Err(HostError::permanent("no model in tests"))
         }
     }
     impl TableStore for Refuses {
@@ -459,22 +508,22 @@ pub mod testkit {
             Ok(Vec::new())
         }
         fn read(&self, _: &str) -> Result<Vec<Vec<(String, Value)>>, HostError> {
-            Err(HostError("no tables in tests".into()))
+            Err(HostError::permanent("no tables in tests"))
         }
         fn row_count(&self, _: &str) -> Result<u64, HostError> {
             Ok(0)
         }
         fn append(&self, _: &str, _: &[(String, Value)]) -> Result<(), HostError> {
-            Err(HostError("no tables in tests".into()))
+            Err(HostError::permanent("no tables in tests"))
         }
         fn set_cell(&self, _: &str, _: u64, _: &str, _: &Value) -> Result<(), HostError> {
-            Err(HostError("no tables in tests".into()))
+            Err(HostError::permanent("no tables in tests"))
         }
         fn delete_row(&self, _: &str, _: u64) -> Result<(), HostError> {
-            Err(HostError("no tables in tests".into()))
+            Err(HostError::permanent("no tables in tests"))
         }
         fn clear(&self, _: &str) -> Result<(), HostError> {
-            Err(HostError("no tables in tests".into()))
+            Err(HostError::permanent("no tables in tests"))
         }
     }
 

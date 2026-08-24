@@ -16,21 +16,21 @@ struct SetCell;
 
 impl<H: Host> NodeRun<H> for SetCell {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let table = table_name(cx.config).ok_or(NodeError("no table name".into()))?;
+        let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
         let column = cx
             .cfg_str("column")
             .map(str::trim)
             .filter(|s| !s.is_empty())
-            .ok_or(NodeError("no column".into()))?;
+            .ok_or(NodeError::new("no column"))?;
         // Not defaulted to row zero. A row index that failed to arrive would otherwise
         // overwrite the first row of the table, which is the worst possible guess.
         let row = cx
             .input_or_cfg("row")
             .as_ref()
             .and_then(Value::as_i64)
-            .ok_or(NodeError("no row index".into()))?;
+            .ok_or(NodeError::new("no row index"))?;
         if row < 0 {
-            return Err(NodeError(format!("row {row} is not a row")));
+            return Err(NodeError::new(format!("row {row} is not a row")));
         }
         let value = cx
             .input_or_cfg("value")
@@ -73,9 +73,9 @@ mod tests {
         };
         let err = r.run(&cx).unwrap_err();
         assert!(
-            err.0.contains("row index"),
+            err.message.contains("row index"),
             "defaulting to zero silently overwrites the first row: {}",
-            err.0
+            err.message
         );
     }
 }

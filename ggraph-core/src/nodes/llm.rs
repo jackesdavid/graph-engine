@@ -46,7 +46,7 @@ fn request<H: Host>(cx: &NodeCx<'_, H>, prompt_key: &str) -> Result<LlmRequest, 
         .and_then(Value::as_text)
         .unwrap_or_default();
     if prompt.trim().is_empty() {
-        return Err(NodeError("nothing to ask".into()));
+        return Err(NodeError::new("nothing to ask"));
     }
     Ok(LlmRequest {
         prompt,
@@ -162,7 +162,7 @@ impl<H: Host> NodeRun<H> for Extract {
             })
             .unwrap_or_default();
         if fields.is_empty() {
-            return Err(NodeError("no fields to extract".into()));
+            return Err(NodeError::new("no fields to extract"));
         }
         let source = cx
             .input_or_cfg("text")
@@ -295,7 +295,7 @@ mod tests {
             node: 1,
             host: &host,
         };
-        assert_eq!(r.run(&cx).unwrap_err(), NodeError("nothing to ask".into()));
+        assert_eq!(r.run(&cx).unwrap_err(), NodeError::new("nothing to ask"));
     }
 
     #[test]

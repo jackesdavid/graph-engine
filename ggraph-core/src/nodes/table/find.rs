@@ -27,16 +27,16 @@ struct Find;
 
 impl<H: Host> NodeRun<H> for Find {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let table = table_name(cx.config).ok_or(NodeError("no table name".into()))?;
+        let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
         let column = cx
             .cfg_str("column")
             .map(str::trim)
             .filter(|s| !s.is_empty())
-            .ok_or(NodeError("no column to match on".into()))?;
+            .ok_or(NodeError::new("no column to match on"))?;
         let Some(wanted) = cx.input_or_cfg("value") else {
             // Matching against nothing would return the first row with an empty cell, which is
             // a plausible-looking wrong answer.
-            return Err(NodeError("nothing to match against".into()));
+            return Err(NodeError::new("nothing to match against"));
         };
 
         let rows = cx.host.tables().read(&table)?;

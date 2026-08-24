@@ -31,13 +31,40 @@ use crate::value::{PortValues, Value};
 use serde_json::Value as Json;
 use std::sync::Arc;
 
-/// Something a node refused to do.
+/// Something a node refused to do, and whether trying again could help.
+///
+/// The default is [`Retry::Never`], and the asymmetry with [`HostError`] is the point: a *node*
+/// failing is normally about its inputs — a missing field, a value it cannot parse, an operator
+/// that makes no sense for the types — and none of that changes on a second attempt. A *host*
+/// failing is normally about the world, which does change. Both defaults are the safe direction
+/// for their side, and a caller that knows better overrides it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NodeError(pub String);
+pub struct NodeError {
+    pub retry: crate::host::Retry,
+    pub message: String,
+}
+
+impl NodeError {
+    /// It will fail the same way with the same inputs. The default.
+    pub fn new(message: impl Into<String>) -> Self {
+        NodeError {
+            retry: crate::host::Retry::Never,
+            message: message.into(),
+        }
+    }
+
+    /// The world got in the way; the same node with the same inputs might succeed later.
+    pub fn transient(message: impl Into<String>) -> Self {
+        NodeError {
+            retry: crate::host::Retry::Maybe,
+            message: message.into(),
+        }
+    }
+}
 
 impl std::fmt::Display for NodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.message)
     }
 }
 
@@ -45,17 +72,21 @@ impl std::error::Error for NodeError {}
 
 impl From<String> for NodeError {
     fn from(s: String) -> Self {
-        NodeError(s)
+        NodeError::new(s)
     }
 }
 impl From<&str> for NodeError {
     fn from(s: &str) -> Self {
-        NodeError(s.to_string())
+        NodeError::new(s)
     }
 }
 impl From<crate::host::HostError> for NodeError {
+    /// A host failure keeps the host's own judgement. The node did nothing wrong; the world did.
     fn from(e: crate::host::HostError) -> Self {
-        NodeError(e.0)
+        NodeError {
+            retry: e.retry,
+            message: e.message,
+        }
     }
 }
 
@@ -170,7 +201,7 @@ impl<H: Host> NodeCx<'_, H> {
     /// the name is a support ticket.
     pub fn require(&self, name: &str) -> Result<&Value, NodeError> {
         self.input(name)
-            .ok_or_else(|| NodeError(format!("missing required input {name:?}")))
+            .ok_or_else(|| NodeError::new(format!("missing required input {name:?}")))
     }
 
     /// A configuration string.

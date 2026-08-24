@@ -20,10 +20,10 @@ struct Append;
 
 impl<H: Host> NodeRun<H> for Append {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let table = table_name(cx.config).ok_or(NodeError("no table name".into()))?;
+        let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
         let cols = columns(cx.config);
         if cols.is_empty() {
-            return Err(NodeError("this table has no columns".into()));
+            return Err(NodeError::new("this table has no columns"));
         }
         // A column with nothing wired is written as an empty cell rather than skipped. A row
         // missing a column is a row that lines up with nothing when somebody opens the table.
@@ -92,7 +92,7 @@ mod tests {
             node: 1,
             host: &host,
         };
-        assert!(r.run(&cx).unwrap_err().0.contains("columns"));
+        assert!(r.run(&cx).unwrap_err().message.contains("columns"));
     }
 
     #[test]

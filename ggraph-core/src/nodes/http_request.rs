@@ -62,7 +62,7 @@ impl<H: Host> NodeRun<H> for Request {
             .and_then(Value::as_text)
             .unwrap_or_default();
         if url.is_empty() {
-            return Err(NodeError("no url".into()));
+            return Err(NodeError::new("no url"));
         }
         let method = cx.cfg_str("method").unwrap_or("GET").to_uppercase();
         let timeout_secs = cx
@@ -175,7 +175,7 @@ mod tests {
         // The distinction the node draws: this is `ok = false`, whereas a HostError — not
         // reaching the other end at all — is what stops the run.
         let unreachable: Result<HttpResponse, HostError> =
-            Err(HostError("connection refused".into()));
+            Err(HostError::new("connection refused"));
         assert!(unreachable.is_err());
     }
 }

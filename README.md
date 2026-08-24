@@ -52,6 +52,17 @@ that cannot branch or wait is a topology library.
 a file and one `register` call. In the codebase this was extracted from, it meant touching
 fourteen match arms across two files, and forgetting one of them was silent.
 
+**Nothing is declared that is not done.** A `NodeSpec` says a node has a timeout, so the
+scheduler abandons it when it overruns. A `GraphNode` says it is memoized, so it runs once per
+run however often a loop reaches it. An `Observer` is handed an elapsed time, so it is measured.
+For a while all three were declarations the scheduler ignored, which is worse than not offering
+them: a consumer sets `Timeout::Secs(30)` and believes it.
+
+**Errors say whether retrying could help.** `Retry::Maybe` or `Retry::Never`, carried from the
+node through `RunError`, so a durable host decides backoff from a value rather than by matching
+on error text. The defaults are asymmetric on purpose — a node failing is normally about its
+inputs, which do not change; a host failing is normally about the world, which does.
+
 **No I/O.** Four dependencies, none async, none a client of anything. Everything that touches
 the world — state, blobs, HTTP, a model, a person to approve something, the clock — arrives
 through the `Host` traits, implemented by the product. That is what lets nodes with durable
@@ -127,7 +138,7 @@ disk is always either a run in flight or nothing.
 ## Status
 
 Early, and honest about it. Topology, ports, values, the codec, the host seam, the registry, the
-scheduler with checkpointing, and twenty-one nodes are in place with 117 tests. Not there yet: a
+scheduler with checkpointing, and twenty-one nodes are in place with 125 tests. Not there yet: a
 persistence adapter (the `Host` traits against a real database), and retry with backoff.
 
 ## Licence

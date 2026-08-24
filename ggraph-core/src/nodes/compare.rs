@@ -53,7 +53,7 @@ impl<H: Host> NodeRun<H> for Compare {
         };
 
         let Some(verdict) = verdict else {
-            return Err(NodeError(format!(
+            return Err(NodeError::new(format!(
                 "cannot apply {op:?} to {} and {}",
                 a.port_type(),
                 b.port_type()

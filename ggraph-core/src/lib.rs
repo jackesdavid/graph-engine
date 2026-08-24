@@ -40,7 +40,7 @@ pub use exec::{run, Budget, Checkpoint, Entry, Outputs, RunError, RunOptions};
 pub use graph::{Edge, Graph, GraphMeta, GraphNode, PortLookup, Viewport, WireError};
 pub use host::{
     ApprovalRequest, Approvals, Host, HostError, Http, HttpRequest, HttpResponse, Llm, LlmRequest,
-    NodeTarget, Observer, RunKey, Slot, StateKey, StateStore, TableStore, UiEvent, ValueIo,
+    NodeTarget, Observer, Retry, RunKey, Slot, StateKey, StateStore, TableStore, UiEvent, ValueIo,
     Verdict,
 };
 pub use id::{NodeId, PortName};

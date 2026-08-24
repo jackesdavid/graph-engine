@@ -189,7 +189,7 @@ mod tests {
                 .unwrap()
                 .get(key)
                 .cloned()
-                .ok_or_else(|| crate::host::HostError("gone".into()))
+                .ok_or_else(|| crate::host::HostError::permanent("blob is gone"))
         }
     }
 

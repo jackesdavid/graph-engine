@@ -61,8 +61,8 @@ impl<H: Host> NodeStep<H> for Approval {
             .or_else(|| cx.cfg_str("audience").map(str::to_string))
             .unwrap_or_default();
         if audience.is_empty() {
-            return Err(NodeError(
-                "nobody to ask — wire `audience` or set it in the inspector".into(),
+            return Err(NodeError::new(
+                "nobody to ask — wire `audience` or set it in the inspector",
             ));
         }
         let prompt = cx
@@ -103,7 +103,7 @@ pub fn spec<H: Host>() -> NodeSpec<H> {
 mod tests {
     use super::*;
     use crate::host::testkit::TestHost;
-    use crate::host::HostError;
+    use crate::host::Retry;
     use crate::spec::Behavior;
     use serde_json::Value as Json;
     use uuid::Uuid;
@@ -139,9 +139,12 @@ mod tests {
         // TestHost refuses to deliver, so this also proves the refusal surfaces as an error
         // rather than as a silently unasked question.
         let err = step(cfg(), false, PortValues::new()).unwrap_err();
+        assert_eq!(err.message, "no approval channel in tests");
         assert_eq!(
-            err,
-            NodeError(HostError("no approval channel in tests".into()).0)
+            err.retry,
+            Retry::Never,
+            "an integration that is not configured will not configure itself on a retry, and a \
+             durable host must not sit in a backoff loop waiting for it to"
         );
     }
 
@@ -182,6 +185,6 @@ mod tests {
             PortValues::new(),
         )
         .unwrap_err();
-        assert!(err.0.contains("nobody to ask"));
+        assert!(err.message.contains("nobody to ask"));
     }
 }

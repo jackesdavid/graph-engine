@@ -20,7 +20,7 @@ struct Read;
 
 impl<H: Host> NodeRun<H> for Read {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let table = table_name(cx.config).ok_or(NodeError("no table name".into()))?;
+        let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
         let rows = cx.host.tables().read(&table)?;
         let mut out = PortValues::new();
         out.insert(PortName::new("count"), Value::int(rows.len() as i64));

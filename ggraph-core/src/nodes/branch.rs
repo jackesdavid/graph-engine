@@ -57,7 +57,7 @@ impl<H: Host> NodeRun<H> for Branch {
         if !wants_unknown(cx.config) {
             let v = cx.require("condition")?;
             if v.as_bool().is_none() {
-                return Err(NodeError(format!(
+                return Err(NodeError::new(format!(
                     "condition must be a boolean, got {}",
                     v.port_type()
                 )));
