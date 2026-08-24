@@ -21,6 +21,9 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all-targets
       - run: cargo test --doc
+      # The integration surface, run rather than only compiled. If implementing `Host` ever
+      # stops being a page of obvious safe code, this is where it shows.
+      - run: cargo run --example host
 
   # The two mechanical guards. Neither is a style preference: an engine shared by two products
   # loses its boundary gradually and invisibly, one convenient import at a time, and by the time

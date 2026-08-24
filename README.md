@@ -15,6 +15,25 @@ let out = g.add_node(NodeId::new_static("print"), 200, 0);
 g.add_edge(registry, fmt, "exec_out", out, "exec_in")?;
 ```
 
+## Using it
+
+Implementing `Host` is the whole integration surface — a page of obvious safe code. See
+[`ggraph-core/examples/host.rs`](ggraph-core/examples/host.rs), which CI runs rather than only
+compiles:
+
+```toml
+[dependencies]
+ggraph-core = { git = "ssh://git@github.com/jackesdavid/graph-engine.git", tag = "v0.1.0" }
+```
+
+While this repo is private, cargo's built-in git client cannot use an ssh-agent key. Add:
+
+```toml
+# .cargo/config.toml
+[net]
+git-fetch-with-cli = true
+```
+
 ## Why it exists
 
 Two products need the same engine and share nothing else: **OlharAI** (camera monitoring —
