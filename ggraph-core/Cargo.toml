@@ -1,0 +1,17 @@
+[package]
+name = "ggraph-core"
+description = "Topology, typed ports, values, node registry and execution for domain-agnostic graphs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Four dependencies, and that is the point. No tokio, no sqlx, no http client, no image crate.
+# Everything that touches the world arrives through the `Host` traits, implemented by the
+# product. A dependency added here is paid for by every consumer, forever.
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+smol_str.workspace = true
+uuid.workspace = true

@@ -1,0 +1,21 @@
+# ggraph — a domain-agnostic graph execution engine.
+#
+# One workspace, versions moving in lockstep, one tag per release. Two consumers today:
+# OlharAI/Sentinel (camera monitoring, continuous dataflow) and Redoma (local AI platform,
+# durable task runs). Neither product's vocabulary may appear in here — see CONTRIBUTING.
+[workspace]
+members = ["ggraph-core"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jackesdavid/graph-engine"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+smol_str = { version = "0.3", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }

@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all-targets
+      - run: cargo test --doc
+
+  # The two mechanical guards. Neither is a style preference: an engine shared by two products
+  # loses its boundary gradually and invisibly, one convenient import at a time, and by the time
+  # anyone notices it is a refactor in two codebases at once. A grep catches it on the day.
+  agnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. No product vocabulary. If a domain noun is needed in here, the design is wrong: the
+      #    product registers its own node, its own port type and its own value.
+      - name: no domain vocabulary
+        run: |
+          set -o pipefail
+          words='camera|rtsp|onvif|frame_grab|face_embedding|detection|tenant|pdf|docx|chunk|embedding|invoice|corpus'
+          if grep -rniE "\b($words)\b" --include='*.rs' ggraph-core/src | grep -v '^\S*:\s*//'; then
+            echo "::error::domain vocabulary in the engine core (see the lines above)"
+            exit 1
+          fi
+          echo "clean"
+
+      # 2. No runtime, no I/O client. The execution model must not leak into the topology, and a
+      #    dependency added here is paid for by every consumer forever.
+      - name: no runtime and no I/O dependencies
+        run: |
+          set -o pipefail
+          banned='tokio|async-std|sqlx|reqwest|ureq|hyper|image|tract'
+          if cargo tree -p ggraph-core --edges normal --prefix none 2>/dev/null \
+             | awk '{print $1}' | sort -u | grep -qE "^($banned)$"; then
+            echo "::error::ggraph-core grew a runtime or an I/O dependency"
+            cargo tree -p ggraph-core --edges normal
+            exit 1
+          fi
+          echo "clean"
