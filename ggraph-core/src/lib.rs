@@ -46,9 +46,13 @@ pub use host::{
 pub use id::{NodeId, PortName};
 pub use port::{compatible, Port, PortType, EXEC_IN, EXEC_OUT};
 pub use registry::{NodeRegistry, RegistryError};
+/// Re-exported because it appears in this crate's public API (`Host::instance_key`,
+/// `NodeTarget::instance`). A consumer must not have to guess which version to depend on, nor
+/// end up with two that do not unify.
+pub use smol_str::SmolStr;
 pub use spec::{
-    Behavior, ConfigFn, ExecOut, NodeCx, NodeError, NodeRoute, NodeRun, NodeSpec, NodeStep,
-    Ports, PortsFn, Purity, Step, StepCx, Timeout,
+    Behavior, ConfigFn, ExecOut, NodeCx, NodeError, NodeRoute, NodeRun, NodeSpec, NodeStep, Ports,
+    PortsFn, Purity, Step, StepCx, Timeout,
 };
 pub use topo::{back_edges, entry_nodes, ordering_pairs, topo_order};
 pub use value::{Bytes, ExternValue, Num, PortValues, Value};
