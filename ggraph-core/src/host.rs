@@ -283,11 +283,10 @@ pub fn input<'a>(inputs: &'a PortValues, name: &str) -> Option<&'a Value> {
     inputs.get(&PortName::new(name))
 }
 
-#[cfg(test)]
 // The test surface is deliberately wider than any single test uses: `advance` and `inner`
 // are how a scheduler test moves a time window and reads back what was scheduled.
 #[allow(dead_code)]
-pub(crate) mod testkit {
+pub mod testkit {
     //! A host that does nothing, for testing nodes and topology.
     //!
     //! Its value is that it is *complete*: a node test needs no database, no blob store, no
