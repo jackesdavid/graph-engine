@@ -442,6 +442,178 @@
       "slug": "print"
     },
     {
+      "category": "Tables",
+      "default_config": {
+        "columns": [],
+        "table": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "label": "Add a Row",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "table_append"
+    },
+    {
+      "category": "Tables",
+      "default_config": {
+        "table": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "label": "Empty a Table",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "table_clear"
+    },
+    {
+      "category": "Tables",
+      "default_config": {
+        "table": ""
+      },
+      "inputs": [],
+      "label": "Count Rows",
+      "outputs": [
+        {
+          "name": "count",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "table_count"
+    },
+    {
+      "category": "Tables",
+      "default_config": {
+        "column": "",
+        "table": "",
+        "value": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "value",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Find a Row",
+      "outputs": [
+        {
+          "name": "found",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "missing",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "row",
+          "required": false,
+          "type": "dictionary"
+        },
+        {
+          "name": "index",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "table_find"
+    },
+    {
+      "category": "Tables",
+      "default_config": {
+        "table": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "label": "Read a Table",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "rows",
+          "required": false,
+          "type": "list"
+        },
+        {
+          "name": "count",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "table_read"
+    },
+    {
+      "category": "Tables",
+      "default_config": {
+        "column": "",
+        "row": "",
+        "table": "",
+        "value": ""
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "row",
+          "required": true,
+          "type": "num"
+        },
+        {
+          "name": "value",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "label": "Change a Cell",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        }
+      ],
+      "slug": "table_set_cell"
+    },
+    {
       "category": "Variables",
       "default_config": {
         "variable": ""

@@ -20,6 +20,7 @@ pub mod format;
 pub mod http_request;
 pub mod llm;
 pub mod print;
+pub mod table;
 pub mod variables;
 pub mod wait;
 
@@ -37,6 +38,12 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(llm::extract_spec());
     reg.register(format::spec());
     reg.register(print::spec());
+    reg.register(table::append::spec());
+    reg.register(table::clear::spec());
+    reg.register(table::count::spec());
+    reg.register(table::find::spec());
+    reg.register(table::read::spec());
+    reg.register(table::set_cell::spec());
     reg.register(variables::get_spec());
     reg.register(variables::set_spec());
     reg.register(wait::spec());

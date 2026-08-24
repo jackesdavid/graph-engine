@@ -1,0 +1,68 @@
+//! `table_clear` — empty a table.
+//!
+//! The only node in the standard set that destroys data on purpose, so it says which table in
+//! its log line and refuses to run without one. There is no "clear the table this is wired to"
+//! form: an emptied table because a wire carried the wrong name is not recoverable from a
+//! canvas.
+
+use super::table_name;
+use crate::host::Host;
+use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Timeout};
+use crate::value::PortValues;
+use serde_json::json;
+
+struct Clear;
+
+impl<H: Host> NodeRun<H> for Clear {
+    fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+        let table = table_name(cx.config).ok_or(NodeError("no table name".into()))?;
+        cx.host.tables().clear(&table)?;
+        Ok(PortValues::new())
+    }
+
+    fn summary(&self, cx: &NodeCx<'_, H>, _out: &PortValues) -> String {
+        format!("emptied {}", table_name(cx.config).unwrap_or_default())
+    }
+}
+
+pub fn spec<H: Host>() -> NodeSpec<H> {
+    NodeSpec::effectful("table_clear", "Empty a Table", "Tables")
+        .with_config(|| json!({ "table": "" }))
+        .with_timeout(Timeout::Secs(30))
+        .running(Clear)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::host::testkit::TestHost;
+    use crate::spec::Behavior;
+
+    #[test]
+    fn it_will_not_run_without_a_table_name() {
+        let s: NodeSpec<TestHost> = spec();
+        let Behavior::Run(r) = &s.behavior else {
+            unreachable!()
+        };
+        let host = TestHost::new();
+        let cfg = json!({ "table": "" });
+        let inputs = PortValues::new();
+        let cx = NodeCx {
+            config: &cfg,
+            inputs: &inputs,
+            node: 1,
+            host: &host,
+        };
+        assert!(r.run(&cx).is_err());
+    }
+
+    #[test]
+    fn the_table_is_named_in_the_config_not_taken_from_a_wire() {
+        let s: NodeSpec<TestHost> = spec();
+        assert!(
+            s.inputs.resolve(&json!({})).is_empty(),
+            "an emptied table because a wire carried the wrong name is not recoverable from a \
+             canvas"
+        );
+    }
+}

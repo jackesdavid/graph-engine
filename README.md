@@ -64,7 +64,7 @@ ggraph-core/src/
 
 ## The standard set
 
-Fifteen nodes so far, and they exist to prove the design as much as to be useful:
+Twenty-one nodes so far, and they exist to prove the design as much as to be useful:
 
 | | |
 |---|---|
@@ -74,6 +74,7 @@ Fifteen nodes so far, and they exist to prove the design as much as to be useful
 | Variables | `get_variable` · `set_variable` |
 | Network | `http_request` |
 | AI | `ask_llm` · `llm_decide` · `llm_extract` |
+| Tables | `table_append` · `table_read` · `table_count` · `table_find` · `table_set_cell` · `table_clear` |
 | Debug | `print` |
 
 `wait`, `approval` and `debounce` are the ones that matter for the architecture: none of them
@@ -89,8 +90,8 @@ thing to whichever one it collapsed.
 ## Status
 
 Early, and honest about it. Topology, ports, values, the host seam, the registry, the scheduler
-and fifteen nodes are in place with 92 tests. Not there yet: durable run checkpointing (resume a
-crashed run from the node it died on), the table nodes, and the persistence adapter.
+and twenty-one nodes are in place with 100 tests. Not there yet: durable run checkpointing
+(resume a crashed run from the node it died on) and a persistence adapter.
 
 ## Licence
 
