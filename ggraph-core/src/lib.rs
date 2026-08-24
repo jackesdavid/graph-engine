@@ -23,6 +23,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod codec;
 pub mod exec;
 pub mod graph;
 pub mod host;
@@ -34,7 +35,8 @@ pub mod spec;
 pub mod topo;
 pub mod value;
 
-pub use exec::{run, Budget, Entry, Outputs, RunError};
+pub use codec::{decode, decode_ports, encode, encode_ports};
+pub use exec::{run, Budget, Checkpoint, Entry, Outputs, RunError, RunOptions};
 pub use graph::{Edge, Graph, GraphMeta, GraphNode, PortLookup, Viewport, WireError};
 pub use host::{
     ApprovalRequest, Approvals, Host, HostError, Http, HttpRequest, HttpResponse, Llm, LlmRequest,

@@ -58,7 +58,8 @@ ggraph-core/src/
   host.rs      the seam: StateStore, Observer, ValueIo, Approvals, Http, Llm, TableStore
   spec.rs      NodeSpec — one declaration per node, and the three behaviours
   registry.rs  where a product's nodes meet the engine
-  exec.rs      the scheduler: epochs, dead branches, pull-not-push
+  codec.rs     how a value survives a restart — and when it should not
+  exec.rs      the scheduler: epochs, dead branches, pull-not-push, checkpointing
   nodes/       the standard set, one file each
 ```
 
@@ -87,11 +88,28 @@ A theme runs through several of them. `if` has a third arm, `llm_decide` has a t
 graph that cannot see the difference between "no" and "could not tell" quietly does the wrong
 thing to whichever one it collapsed.
 
+## One scheduler, two kinds of run
+
+The two consumers look like they need different engines — one is continuous dataflow with
+millisecond nodes and ephemeral state, the other is task orchestration with runs that pause for
+a person and must survive a restart. They do not. What differs is not how nodes are ordered but
+**how often the run is committed**, which is a policy:
+
+```rust
+RunOptions::default()   // Checkpoint::None      — nothing written while the run is in flight
+RunOptions::durable()   // Checkpoint::EveryNode — each node committed as it completes
+```
+
+Under `EveryNode`, a resumption reads back what the interrupted run produced and does **not**
+re-execute the nodes that produced it. For a workflow that has already sent mail, running it
+again is not a recoverable mistake. Checkpoints are cleared when a run finishes, so what is on
+disk is always either a run in flight or nothing.
+
 ## Status
 
-Early, and honest about it. Topology, ports, values, the host seam, the registry, the scheduler
-and twenty-one nodes are in place with 100 tests. Not there yet: durable run checkpointing
-(resume a crashed run from the node it died on) and a persistence adapter.
+Early, and honest about it. Topology, ports, values, the codec, the host seam, the registry, the
+scheduler with checkpointing, and twenty-one nodes are in place with 117 tests. Not there yet: a
+persistence adapter (the `Host` traits against a real database), and retry with backoff.
 
 ## Licence
 

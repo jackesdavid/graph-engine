@@ -93,6 +93,50 @@ impl Default for Budget {
     }
 }
 
+/// When a run's progress is written down.
+///
+/// The two schedulers the plan called for — one for continuous dataflow, one for durable task
+/// runs — turned out to be one scheduler and this enum. What actually differs between them is
+/// not how nodes are ordered but how often the run is committed, and that is a policy the host
+/// chooses rather than a second implementation to keep in step with the first.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Checkpoint {
+    /// Nothing is written while the run is in flight.
+    ///
+    /// Right for runs measured in milliseconds, where a lost run is simply the next frame's
+    /// problem, and where a write per node would cost more than the work.
+    #[default]
+    None,
+
+    /// Each node's outputs are written as it produces them, and a resumption reads them back.
+    ///
+    /// This is what makes a run survive the process it started in. A node that already ran is
+    /// restored rather than re-executed, which is the difference between resuming a workflow
+    /// and running it again — and for a workflow that sends mail, running it again is not a
+    /// recoverable mistake.
+    ///
+    /// The checkpoints are cleared when the run finishes, so what is on disk is always either a
+    /// run in flight or nothing.
+    EveryNode,
+}
+
+/// How to run.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RunOptions {
+    pub budget: Budget,
+    pub checkpoint: Checkpoint,
+}
+
+impl RunOptions {
+    /// Every node committed as it completes — a run that survives a restart.
+    pub fn durable() -> Self {
+        RunOptions {
+            checkpoint: Checkpoint::EveryNode,
+            ..Self::default()
+        }
+    }
+}
+
 /// Where a run begins.
 #[derive(Clone, Debug, Default)]
 pub struct Entry {
@@ -114,9 +158,10 @@ pub fn run<M: GraphMeta, H: Host<Meta = M>>(
     reg: &NodeRegistry<H>,
     host: &H,
     entry: &Entry,
-    budget: Budget,
+    opts: &RunOptions,
 ) -> Result<Outputs, RunError> {
     let instance = host.instance_key(&graph.meta, &entry.payload);
+    let budget = opts.budget;
 
     let back = back_edges(graph);
     let pairs = ordering_pairs(graph, &back);
@@ -128,6 +173,7 @@ pub fn run<M: GraphMeta, H: Host<Meta = M>>(
     }
 
     let mut st = State {
+        checkpoint: opts.checkpoint,
         outputs: Outputs::new(),
         ran: HashSet::new(),
         live_arms: HashSet::new(),
@@ -139,6 +185,13 @@ pub fn run<M: GraphMeta, H: Host<Meta = M>>(
     // The first epoch's entry set: an explicit resumption, or everything control can start at.
     let mut forced: HashSet<u32> = entry.at.iter().copied().collect();
     let seed_entries = forced.is_empty();
+
+    // A resumption reads back what the interrupted run had already produced. Only on a
+    // resumption: seeding a fresh run from a previous one's leftovers would make stale values
+    // look live and revive branches the engine deliberately left dead.
+    if !seed_entries && st.checkpoint == Checkpoint::EveryNode {
+        restore(graph, reg, host, &instance, &forced, &mut st);
+    }
 
     loop {
         let reentries = epoch(
@@ -161,10 +214,59 @@ pub fn run<M: GraphMeta, H: Host<Meta = M>>(
         forced = reentries.into_iter().collect();
     }
 
+    // A run that ended has nothing left to resume. A halted one does — it is waiting for a
+    // person or a timer — so its checkpoints stay exactly where they are.
+    if !st.halted && st.checkpoint == Checkpoint::EveryNode {
+        for node in &graph.nodes {
+            host.state()
+                .clear(&values_key(graph.id, node.id, &instance));
+        }
+    }
+
     Ok(st.outputs)
 }
 
+fn values_key(graph: uuid::Uuid, node: u32, instance: &str) -> crate::host::StateKey {
+    crate::host::StateKey {
+        target: crate::host::NodeTarget {
+            graph,
+            node,
+            instance: smol_str::SmolStr::new(instance),
+        },
+        slot: crate::host::Slot::Values,
+    }
+}
+
+/// Seed the run with what the interrupted one already did.
+fn restore<M: GraphMeta, H: Host<Meta = M>>(
+    graph: &Graph<M>,
+    reg: &NodeRegistry<H>,
+    host: &H,
+    instance: &str,
+    forced: &HashSet<u32>,
+    st: &mut State,
+) {
+    for node in &graph.nodes {
+        // The node being re-entered is the one that was waiting. It runs again, with the answer
+        // — restoring its old outputs would hand it the state it had before it asked.
+        if forced.contains(&node.id) {
+            continue;
+        }
+        let Some(j) = host.state().get(&values_key(graph.id, node.id, instance)) else {
+            continue;
+        };
+        st.outputs.insert(
+            node.id,
+            crate::codec::decode_ports(&j, host.io(), reg.decoders()),
+        );
+        // Marked as run, so it is not executed a second time. That is the whole point: a
+        // resumption must not repeat what already happened.
+        st.ran.insert(node.id);
+    }
+}
+
 struct State {
+    checkpoint: Checkpoint,
     outputs: Outputs,
     ran: HashSet<u32>,
     /// `(node, arm)` pairs that fired **in the current epoch**, and only it.
@@ -332,6 +434,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             let out = runner.run(&cx).map_err(|e| fail(e.0))?;
             let summary = runner.summary(&cx, &out);
             host.observer().node_finished(nid, &summary, 0);
+            record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
             st.ran.insert(nid);
             fire_default(spec, nid, &node.config, st);
@@ -357,6 +460,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             for a in arms {
                 st.live_arms.insert((nid, a));
             }
+            record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
             st.ran.insert(nid);
             Ok(false)
@@ -389,6 +493,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             for a in &step.arms {
                 st.live_arms.insert((nid, a.clone()));
             }
+            record(host, graph.id, nid, instance, &step.outputs, st);
             st.outputs.insert(nid, step.outputs);
             st.ran.insert(nid);
             if step.halt {
@@ -397,6 +502,22 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             Ok(step.reenter)
         }
     }
+}
+
+/// Commit a node's outputs, if this run is committing them.
+fn record<H: Host>(
+    host: &H,
+    graph: uuid::Uuid,
+    nid: u32,
+    instance: &str,
+    out: &PortValues,
+    st: &State,
+) {
+    if st.checkpoint != Checkpoint::EveryNode {
+        return;
+    }
+    let j = crate::codec::encode_ports(out, host.io());
+    host.state().set(&values_key(graph, nid, instance), &j);
 }
 
 /// Fire the node's exec arms for a node that does not choose them itself.

@@ -7,7 +7,7 @@
 //! They are also the documentation that cannot go stale — every one of them is a graph somebody
 //! could build in the editor.
 
-use ggraph_core::exec::{output, Budget, Entry};
+use ggraph_core::exec::{output, Budget, Entry, RunOptions};
 use ggraph_core::host::testkit::TestHost;
 use ggraph_core::{Graph, NodeId, NodeRegistry, RunError};
 use serde_json::json;
@@ -51,7 +51,7 @@ impl Built {
             &self.reg,
             &self.host,
             &Entry::default(),
-            Budget::default(),
+            &RunOptions::default(),
         )
     }
 
@@ -172,7 +172,10 @@ fn the_step_ceiling_stops_a_run_and_says_so() {
         &b.reg,
         &b.host,
         &Entry::default(),
-        Budget { max_steps: 5 },
+        &RunOptions {
+            budget: Budget { max_steps: 5 },
+            ..RunOptions::default()
+        },
     )
     .expect_err("a run past its ceiling must fail");
     assert!(matches!(err, RunError::Budget { limit: 5 }), "got {err:?}");

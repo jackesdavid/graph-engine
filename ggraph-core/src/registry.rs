@@ -120,6 +120,11 @@ impl<H: Host> NodeRegistry<H> {
         self.decoders.insert(tag, f);
     }
 
+    /// The decoder table, for the codec.
+    pub fn decoders(&self) -> &HashMap<&'static str, Decoder> {
+        &self.decoders
+    }
+
     pub fn decode(&self, tag: &str, body: &Json, io: &dyn ValueIo) -> Option<Value> {
         self.decoders.get(tag).and_then(|f| f(body, io))
     }
