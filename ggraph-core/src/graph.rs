@@ -22,7 +22,7 @@ use crate::port::{compatible, Port};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 /// A product's per-graph policy. `()` for a product that has none.
@@ -55,9 +55,6 @@ pub struct GraphNode {
     pub y: i32,
     #[serde(default = "empty_object")]
     pub config: Json,
-    /// Run once per run and reuse the result, even if reached again through a loop.
-    #[serde(default)]
-    pub memoize: bool,
 }
 
 fn empty_object() -> Json {
@@ -72,7 +69,6 @@ impl GraphNode {
             x,
             y,
             config: json!({}),
-            memoize: false,
         }
     }
 }
@@ -83,28 +79,6 @@ pub struct Edge {
     pub from_port: PortName,
     pub to: u32,
     pub to_port: PortName,
-}
-
-/// Where the canvas was left. View state, not behaviour — but it belongs to the document,
-/// because reopening a graph somewhere else and finding it scrolled to the origin is a bug.
-///
-/// `f64` rather than `f32`: these are read back from JSON, where a number is a double, and
-/// narrowing on the way in means a pan position that does not survive a round trip.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Viewport {
-    pub x: f64,
-    pub y: f64,
-    pub zoom: f64,
-}
-
-impl Default for Viewport {
-    fn default() -> Self {
-        Viewport {
-            x: 0.0,
-            y: 0.0,
-            zoom: 1.0,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -123,11 +97,11 @@ pub struct Graph<M: GraphMeta = ()> {
     /// The next node id to hand out. Node ids are never reused: a stale reference must fail to
     /// resolve rather than silently point at a different node.
     pub next_id: u32,
-    #[serde(default)]
-    pub viewport: Viewport,
-    /// Hand-routed waypoints per edge, for readability on a busy canvas. Pure geometry.
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub edge_vias: HashMap<String, Vec<[i32; 2]>>,
+    /// The product's own per-graph fields, spliced into the same JSON object.
+    ///
+    /// Everything that is not topology lives here: what triggers the graph, how many may run at
+    /// once, where the canvas was scrolled to. The engine has no canvas and no opinion about
+    /// triggers, and a shared struct that carried them would have both.
     #[serde(flatten)]
     pub meta: M,
 }
@@ -177,8 +151,6 @@ impl<M: GraphMeta> Graph<M> {
             nodes: Vec::new(),
             edges: Vec::new(),
             next_id: 1,
-            viewport: Viewport::default(),
-            edge_vias: HashMap::new(),
             meta: M::default(),
         }
     }

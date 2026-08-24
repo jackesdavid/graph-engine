@@ -1,9 +1,10 @@
 //! Things the engine declares, verified to actually happen.
 //!
-//! A `NodeSpec` says a node has a timeout. A `GraphNode` says it is memoized. An `Observer` is
-//! handed an elapsed time. All three were, for a while, declarations the scheduler ignored —
-//! which is worse than not offering them, because a consumer sets `Timeout::Secs(30)` and
-//! believes it.
+//! A `NodeSpec` says a node has a timeout and an `Observer` is handed an elapsed time. Both
+//! were, for a while, declarations the scheduler ignored — which is worse than not offering
+//! them, because a consumer sets `Timeout::Secs(30)` and believes it.
+//!
+//! A third one, `memoize`, was deleted instead of implemented. See the loop test below.
 //!
 //! These tests exist so that stays fixed.
 
@@ -126,35 +127,22 @@ fn the_observer_is_handed_a_real_elapsed_time() {
     );
 }
 
+/// A node reached twice runs twice. There is no per-node opt-out, and there should not be.
+///
+/// There was one — `memoize`, "run once per run and reuse the result". It was deleted rather
+/// than kept, because the distinction it tried to express is already made correctly and
+/// automatically by the two ways a node can be reached: **control** flow reaches an effectful
+/// node, and reaching it again means run it again (that is what "inside a loop" means), while a
+/// **pure** node is pulled by whoever reads it and pulled once (that is what fan-out means).
+///
+/// A flag on top of that could only disagree with it. In the codebase this engine came from it
+/// mostly did: set on a looping node it silently stopped the loop after one pass, and the engine
+/// logged a warning telling the operator to turn it off again.
 #[test]
-fn a_memoized_node_runs_once_however_often_a_loop_reaches_it() {
+fn a_node_in_a_loop_runs_on_every_pass() {
     let counter = Counter::default();
     let reg = registry(counter.clone());
-    let mut g: Graph = Graph::new("memo");
-
-    let each = g.add_node(NodeId::new("for_each"), 0, 0);
-    g.node_mut(each).unwrap().config = json!({ "items": "a,b,c" });
-    let once = g.add_node(NodeId::new("counter"), 200, 0);
-    g.node_mut(once).unwrap().memoize = true;
-    g.add_edge(&reg, each, "loop_body", once, "exec_in")
-        .unwrap();
-
-    let host = TestHost::new();
-    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default()).expect("runs");
-
-    assert_eq!(
-        counter.0.load(Ordering::SeqCst),
-        1,
-        "three passes through the loop, one execution — that is what memoize is for: reading a \
-         table once and iterating it, rather than re-reading it every pass"
-    );
-}
-
-#[test]
-fn without_memoize_a_loop_body_runs_every_pass() {
-    let counter = Counter::default();
-    let reg = registry(counter.clone());
-    let mut g: Graph = Graph::new("no memo");
+    let mut g: Graph = Graph::new("loop body");
 
     let each = g.add_node(NodeId::new("for_each"), 0, 0);
     g.node_mut(each).unwrap().config = json!({ "items": "a,b,c" });
@@ -168,7 +156,7 @@ fn without_memoize_a_loop_body_runs_every_pass() {
     assert_eq!(
         counter.0.load(Ordering::SeqCst),
         3,
-        "the default has to stay 'run it', or every loop body silently becomes a no-op"
+        "three items, three executions — an opt-out here is how a loop body becomes a no-op"
     );
 }
 

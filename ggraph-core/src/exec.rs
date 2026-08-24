@@ -371,13 +371,6 @@ fn should_run<M: GraphMeta, H: Host>(
     if forced.contains(&nid) {
         return true;
     }
-
-    // A memoized node runs once per run and its result is reused, even when control reaches it
-    // again through a loop. This is how a graph reads a table once and iterates it, rather than
-    // re-reading it on every pass.
-    if graph.node(nid).is_some_and(|n| n.memoize) && st.ran.contains(&nid) {
-        return false;
-    }
     // Note there is no "already ran" guard here. A node reached again through a different arm
     // may legitimately run again — that is what a join inside a loop is — and the thing that
     // stops runaway repetition is the step budget, which reports itself, rather than a silent

@@ -37,7 +37,7 @@ pub mod value;
 
 pub use codec::{decode, decode_ports, encode, encode_ports};
 pub use exec::{run, Budget, Checkpoint, Entry, Outputs, RunError, RunOptions};
-pub use graph::{Edge, Graph, GraphMeta, GraphNode, PortLookup, Viewport, WireError};
+pub use graph::{Edge, Graph, GraphMeta, GraphNode, PortLookup, WireError};
 pub use host::{
     ApprovalRequest, Approvals, Host, HostError, Http, HttpRequest, HttpResponse, Llm, LlmRequest,
     NodeTarget, Observer, Retry, RunKey, Slot, StateKey, StateStore, TableStore, UiEvent, ValueIo,
