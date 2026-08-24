@@ -163,7 +163,7 @@ pub struct NodeCx<'a, H: Host> {
 
 impl<H: Host> NodeCx<'_, H> {
     pub fn input(&self, name: &str) -> Option<&Value> {
-        self.inputs.get(&PortName::new(name))
+        self.inputs.get(name)
     }
 
     /// An input that must be there. The error names the port, because "missing input" without
@@ -291,7 +291,7 @@ pub struct StepCx<'a, H: Host> {
 
 impl<H: Host> StepCx<'_, H> {
     pub fn input(&self, name: &str) -> Option<&Value> {
-        self.inputs.get(&PortName::new(name))
+        self.inputs.get(name)
     }
 
     pub fn cfg_str(&self, key: &str) -> Option<&str> {

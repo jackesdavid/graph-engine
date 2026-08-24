@@ -78,6 +78,34 @@ macro_rules! str_id {
         impl PartialEq<&str> for $name {
             fn eq(&self, other: &&str) -> bool { self.0.as_str() == *other }
         }
+
+        impl PartialEq<String> for $name {
+            fn eq(&self, other: &String) -> bool { self.0.as_str() == other.as_str() }
+        }
+
+        // The reversed directions too. Equality that only works one way around is a trap
+        // people fall into once each and then work around by reordering the operands.
+        impl PartialEq<$name> for str {
+            fn eq(&self, other: &$name) -> bool { self == other.0.as_str() }
+        }
+
+        impl PartialEq<$name> for &str {
+            fn eq(&self, other: &$name) -> bool { *self == other.0.as_str() }
+        }
+
+        impl PartialEq<$name> for String {
+            fn eq(&self, other: &$name) -> bool { self.as_str() == other.0.as_str() }
+        }
+
+        /// Lets a `HashMap` keyed by this type be looked up with a plain `&str`.
+        ///
+        /// `PortValues` is keyed by [`PortName`], and every node reads its inputs by name.
+        /// Without this each read allocates a `PortName` to throw away immediately — and worse,
+        /// the obvious `map.get(name)` simply does not compile, which pushes callers into
+        /// building the key by hand at every site.
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str { self.0.as_str() }
+        }
     };
 }
 
@@ -112,6 +140,31 @@ mod tests {
         );
         let back: NodeId = serde_json::from_str("\"camera_snapshot\"").unwrap();
         assert_eq!(back, id);
+    }
+
+    #[test]
+    // The owned strings are the point: this asserts the impls exist, not that they are the
+    // efficient way to compare.
+    #[allow(clippy::cmp_owned)]
+    fn equality_with_a_string_works_in_both_directions() {
+        let id = NodeId::new_static("if");
+        assert!(id == "if");
+        assert!("if" == id);
+        assert!(String::from("if") == id);
+        assert!(id == String::from("if"));
+    }
+
+    #[test]
+    fn a_map_keyed_by_a_name_is_readable_with_a_plain_str() {
+        // Hash and Eq have to agree with the borrowed form for this to be sound; the assertion
+        // is that a lookup actually finds the entry, which is what proves they do.
+        let mut m = std::collections::HashMap::new();
+        m.insert(PortName::new_static("condition"), 1);
+        assert_eq!(
+            m.get("condition"),
+            Some(&1),
+            "without Borrow<str> every input read allocates a key to throw away"
+        );
     }
 
     #[test]

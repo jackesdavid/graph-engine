@@ -221,7 +221,7 @@ impl Verdict {
     /// The verdict an entry payload is delivering, if it is delivering one.
     pub fn from_payload(payload: &PortValues) -> Option<Verdict> {
         payload
-            .get(&PortName::new(VERDICT_PORT))
+            .get(VERDICT_PORT)
             .and_then(Value::as_text)
             .and_then(|s| Verdict::parse(&s))
     }
@@ -329,7 +329,7 @@ pub trait Host: Send + Sync + Clone + 'static {
 
 /// A convenience for nodes: read an input by name.
 pub fn input<'a>(inputs: &'a PortValues, name: &str) -> Option<&'a Value> {
-    inputs.get(&PortName::new(name))
+    inputs.get(name)
 }
 
 // The test surface is deliberately wider than any single test uses: `advance` and `inner`
