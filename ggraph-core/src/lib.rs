@@ -26,6 +26,7 @@
 pub mod graph;
 pub mod host;
 pub mod id;
+pub mod nodes;
 pub mod port;
 pub mod registry;
 pub mod spec;
