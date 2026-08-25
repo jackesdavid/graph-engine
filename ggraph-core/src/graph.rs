@@ -92,8 +92,15 @@ pub struct Edge {
 ))]
 pub struct Graph<M: GraphMeta = ()> {
     pub id: Uuid,
+    #[serde(default)]
     pub name: String,
+    /// Defaulted, like `edges`, so a document written before a field existed — or by hand, or by
+    /// a migration that only cared about one part — still loads. A graph that fails to
+    /// deserialize takes its whole tenant's list down with it, and "no nodes" is a perfectly
+    /// readable graph.
+    #[serde(default)]
     pub nodes: Vec<GraphNode>,
+    #[serde(default)]
     pub edges: Vec<Edge>,
     /// The next node id to hand out. Node ids are never reused: a stale reference must fail to
     /// resolve rather than silently point at a different node.
