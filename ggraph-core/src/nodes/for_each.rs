@@ -85,6 +85,7 @@ mod tests {
     use super::*;
     use crate::host::testkit::TestHost;
     use crate::spec::Behavior;
+    use crate::spec::Next;
     use uuid::Uuid;
 
     /// Drive the node the way a scheduler would: step it until it stops re-entering.

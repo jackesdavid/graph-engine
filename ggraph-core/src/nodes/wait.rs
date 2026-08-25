@@ -56,6 +56,7 @@ mod tests {
     use super::*;
     use crate::host::testkit::TestHost;
     use crate::spec::Behavior;
+    use crate::spec::Next;
     use crate::value::PortValues;
     use serde_json::Value as Json;
     use uuid::Uuid;

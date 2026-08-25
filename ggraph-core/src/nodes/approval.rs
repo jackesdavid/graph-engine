@@ -105,6 +105,7 @@ mod tests {
     use crate::host::testkit::TestHost;
     use crate::host::Retry;
     use crate::spec::Behavior;
+    use crate::spec::Next;
     use serde_json::Value as Json;
     use uuid::Uuid;
 
