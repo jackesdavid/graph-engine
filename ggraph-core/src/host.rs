@@ -191,6 +191,7 @@ pub trait Literals: Send + Sync {
 /// Nothing is read from configuration: every value arrives on a wire, or the node reads its own
 /// config through [`NodeCx::input_or_cfg`](crate::spec::NodeCx::input_or_cfg). Fine for a small
 /// node set; it stops scaling at roughly the point where every node has to remember to do it.
+#[derive(Debug)]
 pub struct NoLiterals;
 
 impl Literals for NoLiterals {
