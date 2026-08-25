@@ -70,7 +70,7 @@ impl<H: Host> NodeStep<H> for ForEach {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("for_each", "For Each", "Control")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
@@ -90,7 +90,7 @@ mod tests {
 
     /// Drive the node the way a scheduler would: step it until it stops re-entering.
     fn drive(items_cfg: Json, wired: Option<Value>) -> (Vec<String>, Vec<String>) {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Step(node) = &s.behavior else {
             panic!("for_each must cooperate with the scheduler")
         };
@@ -106,6 +106,7 @@ mod tests {
         let mut arms = Vec::new();
         for _ in 0..50 {
             let mut cx = StepCx {
+                vars: Default::default(),
                 config: &items_cfg,
                 inputs: &inputs,
                 node: 1,
@@ -158,7 +159,7 @@ mod tests {
 
     #[test]
     fn finishing_resets_so_an_outer_loop_can_run_it_again() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Step(node) = &s.behavior else {
             unreachable!()
         };
@@ -172,6 +173,7 @@ mod tests {
             let mut arms = Vec::new();
             for _ in 0..10 {
                 let mut cx = StepCx {
+                    vars: Default::default(),
                     config: &cfg,
                     inputs: &inputs,
                     node: 1,

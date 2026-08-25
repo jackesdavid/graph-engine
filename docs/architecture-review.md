@@ -1,6 +1,10 @@
-# What is incoherent here, and what it will cost to leave
+# What was incoherent here, and what it cost to fix
 
 An audit at 4,100 lines and two consumers, written while both were still small enough to change.
+
+**All six are done.** Kept as written, with an outcome on each, because the reasoning is worth
+more than the conclusion — the next person to add a capability needs the criterion, not the fact
+that six things once got fixed.
 Ordered by **cost of delay** rather than by severity: a thing that gets harder every week a
 consumer is added is worth more attention than a thing that is merely wrong.
 
@@ -9,6 +13,10 @@ Everything below is measured against the code, not impressions. The counts are f
 ---
 
 ## 1. `Host` is two traits wearing one coat
+
+> **Done (v0.9.0).** `Host` is four capabilities and four facts. The node library's needs moved
+> to `nodes::services`, handed to `register_all` at registration. The consumer's `NotRouted` struct
+> deleted itself, and `examples/host.rs` — the measure of what integration costs — halved.
 
 **The scheduler uses four of the nine capabilities.** Counted against `exec.rs`:
 
@@ -43,6 +51,10 @@ A stub that large, written on day one, is the design telling you something.
 
 ## 2. `vars()` is the only capability that is not a trait
 
+> **Done (v0.9.0).** It is not a capability at all now. Run-scoped named values belong to the
+> run, like outputs and scratch, and reach nodes through `NodeCx::vars`. The host has no opinion
+> about how a product stores them, because it no longer stores them.
+
 ```rust
 fn vars(&self) -> &Mutex<HashMap<String, Value>>;
 ```
@@ -59,6 +71,8 @@ And it is only used by the bundled variable nodes, so it is really an instance o
 ---
 
 ## 3. `Step` can say two contradictory things at once
+
+> **Done (v0.8.1).** `Next::{Onward, Reenter, Halt}`.
 
 ```rust
 pub struct Step {
@@ -80,6 +94,9 @@ outcomes in the type instead of in a comment.
 
 ## 4. A graph cannot be checked without running it
 
+> **Done (v0.8.1).** `validate(&graph, &registry)` returns every problem, in six kinds. The
+> example calls it before running, which is where a product should.
+
 There is no `validate(&graph, &registry)`. A stored graph naming a kind this build does not
 register fails as `RunError::UnknownKind` — **at run time**, on somebody's automation, at 3am if
 that is when the trigger fires.
@@ -97,6 +114,10 @@ real improvement available and it converts a class of run-time failure into a lo
 ---
 
 ## 5. `Purity` bundles two properties that are not the same question
+
+> **Done (v0.9.0).** Two fields, `has_exec` and `reevaluates`, with `EFFECTFUL` / `PURE` /
+> `PURE_SOURCE` as the three combinations that mean anything. Two fields cannot collide with a
+> consumer's same-named third concept the way one enum did.
 
 `Effectful` / `Pure` / `PureSource` answers *"does it have exec pins?"* and *"is it re-read on
 every access?"* with one value, as if the second only applies when the first is "no".
@@ -119,6 +140,8 @@ that reads it.
 ---
 
 ## 6. `RunError` classifies retryability on one variant out of three
+
+> **Done (v0.8.1).** `RunError::retry()` answers for all three.
 
 `Node { .., retry }` carries the judgement. `UnknownKind` and `Budget` do not, so a durable host
 deciding whether to back off has to match on the variant and know that two of them are permanent.
@@ -145,10 +168,33 @@ added to stop.
 
 ---
 
-## Recommended order
+## What the files look like now
 
-1. **§4 graph validation** — additive, cheap, converts run-time failures into load-time ones.
-2. **§3 `Step` enum** and **§6 `RunError`** — small, mechanical, and both get worse with node count.
-3. **§1 + §2 the `Host` split** — the expensive one, and the one that gets more expensive with
-   every consumer. Two today. This is the moment.
-4. **§5 `Purity`** — after §1, since both touch every `NodeSpec`.
+The split by responsibility went with the fixes, because §1 was really a question about which
+file a thing belonged in:
+
+```
+host/           what the SCHEDULER needs
+  mod.rs        the trait — four capabilities, four facts
+  state.rs      durable per-node state and its compare-and-set operations
+  observe.rs    what the engine reports while a run happens
+  blobs.rs      where values too large for a column go
+  literals.rs   a configuration literal becoming a value on an unwired port
+  error.rs      retryability, and the error carrying it
+  testkit.rs    a complete host that needs no world
+
+nodes/
+  services.rs   what the STANDARD NODES need — approvals, network, model, tables
+  <one file per node>
+
+validate.rs     is this document runnable, and if not, all of what is wrong
+```
+
+`host.rs` was 667 lines holding nine unrelated things. The largest piece of it now is the test
+kit, which is the right shape: the seam itself is 76 lines.
+
+## The criterion, for next time
+
+A capability belongs on `Host` if **the scheduler calls it**. That is the whole test, and it is
+checkable with `grep`. Everything else is either a service some nodes need — which they should be
+handed — or run state, which belongs to the run.

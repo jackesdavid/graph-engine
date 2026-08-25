@@ -11,12 +11,14 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Timeout};
 use crate::value::PortValues;
 use serde_json::json;
 
-struct Clear;
+struct Clear {
+    tables: std::sync::Arc<dyn crate::nodes::services::TableStore>,
+}
 
 impl<H: Host> NodeRun<H> for Clear {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
         let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
-        cx.host.tables().clear(&table)?;
+        self.tables.clear(&table)?;
         Ok(PortValues::new())
     }
 
@@ -25,11 +27,13 @@ impl<H: Host> NodeRun<H> for Clear {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_clear", "Empty a Table", "Tables")
         .with_config(|| json!({ "table": "" }))
         .with_timeout(Timeout::Secs(30))
-        .running(Clear)
+        .running(Clear {
+            tables: services.tables.clone(),
+        })
 }
 
 #[cfg(test)]
@@ -40,7 +44,7 @@ mod tests {
 
     #[test]
     fn it_will_not_run_without_a_table_name() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
         };
@@ -52,13 +56,14 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         assert!(r.run(&cx).is_err());
     }
 
     #[test]
     fn the_table_is_named_in_the_config_not_taken_from_a_wire() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         assert!(
             s.inputs.resolve(&json!({})).is_empty(),
             "an emptied table because a wire carried the wrong name is not recoverable from a \

@@ -38,7 +38,7 @@ impl<H: Host> NodeRun<H> for Print {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("print", "Print", "Debug")
         .with_inputs(Ports::Static(&IN))
         .with_config(|| json!({ "message": "", "label": "" }))
@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn the_message_reaches_the_log() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg = json!({ "message": "", "label": "" });
         let mut inputs = PortValues::new();
         inputs.insert(crate::id::PortName::new("message"), Value::int(42));
@@ -64,6 +64,7 @@ mod tests {
             inputs: &inputs,
             node: 7,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
@@ -74,7 +75,7 @@ mod tests {
 
     #[test]
     fn an_unwired_message_falls_back_to_the_configured_one() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg = json!({ "message": "from the inspector", "label": "" });
         let inputs = PortValues::new();
         let host = TestHost::new();
@@ -83,6 +84,7 @@ mod tests {
             inputs: &inputs,
             node: 7,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()

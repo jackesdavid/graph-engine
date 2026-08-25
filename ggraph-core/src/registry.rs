@@ -8,8 +8,8 @@
 //! ```ignore
 //! fn build() -> NodeRegistry<MyHost> {
 //!     let mut reg = NodeRegistry::new();
-//!     ggraph_core::nodes::register_all(&mut reg);   // the standard set
-//!     my_nodes::register_all(&mut reg);             // whatever this product is about
+//!     ggraph_core::nodes::register_all(&mut reg, &Services::none());   // the standard set
+//!     my_nodes::register_all(&mut reg, &Services::none());             // whatever this product is about
 //!     reg
 //! }
 //! ```

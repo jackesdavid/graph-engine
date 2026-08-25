@@ -10,6 +10,8 @@
 use crate::host::Host;
 use crate::registry::NodeRegistry;
 
+pub mod services;
+
 pub mod approval;
 pub mod branch;
 pub mod compare;
@@ -25,26 +27,32 @@ pub mod variables;
 pub mod wait;
 
 /// Register the standard set into a product's registry.
-pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
-    reg.register(approval::spec());
-    reg.register(branch::spec());
-    reg.register(cooldown::spec());
-    reg.register(debounce::spec());
-    reg.register(compare::spec());
-    reg.register(for_each::spec());
-    reg.register(http_request::spec());
-    reg.register(llm::ask_spec());
-    reg.register(llm::decide_spec());
-    reg.register(llm::extract_spec());
-    reg.register(format::spec());
-    reg.register(print::spec());
-    reg.register(table::append::spec());
-    reg.register(table::clear::spec());
-    reg.register(table::count::spec());
-    reg.register(table::find::spec());
-    reg.register(table::read::spec());
-    reg.register(table::set_cell::spec());
-    reg.register(variables::get_spec());
-    reg.register(variables::set_spec());
-    reg.register(wait::spec());
+///
+/// `services` is what these nodes need from the world — an approval channel, a network, a model,
+/// a table store. They are a parameter rather than something reached through [`Host`] because
+/// the scheduler never touches them, and a product that wants the table nodes but not the model
+/// ones should be able to say so. [`Services::none`](services::Services::none) supplies none of
+/// them, and every node that needs one then refuses with a message naming what is missing.
+pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>, services: &services::Services) {
+    reg.register(approval::spec(services));
+    reg.register(branch::spec(services));
+    reg.register(cooldown::spec(services));
+    reg.register(debounce::spec(services));
+    reg.register(compare::spec(services));
+    reg.register(for_each::spec(services));
+    reg.register(http_request::spec(services));
+    reg.register(llm::ask_spec(services));
+    reg.register(llm::decide_spec(services));
+    reg.register(llm::extract_spec(services));
+    reg.register(format::spec(services));
+    reg.register(print::spec(services));
+    reg.register(table::append::spec(services));
+    reg.register(table::clear::spec(services));
+    reg.register(table::count::spec(services));
+    reg.register(table::find::spec(services));
+    reg.register(table::read::spec(services));
+    reg.register(table::set_cell::spec(services));
+    reg.register(variables::get_spec(services));
+    reg.register(variables::set_spec(services));
+    reg.register(wait::spec(services));
 }

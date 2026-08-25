@@ -224,12 +224,13 @@ pub fn validate<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) 
 mod tests {
     use super::*;
     use crate::host::testkit::TestHost;
+    use crate::nodes::services::Services;
     use crate::{Graph, NodeId};
     use serde_json::json;
 
     fn reg() -> NodeRegistry<TestHost> {
         let mut r = NodeRegistry::new();
-        crate::nodes::register_all(&mut r);
+        crate::nodes::register_all(&mut r, &Services::none());
         r
     }
 

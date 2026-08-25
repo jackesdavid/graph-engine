@@ -16,7 +16,9 @@ fn ports(cfg: &Json) -> Vec<Port> {
         .collect()
 }
 
-struct Append;
+struct Append {
+    tables: std::sync::Arc<dyn crate::nodes::services::TableStore>,
+}
 
 impl<H: Host> NodeRun<H> for Append {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
@@ -34,7 +36,7 @@ impl<H: Host> NodeRun<H> for Append {
                 (c, v)
             })
             .collect();
-        cx.host.tables().append(&table, &row)?;
+        self.tables.append(&table, &row)?;
         Ok(PortValues::new())
     }
 
@@ -43,12 +45,14 @@ impl<H: Host> NodeRun<H> for Append {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_append", "Add a Row", "Tables")
         .with_inputs(Ports::dynamic(ports))
         .with_config(|| json!({ "table": "", "columns": [] }))
         .with_timeout(Timeout::Secs(30))
-        .running(Append)
+        .running(Append {
+            tables: services.tables.clone(),
+        })
 }
 
 #[cfg(test)]
@@ -79,7 +83,7 @@ mod tests {
 
     #[test]
     fn a_table_with_no_columns_is_refused() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
         };
@@ -91,6 +95,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         assert!(r.run(&cx).unwrap_err().message.contains("columns"));
     }

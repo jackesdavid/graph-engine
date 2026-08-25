@@ -16,12 +16,14 @@ static OUT: [Port; 2] = [
     Port::opt("count", PortType::NUM),
 ];
 
-struct Read;
+struct Read {
+    tables: std::sync::Arc<dyn crate::nodes::services::TableStore>,
+}
 
 impl<H: Host> NodeRun<H> for Read {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
         let table = table_name(cx.config).ok_or(NodeError::new("no table name"))?;
-        let rows = cx.host.tables().read(&table)?;
+        let rows = self.tables.read(&table)?;
         let mut out = PortValues::new();
         out.insert(PortName::new("count"), Value::int(rows.len() as i64));
         out.insert(
@@ -39,10 +41,12 @@ impl<H: Host> NodeRun<H> for Read {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_read", "Read a Table", "Tables")
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "table": "" }))
         .with_timeout(Timeout::Secs(60))
-        .running(Read)
+        .running(Read {
+            tables: services.tables.clone(),
+        })
 }

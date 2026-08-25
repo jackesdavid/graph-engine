@@ -21,7 +21,7 @@
 //!
 //! Pure nodes have no exec pins and are never reached. They are **pulled** when something reads
 //! them: a required input with a wire behind it evaluates that wire's source first. Once per
-//! run, unless the node is a [`PureSource`](crate::Purity::PureSource), which re-reads the world
+//! run, unless the node is a [`PureSource`](crate::Purity::PURE_SOURCE), which re-reads the world
 //! every time it is asked.
 //!
 //! ## The step budget
@@ -203,6 +203,7 @@ pub fn run<M: GraphMeta, H: Host<Meta = M>>(
 
     let mut st = State {
         checkpoint: opts.checkpoint,
+        vars: Default::default(),
         outputs: Outputs::new(),
         ran: HashSet::new(),
         live_arms: HashSet::new(),
@@ -296,6 +297,8 @@ fn restore<M: GraphMeta, H: Host<Meta = M>>(
 
 struct State {
     checkpoint: Checkpoint,
+    /// Named values shared across this run. Working state, gone when the run ends.
+    vars: crate::spec::Vars,
     outputs: Outputs,
     ran: HashSet<u32>,
     /// `(node, arm)` pairs that fired **in the current epoch**, and only it.
@@ -433,6 +436,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
     st: &mut State,
 ) -> Result<bool, RunError> {
     let node = graph.node(nid).expect("node exists");
+    let vars = st.vars.clone();
 
     let fail = |e: crate::spec::NodeError| RunError::Node {
         node: nid,
@@ -455,8 +459,16 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             // thing it consumes.
             let inputs = gather(graph, reg, host, nid, st)?;
             host.observer().node_started(nid);
-            let (out, summary, ms) =
-                run_timed(runner, spec.timeout, &node.config, &inputs, nid, host).map_err(fail)?;
+            let (out, summary, ms) = run_timed(
+                runner,
+                spec.timeout,
+                &node.config,
+                &inputs,
+                nid,
+                host,
+                &vars,
+            )
+            .map_err(fail)?;
             host.observer().node_finished(nid, &summary, ms);
             record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
@@ -472,13 +484,22 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             let inputs = gather(graph, reg, host, nid, st)?;
             host.observer().node_started(nid);
             let as_run: Arc<dyn NodeRun<H>> = router.clone();
-            let (out, summary, ms) =
-                run_timed(&as_run, spec.timeout, &node.config, &inputs, nid, host).map_err(fail)?;
+            let (out, summary, ms) = run_timed(
+                &as_run,
+                spec.timeout,
+                &node.config,
+                &inputs,
+                nid,
+                host,
+                &vars,
+            )
+            .map_err(fail)?;
             let cx = NodeCx {
                 config: &node.config,
                 inputs: &inputs,
                 node: nid,
                 host,
+                vars: vars.clone(),
             };
             let arms = router.arms(&cx, &out);
             host.observer().node_finished(nid, &summary, ms);
@@ -499,6 +520,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             host.observer().node_started(nid);
             let mut scratch = st.scratch.remove(&nid).unwrap_or_else(|| json!({}));
             let mut cx = StepCx {
+                vars: vars.clone(),
                 config: &node.config,
                 inputs: &inputs,
                 node: nid,
@@ -551,6 +573,7 @@ fn run_timed<H: Host>(
     inputs: &PortValues,
     nid: u32,
     host: &H,
+    vars: &crate::spec::Vars,
 ) -> Result<(PortValues, String, u128), NodeError> {
     let started = Instant::now();
 
@@ -560,12 +583,15 @@ fn run_timed<H: Host>(
         // Cloning the inputs is cheap where it matters: `Bytes` holds an `Arc<[u8]>`, so a frame
         // on a wire is a refcount bump rather than a copy.
         let (config, inputs, host) = (config.clone(), inputs.clone(), host.clone());
+        // An Arc: the thread shares the run's variables rather than a copy of them.
+        let vars = vars.clone();
         std::thread::spawn(move || {
             let cx = NodeCx {
                 config: &config,
                 inputs: &inputs,
                 node: nid,
                 host: &host,
+                vars,
             };
             let out = runner.run(&cx);
             let summary = match &out {
@@ -595,6 +621,7 @@ fn run_timed<H: Host>(
         inputs,
         node: nid,
         host,
+        vars: vars.clone(),
     };
     let out = runner.run(&cx)?;
     let summary = runner.summary(&cx, &out);
@@ -694,10 +721,11 @@ fn pull<M: GraphMeta, H: Host<Meta = M>>(
     if spec.purity.has_exec() {
         return Ok(());
     }
-    if st.ran.contains(&nid) && spec.purity != Purity::PureSource {
+    if st.ran.contains(&nid) && spec.purity != Purity::PURE_SOURCE {
         return Ok(());
     }
 
+    let vars = st.vars.clone();
     let inputs = gather(graph, reg, host, nid, st)?;
     let Behavior::Run(runner) = &spec.behavior else {
         st.ran.insert(nid);
@@ -708,6 +736,7 @@ fn pull<M: GraphMeta, H: Host<Meta = M>>(
         inputs: &inputs,
         node: nid,
         host,
+        vars,
     };
     st.steps += 1;
     host.observer().node_started(nid);

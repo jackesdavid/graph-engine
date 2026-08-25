@@ -86,7 +86,7 @@ impl<H: Host> NodeRoute<H> for Branch {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("if", "Branch", "Control")
         .with_inputs(Ports::Static(&IN))
         .with_exec_out(ExecOut::dynamic(arms))
@@ -101,7 +101,7 @@ mod tests {
     use crate::spec::Behavior;
 
     fn route(condition: Option<Value>, unknown_arm: bool) -> Vec<String> {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg = json!({ "unknown_arm": unknown_arm });
         let mut inputs = PortValues::new();
         if let Some(v) = condition {
@@ -113,6 +113,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Route(r) = &s.behavior else {
             panic!("a branch must route")
@@ -141,7 +142,7 @@ mod tests {
 
     #[test]
     fn with_the_third_arm_off_an_absent_condition_fails_rather_than_routing() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg = json!({ "unknown_arm": false });
         let inputs = PortValues::new();
         let host = TestHost::new();
@@ -150,6 +151,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Route(r) = &s.behavior else {
             unreachable!()
@@ -162,7 +164,7 @@ mod tests {
 
     #[test]
     fn a_saved_branch_does_not_grow_a_pin() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         assert_eq!(
             s.exec_out.resolve(&json!({})).len(),
             2,

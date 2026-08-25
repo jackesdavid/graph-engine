@@ -23,7 +23,9 @@ static ARMS: [Port; 2] = [
     Port::opt("missing", PortType::EXEC),
 ];
 
-struct Find;
+struct Find {
+    tables: std::sync::Arc<dyn crate::nodes::services::TableStore>,
+}
 
 impl<H: Host> NodeRun<H> for Find {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
@@ -39,7 +41,7 @@ impl<H: Host> NodeRun<H> for Find {
             return Err(NodeError::new("nothing to match against"));
         };
 
-        let rows = cx.host.tables().read(&table)?;
+        let rows = self.tables.read(&table)?;
         let hit = rows.iter().enumerate().find(|(_, row)| {
             row.iter()
                 .any(|(c, v)| c == column && v.as_text() == wanted.as_text())
@@ -72,14 +74,16 @@ impl<H: Host> NodeRoute<H> for Find {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_find", "Find a Row", "Tables")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_exec_out(ExecOut::Static(&ARMS))
         .with_config(|| json!({ "table": "", "column": "", "value": "" }))
         .with_timeout(Timeout::Secs(60))
-        .routing(Find)
+        .routing(Find {
+            tables: services.tables.clone(),
+        })
 }
 
 #[cfg(test)]
@@ -90,7 +94,7 @@ mod tests {
 
     #[test]
     fn a_miss_takes_its_own_arm_rather_than_failing_or_returning_blanks() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Route(r) = &s.behavior else {
             unreachable!()
         };
@@ -102,6 +106,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let arms: Vec<&str> = NodeRoute::arms(r.as_ref(), &cx, &PortValues::new())
             .iter()
@@ -115,7 +120,7 @@ mod tests {
 
     #[test]
     fn matching_against_nothing_is_refused() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Route(r) = &s.behavior else {
             unreachable!()
         };
@@ -127,6 +132,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         assert!(
             r.run(&cx).is_err(),

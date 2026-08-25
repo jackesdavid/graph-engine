@@ -44,7 +44,7 @@ impl<H: Host> NodeRun<H> for SetVariable {
             // a fresh one. Refusing says which node and which name.
             return Err(NodeError::new(format!("nothing wired into {name:?}")));
         };
-        cx.host.vars().lock().unwrap().insert(name, v);
+        cx.vars.lock().unwrap().insert(PortName::new(name), v);
         Ok(PortValues::new())
     }
 
@@ -69,14 +69,14 @@ impl<H: Host> NodeRun<H> for GetVariable {
         // An unset variable produces nothing rather than a default. A zero here is
         // indistinguishable from a real zero, and the branch's third arm exists for exactly
         // this shape of absence.
-        if let Some(v) = cx.host.vars().lock().unwrap().get(&name).cloned() {
+        if let Some(v) = cx.vars.lock().unwrap().get(name.as_str()).cloned() {
             out.insert(PortName::new(name), v);
         }
         Ok(out)
     }
 }
 
-pub fn set_spec<H: Host>() -> NodeSpec<H> {
+pub fn set_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("set_variable", "Set Variable", "Variables")
         .with_inputs(Ports::dynamic(named_port))
         .with_config(|| json!({ "variable": "" }))
@@ -84,13 +84,13 @@ pub fn set_spec<H: Host>() -> NodeSpec<H> {
         .running(SetVariable)
 }
 
-pub fn get_spec<H: Host>() -> NodeSpec<H> {
+pub fn get_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
         .with_outputs(Ports::dynamic(named_port))
         .with_config(|| json!({ "variable": "" }))
         // Re-read every time it is asked: a variable set inside a loop must be visible to a
         // reader later in the same loop, not frozen at the value it had on the first pass.
-        .with_purity(Purity::PureSource)
+        .with_purity(Purity::PURE_SOURCE)
         .running(GetVariable)
 }
 
@@ -106,6 +106,7 @@ mod tests {
         cfg: Json,
         inputs: PortValues,
         host: &TestHost,
+        vars: &crate::spec::Vars,
     ) -> Result<PortValues, NodeError> {
         let Behavior::Run(r) = &spec.behavior else {
             unreachable!()
@@ -115,6 +116,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host,
+            vars: vars.clone(),
         };
         r.run(&cx)
     }
@@ -122,15 +124,24 @@ mod tests {
     #[test]
     fn what_is_set_can_be_read() {
         let host = TestHost::new();
+        let vars = crate::spec::Vars::default();
         let mut inputs = PortValues::new();
         inputs.insert(PortName::new("count"), Value::int(3));
-        run(&set_spec(), json!({ "variable": "count" }), inputs, &host).unwrap();
+        run(
+            &set_spec(&crate::nodes::services::Services::none()),
+            json!({ "variable": "count" }),
+            inputs,
+            &host,
+            &vars,
+        )
+        .unwrap();
 
         let got = run(
-            &get_spec(),
+            &get_spec(&crate::nodes::services::Services::none()),
             json!({ "variable": "count" }),
             PortValues::new(),
             &host,
+            &vars,
         )
         .unwrap();
         assert_eq!(
@@ -142,11 +153,13 @@ mod tests {
     #[test]
     fn an_unset_variable_reads_as_absent_not_as_zero() {
         let host = TestHost::new();
+        let vars = crate::spec::Vars::default();
         let got = run(
-            &get_spec(),
+            &get_spec(&crate::nodes::services::Services::none()),
             json!({ "variable": "count" }),
             PortValues::new(),
             &host,
+            &vars,
         )
         .unwrap();
         assert!(
@@ -159,11 +172,13 @@ mod tests {
     #[test]
     fn setting_nothing_is_refused_rather_than_leaving_the_old_value() {
         let host = TestHost::new();
+        let vars = crate::spec::Vars::default();
         let err = run(
-            &set_spec(),
+            &set_spec(&crate::nodes::services::Services::none()),
             json!({ "variable": "count" }),
             PortValues::new(),
             &host,
+            &vars,
         )
         .unwrap_err();
         assert!(
@@ -186,10 +201,10 @@ mod tests {
 
     #[test]
     fn a_reader_re_reads_rather_than_freezing_on_the_first_pass() {
-        let s: NodeSpec<TestHost> = get_spec();
+        let s: NodeSpec<TestHost> = get_spec(&crate::nodes::services::Services::none());
         assert_eq!(
             s.purity,
-            Purity::PureSource,
+            Purity::PURE_SOURCE,
             "a variable set inside a loop must be visible to a reader later in that loop"
         );
     }

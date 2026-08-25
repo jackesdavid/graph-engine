@@ -52,7 +52,7 @@ impl<H: Host> NodeStep<H> for Cooldown {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("cooldown", "Cooldown", "Control")
         .with_exec_out(ExecOut::Static(&ARMS))
         .with_config(|| json!({ "window_secs": "60" }))
@@ -69,7 +69,7 @@ mod tests {
     use uuid::Uuid;
 
     fn fire(host: &TestHost, instance: &str) -> String {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Step(node) = &s.behavior else {
             unreachable!()
         };
@@ -78,6 +78,7 @@ mod tests {
         let empty = PortValues::new();
         let mut scratch = json!({});
         let mut cx = StepCx {
+            vars: Default::default(),
             config: &cfg,
             inputs: &inputs,
             node: 2,

@@ -80,7 +80,7 @@ impl<H: Host> NodeStep<H> for Debounce {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("debounce", "Start and Stop", "Control")
         .with_outputs(Ports::Static(&OUT))
         .with_exec_out(ExecOut::Static(&ARMS))
@@ -98,7 +98,7 @@ mod tests {
     use uuid::Uuid;
 
     fn signal(host: &TestHost, forced: bool) -> Step {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Step(node) = &s.behavior else {
             unreachable!()
         };
@@ -107,6 +107,7 @@ mod tests {
         let empty = PortValues::new();
         let mut scratch = json!({});
         let mut cx = StepCx {
+            vars: Default::default(),
             config: &cfg,
             inputs: &inputs,
             node: 4,

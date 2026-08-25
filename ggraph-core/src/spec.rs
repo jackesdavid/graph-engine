@@ -34,6 +34,9 @@ use crate::host::Host;
 use crate::id::{NodeId, PortName};
 use crate::port::Port;
 use crate::value::{PortValues, Value};
+
+/// Run-scoped named values, shared across the nodes of one run.
+pub type Vars = std::sync::Arc<std::sync::Mutex<std::collections::HashMap<PortName, Value>>>;
 use serde_json::Value as Json;
 use std::sync::Arc;
 
@@ -133,26 +136,57 @@ impl std::fmt::Debug for Ports {
         }
     }
 }
-
-/// When a node runs relative to control flow.
+/// Two independent questions about a node, asked separately.
+///
+/// They were one enum — `Effectful` / `Pure` / `PureSource` — which answered "does it have exec
+/// pins?" and "is it re-read on every access?" with a single value, as though the second only
+/// applied when the first was "no".
+///
+/// The first consumer had a third property under a colliding name. Its `is_pure_source` means
+/// *"run this even as an orphan entry inside a sub-run"* — a seeding rule, from a real incident.
+/// Ours meant *"re-evaluate on every read"* — a caching rule. Several of its kinds were the
+/// first without being the second, and deriving purity from the wrong one silently stripped a
+/// node's exec pin out of a published catalog. A snapshot test caught it; review had not.
+///
+/// Two fields cannot collide like that.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Purity {
-    /// Has exec pins; runs when control reaches it.
-    Effectful,
-    /// No exec pins. Runs when something reads it, once per run.
-    Pure,
-    /// Pure, but re-reads the world: evaluated afresh each time it is read.
-    ///
-    /// This exists because of a real failure. A pure source with no incoming edges, feeding a
-    /// required input inside a sub-run, never ran — the consumer's input resolved to nothing and
-    /// the engine skipped the whole branch as dead while reporting the run as `ok`. Silent, and
-    /// only on event-driven runs.
-    PureSource,
+pub struct Purity {
+    /// Has exec pins, and so runs when control reaches it. `false` means it is pulled by
+    /// whoever reads it instead.
+    pub has_exec: bool,
+    /// Re-read on every access rather than once per run. Only meaningful when `has_exec` is
+    /// false — a node control reaches runs every time control reaches it, and there is no cached
+    /// answer to opt out of.
+    pub reevaluates: bool,
 }
 
 impl Purity {
+    /// Runs when control reaches it. The ordinary node.
+    pub const EFFECTFUL: Purity = Purity {
+        has_exec: true,
+        reevaluates: false,
+    };
+
+    /// Pulled by whoever reads it, once per run.
+    pub const PURE: Purity = Purity {
+        has_exec: false,
+        reevaluates: false,
+    };
+
+    /// Pulled, and re-read every time — a clock, a sensor, a variable a loop keeps changing.
+    pub const PURE_SOURCE: Purity = Purity {
+        has_exec: false,
+        reevaluates: true,
+    };
+
     pub fn has_exec(self) -> bool {
-        matches!(self, Purity::Effectful)
+        self.has_exec
+    }
+}
+
+impl Default for Purity {
+    fn default() -> Self {
+        Purity::EFFECTFUL
     }
 }
 
@@ -207,6 +241,12 @@ pub struct NodeCx<'a, H: Host> {
     /// This node's id within the graph.
     pub node: u32,
     pub host: &'a H,
+    /// Run-scoped named values, shared by every node in this run.
+    ///
+    /// Owned by the run rather than by the host, because that is what they are: working state
+    /// that dies when the run does. A graph wanting a value to outlive its run wants a table,
+    /// and that difference should be visible in the palette rather than hidden in a lifetime.
+    pub vars: Vars,
 }
 
 impl<H: Host> NodeCx<'_, H> {
@@ -337,6 +377,8 @@ impl Step {
 
 /// What a cooperating node is handed. Everything [`NodeCx`] has, plus the scheduler's view.
 pub struct StepCx<'a, H: Host> {
+    /// Run-scoped named values. See [`NodeCx::vars`].
+    pub vars: Vars,
     pub config: &'a Json,
     pub inputs: &'a PortValues,
     pub node: u32,
@@ -463,7 +505,7 @@ impl<H: Host> NodeSpec<H> {
             outputs: Ports::NONE,
             exec_out: ExecOut::DEFAULT,
             default_config: Arc::new(|| Json::Object(Default::default())),
-            purity: Purity::Effectful,
+            purity: Purity::EFFECTFUL,
             timeout: Timeout::Secs(30),
             behavior: Behavior::Inert,
         }
@@ -473,7 +515,7 @@ impl<H: Host> NodeSpec<H> {
     pub fn pure(id: &'static str, label: &'static str, category: &'static str) -> Self {
         NodeSpec {
             exec_out: ExecOut::None,
-            purity: Purity::Pure,
+            purity: Purity::PURE,
             timeout: Timeout::Inline,
             ..Self::effectful(id, label, category)
         }

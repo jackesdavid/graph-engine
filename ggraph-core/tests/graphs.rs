@@ -14,7 +14,7 @@ use serde_json::json;
 
 fn registry() -> NodeRegistry<TestHost> {
     let mut r = NodeRegistry::new();
-    ggraph_core::nodes::register_all(&mut r);
+    ggraph_core::nodes::register_all(&mut r, &ggraph_core::Services::none());
     r
 }
 

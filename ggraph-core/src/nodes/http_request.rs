@@ -8,8 +8,9 @@
 //! it should branch on `ok` rather than have the whole run stop. What does fail the node is not
 //! reaching the other end at all.
 
-use crate::host::{Host, HttpRequest};
+use crate::host::Host;
 use crate::id::PortName;
+use crate::nodes::services::HttpRequest;
 use crate::port::{Port, PortType};
 use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{Bytes, PortValues, Value};
@@ -52,7 +53,9 @@ fn body_bytes(v: Option<&Value>) -> Option<Vec<u8>> {
     }
 }
 
-struct Request;
+struct Request {
+    http: std::sync::Arc<dyn crate::nodes::services::Http>,
+}
 
 impl<H: Host> NodeRun<H> for Request {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
@@ -79,7 +82,7 @@ impl<H: Host> NodeRun<H> for Request {
             }
         }
 
-        let res = cx.host.http().send(HttpRequest {
+        let res = self.http.send(HttpRequest {
             method: smol_str::SmolStr::new(&method),
             url,
             headers: hs,
@@ -119,20 +122,23 @@ impl<H: Host> NodeRun<H> for Request {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("http_request", "HTTP Request", "Network")
         .with_aliases(&["http_post"])
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "method": "GET", "url": "", "headers": {}, "timeout_secs": "30" }))
         .with_timeout(Timeout::Secs(60))
-        .running(Request)
+        .running(Request {
+            http: services.http.clone(),
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::host::{HostError, HttpResponse};
+    use crate::host::HostError;
+    use crate::nodes::services::HttpResponse;
 
     #[test]
     fn a_json_body_arrives_decoded_as_well_as_as_text() {

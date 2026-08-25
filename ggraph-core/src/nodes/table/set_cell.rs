@@ -12,7 +12,9 @@ static IN: [Port; 2] = [
     Port::opt("value", PortType::ANY),
 ];
 
-struct SetCell;
+struct SetCell {
+    tables: std::sync::Arc<dyn crate::nodes::services::TableStore>,
+}
 
 impl<H: Host> NodeRun<H> for SetCell {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
@@ -35,19 +37,19 @@ impl<H: Host> NodeRun<H> for SetCell {
         let value = cx
             .input_or_cfg("value")
             .unwrap_or(Value::Text(String::new()));
-        cx.host
-            .tables()
-            .set_cell(&table, row as u64, column, &value)?;
+        self.tables.set_cell(&table, row as u64, column, &value)?;
         Ok(PortValues::new())
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_set_cell", "Change a Cell", "Tables")
         .with_inputs(Ports::Static(&IN))
         .with_config(|| json!({ "table": "", "column": "", "row": "", "value": "" }))
         .with_timeout(Timeout::Secs(30))
-        .running(SetCell)
+        .running(SetCell {
+            tables: services.tables.clone(),
+        })
 }
 
 #[cfg(test)]
@@ -58,7 +60,7 @@ mod tests {
 
     #[test]
     fn a_missing_row_index_refuses_rather_than_writing_to_row_zero() {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
         };
@@ -70,6 +72,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let err = r.run(&cx).unwrap_err();
         assert!(

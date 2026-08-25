@@ -17,8 +17,9 @@
 //! on its own side; a *node* needs a question and an answer of a declared shape. Growing this
 //! into a chat client is how the engine acquires an opinion about a provider.
 
-use crate::host::{Host, LlmRequest};
+use crate::host::Host;
 use crate::id::PortName;
+use crate::nodes::services::LlmRequest;
 use crate::port::{Port, PortType};
 use crate::spec::{ExecOut, NodeCx, NodeError, NodeRoute, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
@@ -60,37 +61,43 @@ fn request<H: Host>(cx: &NodeCx<'_, H>, prompt_key: &str) -> Result<LlmRequest, 
 
 // ---------------------------------------------------------------------------------------
 
-struct Ask;
+struct Ask {
+    llm: std::sync::Arc<dyn crate::nodes::services::Llm>,
+}
 
 impl<H: Host> NodeRun<H> for Ask {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let answer = cx.host.llm().ask_text(request(cx, "prompt")?)?;
+        let answer = self.llm.ask_text(request(cx, "prompt")?)?;
         let mut out = PortValues::new();
         out.insert(PortName::new("answer"), Value::Text(answer));
         Ok(out)
     }
 }
 
-pub fn ask_spec<H: Host>() -> NodeSpec<H> {
+pub fn ask_spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("ask_llm", "Ask a Model", "AI")
         .with_aliases(&["ask_ai"])
         .with_inputs(Ports::Static(&ASK_IN))
         .with_outputs(Ports::Static(&ASK_OUT))
         .with_config(|| json!({ "prompt": "", "timeout_secs": "60" }))
         .with_timeout(Timeout::Secs(120))
-        .running(Ask)
+        .running(Ask {
+            llm: services.llm.clone(),
+        })
 }
 
 // ---------------------------------------------------------------------------------------
 
-struct Decide;
+struct Decide {
+    llm: std::sync::Arc<dyn crate::nodes::services::Llm>,
+}
 
 impl<H: Host> NodeRun<H> for Decide {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
         let mut out = PortValues::new();
         // `None` is a real answer here and travels as an absent output, exactly like an
         // unreadable comparison. The arm below is what a graph branches on.
-        if let Some(b) = cx.host.llm().ask_bool(request(cx, "question")?)? {
+        if let Some(b) = self.llm.ask_bool(request(cx, "question")?)? {
             out.insert(PortName::new("answer"), Value::Bool(b));
         }
         Ok(out)
@@ -116,7 +123,7 @@ impl<H: Host> NodeRoute<H> for Decide {
     }
 }
 
-pub fn decide_spec<H: Host>() -> NodeSpec<H> {
+pub fn decide_spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     static IN: [Port; 2] = [
         Port::opt("question", PortType::TEXT),
         Port::opt("attachment", PortType::ANY),
@@ -128,7 +135,9 @@ pub fn decide_spec<H: Host>() -> NodeSpec<H> {
         .with_exec_out(ExecOut::Static(&DECIDE_ARMS))
         .with_config(|| json!({ "question": "", "timeout_secs": "60" }))
         .with_timeout(Timeout::Secs(120))
-        .routing(Decide)
+        .routing(Decide {
+            llm: services.llm.clone(),
+        })
 }
 
 // ---------------------------------------------------------------------------------------
@@ -146,7 +155,9 @@ fn extract_ports(cfg: &Json) -> Vec<Port> {
         .unwrap_or_default()
 }
 
-struct Extract;
+struct Extract {
+    llm: std::sync::Arc<dyn crate::nodes::services::Llm>,
+}
 
 impl<H: Host> NodeRun<H> for Extract {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
@@ -185,7 +196,7 @@ impl<H: Host> NodeRun<H> for Extract {
             // was unsure about.
             let mut per = req.clone();
             per.prompt = format!("{}\n\nReturn only the value of: {f}", req.prompt);
-            match cx.host.llm().ask_text(per) {
+            match self.llm.ask_text(per) {
                 Ok(v) if !v.trim().is_empty() => found.push((f.clone(), Value::text(v.trim()))),
                 // Absent rather than empty: a blank cell in a table of four hundred rows reads
                 // as "the document says nothing", not as "we did not get an answer".
@@ -202,7 +213,7 @@ impl<H: Host> NodeRun<H> for Extract {
     }
 }
 
-pub fn extract_spec<H: Host>() -> NodeSpec<H> {
+pub fn extract_spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("llm_extract", "Extract Fields", "AI")
         .with_aliases(&["ai_extract"])
         .with_inputs(Ports::dynamic(|cfg: &Json| {
@@ -222,7 +233,9 @@ pub fn extract_spec<H: Host>() -> NodeSpec<H> {
             || json!({ "instruction": "", "fields": [], "text": "", "timeout_secs": "60" }),
         )
         .with_timeout(Timeout::Secs(300))
-        .running(Extract)
+        .running(Extract {
+            llm: services.llm.clone(),
+        })
 }
 
 #[cfg(test)]
@@ -233,7 +246,7 @@ mod tests {
 
     #[test]
     fn deciding_has_three_arms_and_the_third_is_not_a_no() {
-        let s: NodeSpec<TestHost> = decide_spec();
+        let s: NodeSpec<TestHost> = decide_spec(&crate::nodes::services::Services::none());
         let arms: Vec<&str> = s
             .exec_out
             .resolve(&json!({}))
@@ -256,6 +269,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         // No answer at all — the model would not commit.
         let got: Vec<String> = r
@@ -282,7 +296,7 @@ mod tests {
 
     #[test]
     fn asking_with_an_empty_prompt_is_refused() {
-        let s: NodeSpec<TestHost> = ask_spec();
+        let s: NodeSpec<TestHost> = ask_spec(&crate::nodes::services::Services::none());
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
         };
@@ -294,6 +308,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         assert_eq!(r.run(&cx).unwrap_err(), NodeError::new("nothing to ask"));
     }
@@ -302,9 +317,9 @@ mod tests {
     fn the_old_slugs_still_resolve() {
         // ask_ai, ai_switch and ai_extract exist in saved graphs. A rename that does not carry
         // its alias is a graph that stops opening.
-        let s: NodeSpec<TestHost> = ask_spec();
+        let s: NodeSpec<TestHost> = ask_spec(&crate::nodes::services::Services::none());
         assert!(s.aliases.contains(&"ask_ai"));
-        let s: NodeSpec<TestHost> = decide_spec();
+        let s: NodeSpec<TestHost> = decide_spec(&crate::nodes::services::Services::none());
         assert!(s.aliases.contains(&"ai_switch"));
     }
 }

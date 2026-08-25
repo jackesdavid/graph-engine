@@ -18,7 +18,8 @@
 //! next. Folding them together is how a workflow quietly treats silence as refusal, which is
 //! the failure nobody notices until it has been happening for a month.
 
-use crate::host::{ApprovalRequest, Host, Verdict};
+use crate::host::Host;
+use crate::nodes::services::{ApprovalRequest, Verdict};
 use crate::port::{Port, PortType};
 use crate::spec::{ExecOut, NodeError, NodeSpec, NodeStep, Ports, Step, StepCx, Timeout};
 use crate::value::{PortValues, Value};
@@ -35,7 +36,9 @@ static ARMS: [Port; 3] = [
     Port::opt("unanswered", PortType::EXEC),
 ];
 
-struct Approval;
+struct Approval {
+    approvals: std::sync::Arc<dyn crate::nodes::services::Approvals>,
+}
 
 impl<H: Host> NodeStep<H> for Approval {
     fn step(&self, cx: &mut StepCx<'_, H>) -> Result<Step, NodeError> {
@@ -75,7 +78,7 @@ impl<H: Host> NodeStep<H> for Approval {
             .and_then(|s| s.parse().ok())
             .unwrap_or(300);
 
-        cx.host.approvals().ask(ApprovalRequest {
+        self.approvals.ask(ApprovalRequest {
             target: cx.target(),
             run: cx.host.run_id(),
             audience: audience.clone(),
@@ -89,14 +92,16 @@ impl<H: Host> NodeStep<H> for Approval {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("approval", "Ask a Person", "Approval")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_exec_out(ExecOut::Static(&ARMS))
         .with_config(|| json!({ "audience": "", "prompt": "", "expires_in_secs": "300" }))
         .with_timeout(Timeout::Secs(30))
-        .stepping(Approval)
+        .stepping(Approval {
+            approvals: services.approvals.clone(),
+        })
 }
 
 #[cfg(test)]
@@ -110,7 +115,7 @@ mod tests {
     use uuid::Uuid;
 
     fn step(cfg: Json, forced: bool, payload: PortValues) -> Result<Step, NodeError> {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Step(node) = &s.behavior else {
             panic!("approval must cooperate with the scheduler")
         };
@@ -118,6 +123,7 @@ mod tests {
         let inputs = PortValues::new();
         let mut scratch = json!({});
         let mut cx = StepCx {
+            vars: Default::default(),
             config: &cfg,
             inputs: &inputs,
             node: 3,
@@ -140,7 +146,7 @@ mod tests {
         // TestHost refuses to deliver, so this also proves the refusal surfaces as an error
         // rather than as a silently unasked question.
         let err = step(cfg(), false, PortValues::new()).unwrap_err();
-        assert_eq!(err.message, "no approval channel in tests");
+        assert_eq!(err.message, "no approval channel is configured");
         assert_eq!(
             err.retry,
             Retry::Never,

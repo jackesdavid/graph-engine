@@ -71,7 +71,7 @@ impl<H: Host> NodeRun<H> for Format {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("format", "Format", "Text")
         .with_inputs(Ports::dynamic(inputs))
         .with_outputs(Ports::Static(&OUT))
@@ -86,7 +86,7 @@ mod tests {
     use crate::spec::Behavior;
 
     fn render(template: &str, values: &[(&str, Value)]) -> String {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg = json!({ "template": template });
         let mut inputs = PortValues::new();
         for (k, v) in values {
@@ -98,6 +98,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()

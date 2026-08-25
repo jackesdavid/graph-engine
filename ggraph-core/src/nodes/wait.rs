@@ -43,7 +43,7 @@ impl<H: Host> NodeStep<H> for Wait {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("wait", "Wait", "Control")
         .with_inputs(Ports::Static(&IN))
         .with_config(|| json!({ "seconds": "1" }))
@@ -62,7 +62,7 @@ mod tests {
     use uuid::Uuid;
 
     fn step(cfg: Json, forced: bool, host: &TestHost) -> Step {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let Behavior::Step(node) = &s.behavior else {
             unreachable!()
         };
@@ -70,6 +70,7 @@ mod tests {
         let empty = PortValues::new();
         let mut scratch = json!({});
         let mut cx = StepCx {
+            vars: Default::default(),
             config: &cfg,
             inputs: &inputs,
             node: 5,

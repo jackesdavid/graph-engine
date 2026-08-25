@@ -66,7 +66,7 @@ impl<H: Host> NodeRun<H> for Compare {
     }
 }
 
-pub fn spec<H: Host>() -> NodeSpec<H> {
+pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("compare", "Compare", "Logic")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
@@ -83,7 +83,7 @@ mod tests {
     use serde_json::Value as Json;
 
     fn cmp(a: Option<Value>, b: Option<Value>, op: &str) -> Option<bool> {
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg: Json = json!({ "operator": op });
         let mut inputs = PortValues::new();
         if let Some(a) = a {
@@ -98,6 +98,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
@@ -144,7 +145,7 @@ mod tests {
             cmp(Some(Value::text("a")), Some(Value::text("a")), "=="),
             Some(true)
         );
-        let s: NodeSpec<TestHost> = spec();
+        let s: NodeSpec<TestHost> = spec(&crate::nodes::services::Services::none());
         let cfg = json!({ "operator": "<" });
         let mut inputs = PortValues::new();
         inputs.insert(PortName::new("a"), Value::text("apple"));
@@ -155,6 +156,7 @@ mod tests {
             inputs: &inputs,
             node: 1,
             host: &host,
+            vars: Default::default(),
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()

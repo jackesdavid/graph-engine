@@ -23,7 +23,7 @@ struct Built {
 /// the value back. The shape of every workflow that pauses in the middle.
 fn suspending_graph() -> (Built, u32, u32, u32) {
     let mut reg = NodeRegistry::new();
-    ggraph_core::nodes::register_all(&mut reg);
+    ggraph_core::nodes::register_all(&mut reg, &ggraph_core::Services::none());
     let mut graph = Graph::new("suspends");
 
     let source = graph.add_node(NodeId::new("for_each"), 0, 0);
@@ -135,7 +135,7 @@ fn without_checkpointing_the_resumption_has_nothing_to_read() {
 #[test]
 fn a_run_that_finishes_leaves_nothing_behind() {
     let mut reg = NodeRegistry::new();
-    ggraph_core::nodes::register_all(&mut reg);
+    ggraph_core::nodes::register_all(&mut reg, &ggraph_core::Services::none());
     let mut graph = Graph::new("completes");
     let a = graph.add_node(NodeId::new("for_each"), 0, 0);
     graph.node_mut(a).unwrap().config = json!({ "items": "x" });
