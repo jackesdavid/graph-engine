@@ -120,7 +120,7 @@ mod tests {
             if let Some(v) = step.outputs.get(&PortName::new("item")) {
                 seen.push(v.summary());
             }
-            if !step.reenter {
+            if !(step.next == Next::Reenter) {
                 break;
             }
         }
@@ -183,7 +183,7 @@ mod tests {
                 };
                 let step = node.step(&mut cx).unwrap();
                 arms.extend(step.arms.iter().map(|a| a.as_str().to_string()));
-                if !step.reenter {
+                if !(step.next == Next::Reenter) {
                     break;
                 }
             }

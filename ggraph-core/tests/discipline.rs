@@ -284,3 +284,52 @@ fn an_unwired_input_falls_back_to_configuration() {
     );
     let _ = PortName::new("condition");
 }
+
+/// Every way a run can fail answers the retry question, not one of the three.
+///
+/// A durable host decides backoff from `err.retry()`. Making it ask the variant instead means
+/// knowing which ones are permanent — which is knowledge about the engine's internals, and
+/// exactly what the judgement was added to stop.
+#[test]
+fn every_run_failure_says_whether_retrying_could_help() {
+    use ggraph_core::Retry;
+
+    let reg = registry(Counter::default());
+    let host = TestHost::new();
+
+    let mut unknown: Graph = Graph::new("stale");
+    unknown.add_node(NodeId::new("a_kind_from_another_deploy"), 0, 0);
+    let e = ggraph_core::run(
+        &unknown,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions::default(),
+    )
+    .expect_err("an unregistered kind cannot run");
+    assert_eq!(
+        e.retry(),
+        Retry::Never,
+        "the build will not learn the kind by being asked again"
+    );
+
+    let mut runaway: Graph = Graph::new("budget");
+    let each = runaway.add_node(NodeId::new("for_each"), 0, 0);
+    runaway.node_mut(each).unwrap().config = json!({ "items": "a,b,c,d,e,f" });
+    let e = ggraph_core::run(
+        &runaway,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            budget: ggraph_core::Budget { max_steps: 2 },
+            ..RunOptions::default()
+        },
+    )
+    .expect_err("a run past its ceiling fails");
+    assert_eq!(
+        e.retry(),
+        Retry::Never,
+        "the same graph reaches the same ceiling"
+    );
+}

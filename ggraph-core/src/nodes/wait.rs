@@ -87,7 +87,10 @@ mod tests {
         let host = TestHost::new();
         let now = host.now_epoch_secs();
         let s = step(json!({ "seconds": "30" }), false, &host);
-        assert!(s.halt, "a run that sleeps holds a thread across a deploy");
+        assert!(
+            (s.next == Next::Halt),
+            "a run that sleeps holds a thread across a deploy"
+        );
         assert!(s.arms.is_empty());
         let scheduled = host.inner().scheduled.lock().unwrap().clone();
         assert_eq!(scheduled.len(), 1);
@@ -99,7 +102,7 @@ mod tests {
     fn waking_up_carries_on() {
         let host = TestHost::new();
         let s = step(json!({ "seconds": "30" }), true, &host);
-        assert!(!s.halt);
+        assert!(!(s.next == Next::Halt));
         assert_eq!(
             s.arms.iter().map(|a| a.as_str()).collect::<Vec<_>>(),
             vec!["exec_out"]
@@ -114,7 +117,7 @@ mod tests {
     fn a_zero_wait_does_not_take_a_trip_through_the_host() {
         let host = TestHost::new();
         let s = step(json!({ "seconds": "0" }), false, &host);
-        assert!(!s.halt);
+        assert!(!(s.next == Next::Halt));
         assert!(host.inner().scheduled.lock().unwrap().is_empty());
     }
 }

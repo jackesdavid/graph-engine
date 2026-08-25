@@ -33,6 +33,7 @@ pub mod port;
 pub mod registry;
 pub mod spec;
 pub mod topo;
+pub mod validate;
 pub mod value;
 
 pub use codec::{decode, decode_ports, encode, encode_ports};
@@ -55,4 +56,5 @@ pub use spec::{
     PortsFn, Purity, Step, StepCx, Timeout,
 };
 pub use topo::{back_edges, entry_nodes, ordering_pairs, topo_order};
+pub use validate::{validate, Problem};
 pub use value::{Bytes, ExternValue, Num, PortValues, Value};

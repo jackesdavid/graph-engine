@@ -154,7 +154,10 @@ mod tests {
             let s = step(cfg(), true, v.into_payload()).unwrap();
             let arms: Vec<&str> = s.arms.iter().map(|a| a.as_str()).collect();
             assert_eq!(arms, vec![v.as_str()]);
-            assert!(!s.halt, "delivering an answer continues the run");
+            assert!(
+                s.next != Next::Halt,
+                "delivering an answer continues the run"
+            );
         }
     }
 

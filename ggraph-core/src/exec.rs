@@ -34,7 +34,9 @@ use crate::graph::{Graph, GraphMeta};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::registry::NodeRegistry;
-use crate::spec::{Behavior, NodeCx, NodeError, NodeRun, NodeSpec, Purity, Step, StepCx, Timeout};
+use crate::spec::{
+    Behavior, Next, NodeCx, NodeError, NodeRun, NodeSpec, Purity, Step, StepCx, Timeout,
+};
 use crate::topo::{back_edges, ordering_pairs};
 use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
@@ -47,6 +49,9 @@ use std::time::{Duration, Instant};
 pub enum RunError {
     /// A node named in the document is not registered. Named, because "unknown node kind" with
     /// no name sends people reading the whole graph.
+    ///
+    /// Never worth retrying: the build will not learn the kind by being asked again. Reach for
+    /// [`validate`](crate::validate) to find these before a run rather than during one.
     UnknownKind { node: u32, kind: String },
     /// A node refused. Carries the node's own judgement about whether trying again could help,
     /// so a durable host does not have to match on the message to decide.
@@ -57,6 +62,8 @@ pub enum RunError {
         retry: crate::host::Retry,
     },
     /// The step ceiling was reached — almost always a loop with no exit.
+    ///
+    /// Never worth retrying: the same graph will reach the same ceiling.
     Budget { limit: u32 },
 }
 
@@ -80,6 +87,23 @@ impl std::fmt::Display for RunError {
                     "stopped after {limit} node executions — a loop with no exit?"
                 )
             }
+        }
+    }
+}
+
+impl RunError {
+    /// Whether running this again could produce a different answer.
+    ///
+    /// On the error type rather than only on the `Node` variant, so a durable host asks the
+    /// question instead of inferring it from which variant it got. Inferring is exactly what the
+    /// judgement was added to stop, and a host that has to know which variants are permanent
+    /// knows something about the engine's internals that will change without telling it.
+    pub fn retry(&self) -> crate::host::Retry {
+        match self {
+            // An unregistered kind and a runaway loop are both properties of the document. It
+            // will be the same document next time.
+            RunError::UnknownKind { .. } | RunError::Budget { .. } => crate::host::Retry::Never,
+            RunError::Node { retry, .. } => *retry,
         }
     }
 }
@@ -503,10 +527,10 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             record(host, graph.id, nid, instance, &step.outputs, st);
             st.outputs.insert(nid, step.outputs);
             st.ran.insert(nid);
-            if step.halt {
+            if step.next == Next::Halt {
                 st.halted = true;
             }
-            Ok(step.reenter)
+            Ok(step.next == Next::Reenter)
         }
     }
 }

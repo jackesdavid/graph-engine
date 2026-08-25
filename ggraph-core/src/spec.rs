@@ -282,13 +282,28 @@ pub struct Step {
     pub outputs: PortValues,
     /// Which exec arms fire.
     pub arms: Vec<PortName>,
-    /// Run me again in the next epoch — a loop.
-    pub reenter: bool,
+    /// What happens to the run after this node.
+    pub next: Next,
     /// A line for the run log.
     pub log: Option<String>,
-    /// End the run here without failing it. A node waiting on a person: the answer will arrive
-    /// as a fresh entry at this node, in a different run.
-    pub halt: bool,
+}
+
+/// What a cooperating node asks the run to do next.
+///
+/// One value rather than two booleans, because two booleans have four states and only three of
+/// them mean anything. "Run me again next epoch AND end the run here" had no reading, nothing
+/// stopped a node saying it, and the scheduler would have picked one silently — the twentieth
+/// node somebody writes is where that happens.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Next {
+    /// Control flows on down the arms that fired. The ordinary case.
+    #[default]
+    Onward,
+    /// Reach me again in the next epoch. A loop asking for its next pass.
+    Reenter,
+    /// End the run here, without failing it. A node waiting on a person or a timer: the answer
+    /// arrives as a fresh entry at this node, in a different run.
+    Halt,
 }
 
 impl Step {
@@ -305,7 +320,7 @@ impl Step {
     }
 
     pub fn reentering(mut self) -> Self {
-        self.reenter = true;
+        self.next = Next::Reenter;
         self
     }
 
@@ -315,7 +330,7 @@ impl Step {
     }
 
     pub fn halted(mut self) -> Self {
-        self.halt = true;
+        self.next = Next::Halt;
         self
     }
 }
