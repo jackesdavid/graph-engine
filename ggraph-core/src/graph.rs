@@ -164,7 +164,11 @@ impl<M: GraphMeta> Graph<M> {
         self.nodes.iter_mut().find(|n| n.id == id)
     }
 
-    pub fn add_node(&mut self, kind: NodeId, x: i32, y: i32) -> u32 {
+    /// Takes anything that converts into a [`NodeId`] — including a `&str`, and including a
+    /// product's own kind enum once it implements `From`. A consumer migrating off a closed enum
+    /// should not have to write `.into()` at every call site to say what the type already knows.
+    pub fn add_node(&mut self, kind: impl Into<NodeId>, x: i32, y: i32) -> u32 {
+        let kind = kind.into();
         let id = self.next_id;
         self.next_id += 1;
         self.nodes.push(GraphNode::new(id, kind, x, y));
