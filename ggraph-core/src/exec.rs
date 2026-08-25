@@ -631,6 +631,23 @@ fn gather<M: GraphMeta, H: Host<Meta = M>>(
             inputs.insert(w.to_port.clone(), v);
         }
     }
+
+    // A port with no wire takes its value from the node's own configuration, if the host can
+    // interpret one. This runs before anything asks whether a required input is present, which
+    // is the whole point: in most editors an inspector field is the ordinary way to fill a port,
+    // and treating those as missing would call live branches dead and still report the run ok.
+    let node = graph.node(nid).expect("gathering for a node that exists");
+    if let Some(spec) = reg.get(&node.kind) {
+        for port in spec.inputs.resolve(&node.config) {
+            if port.ty == crate::port::PortType::EXEC || inputs.contains_key(&port.name) {
+                continue;
+            }
+            if let Some(v) = host.literal(&node.kind, &port, &node.config) {
+                inputs.insert(port.name, v);
+            }
+        }
+    }
+
     Ok(inputs)
 }
 

@@ -181,3 +181,98 @@ fn a_node_refusing_its_inputs_is_not_worth_retrying() {
         other => panic!("expected a refusal, got {other:?}"),
     }
 }
+
+/// An unwired input takes its value from the node's configuration, and a **required** one
+/// counts as satisfied when it does.
+///
+/// Found by a consumer's differential test, not by review: its scheduler injected inspector
+/// literals before validating required inputs, this one only read wires, and so a branch whose
+/// condition was typed into the inspector — the ordinary way to fill a port — failed with
+/// "missing required input" instead of running.
+#[test]
+fn an_unwired_input_falls_back_to_configuration() {
+    use ggraph_core::host::{Host, HostError, NodeTarget, Observer, StateStore};
+    use ggraph_core::{PortName, PortValues, Value};
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    /// A host that reads a literal straight out of config by port name.
+    #[derive(Clone, Default)]
+    struct Literals(Arc<TestHost>);
+
+    impl Host for Literals {
+        type Meta = ();
+        fn state(&self) -> &dyn StateStore {
+            self.0.state()
+        }
+        fn io(&self) -> &dyn ggraph_core::host::ValueIo {
+            self.0.io()
+        }
+        fn observer(&self) -> &dyn Observer {
+            self.0.observer()
+        }
+        fn approvals(&self) -> &dyn ggraph_core::host::Approvals {
+            self.0.approvals()
+        }
+        fn http(&self) -> &dyn ggraph_core::host::Http {
+            self.0.http()
+        }
+        fn llm(&self) -> &dyn ggraph_core::host::Llm {
+            self.0.llm()
+        }
+        fn tables(&self) -> &dyn ggraph_core::host::TableStore {
+            self.0.tables()
+        }
+        fn vars(&self) -> &Mutex<HashMap<String, Value>> {
+            self.0.vars()
+        }
+        fn run_id(&self) -> uuid::Uuid {
+            self.0.run_id()
+        }
+        fn now_epoch_secs(&self) -> i64 {
+            self.0.now_epoch_secs()
+        }
+        fn schedule(&self, at: i64, t: NodeTarget) -> Result<(), HostError> {
+            self.0.schedule(at, t)
+        }
+        fn literal(
+            &self,
+            _kind: &ggraph_core::NodeId,
+            port: &ggraph_core::Port,
+            config: &serde_json::Value,
+        ) -> Option<Value> {
+            let raw = config.get(port.name.as_str())?.as_str()?;
+            match raw {
+                "true" => Some(Value::Bool(true)),
+                "false" => Some(Value::Bool(false)),
+                other if !other.is_empty() => Some(Value::text(other)),
+                _ => None,
+            }
+        }
+        fn instance_key(&self, _m: &(), _p: &PortValues) -> ggraph_core::SmolStr {
+            Default::default()
+        }
+    }
+
+    let mut reg: NodeRegistry<Literals> = NodeRegistry::new();
+    ggraph_core::nodes::register_all(&mut reg);
+
+    let mut g: Graph = Graph::new("literal condition");
+    let br = g.add_node(NodeId::new("if"), 0, 0);
+    // The condition is typed into the inspector, not wired. This is the common case.
+    g.node_mut(br).unwrap().config = json!({ "condition": "true", "unknown_arm": false });
+    let taken = g.add_node(NodeId::new("print"), 200, 0);
+    g.node_mut(taken).unwrap().config = json!({ "message": "yes" });
+    g.add_edge(&reg, br, "true", taken, "exec_in").unwrap();
+
+    let host = Literals::default();
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default())
+        .expect("a condition typed into the inspector must satisfy the required port");
+
+    let ran = host.0.inner().observer.started.lock().unwrap().clone();
+    assert!(
+        ran.contains(&taken),
+        "the arm must fire from a configured condition, not only from a wired one: {ran:?}"
+    );
+    let _ = PortName::new("condition");
+}

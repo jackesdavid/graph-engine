@@ -362,6 +362,29 @@ pub trait Host: Send + Sync + Clone + 'static {
         SmolStr::default()
     }
 
+    /// The value an **unwired** input port takes from the node's own configuration.
+    ///
+    /// Most graph editors let a port be either wired or typed into an inspector, and the second
+    /// is by far the more common. The engine cannot interpret those itself: what `"front door"`
+    /// means on a port of the product's own type is the product's business, and answering may
+    /// take a lookup — a device id resolved against a device store, a table id against a
+    /// run-start snapshot.
+    ///
+    /// Returning `None` (the default) leaves nodes to read their own configuration through
+    /// [`NodeCx::input_or_cfg`](crate::spec::NodeCx::input_or_cfg), which is fine for a small
+    /// node set. A host that answers here gets it done once, consistently, and — the part that
+    /// matters — **before** required-input validation, so a required port satisfied by a literal
+    /// is not mistaken for a missing one. A scheduler that skipped that would call the branch
+    /// dead and report the run `ok`.
+    fn literal(
+        &self,
+        _kind: &crate::NodeId,
+        _port: &crate::port::Port,
+        _config: &Json,
+    ) -> Option<Value> {
+        None
+    }
+
     /// Re-enter `target` at `at_epoch_secs`. The durable timer, and the retry.
     fn schedule(&self, at_epoch_secs: i64, target: NodeTarget) -> Result<(), HostError>;
 }
