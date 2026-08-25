@@ -196,7 +196,26 @@ fn an_unwired_input_falls_back_to_configuration() {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
-    /// A host that reads a literal straight out of config by port name.
+    /// Reads a literal straight out of config by port name.
+    struct InspectorFields;
+
+    impl ggraph_core::host::Literals for InspectorFields {
+        fn read(
+            &self,
+            _kind: &ggraph_core::NodeId,
+            port: &ggraph_core::Port,
+            config: &serde_json::Value,
+        ) -> Option<Value> {
+            let raw = config.get(port.name.as_str())?.as_str()?;
+            match raw {
+                "true" => Some(Value::Bool(true)),
+                "false" => Some(Value::Bool(false)),
+                other if !other.is_empty() => Some(Value::text(other)),
+                _ => None,
+            }
+        }
+    }
+
     #[derive(Clone, Default)]
     struct Literals(Arc<TestHost>);
 
@@ -235,19 +254,8 @@ fn an_unwired_input_falls_back_to_configuration() {
         fn schedule(&self, at: i64, t: NodeTarget) -> Result<(), HostError> {
             self.0.schedule(at, t)
         }
-        fn literal(
-            &self,
-            _kind: &ggraph_core::NodeId,
-            port: &ggraph_core::Port,
-            config: &serde_json::Value,
-        ) -> Option<Value> {
-            let raw = config.get(port.name.as_str())?.as_str()?;
-            match raw {
-                "true" => Some(Value::Bool(true)),
-                "false" => Some(Value::Bool(false)),
-                other if !other.is_empty() => Some(Value::text(other)),
-                _ => None,
-            }
+        fn literals(&self) -> &dyn ggraph_core::host::Literals {
+            &InspectorFields
         }
         fn instance_key(&self, _m: &(), _p: &PortValues) -> ggraph_core::SmolStr {
             Default::default()

@@ -642,7 +642,7 @@ fn gather<M: GraphMeta, H: Host<Meta = M>>(
             if port.ty == crate::port::PortType::EXEC || inputs.contains_key(&port.name) {
                 continue;
             }
-            if let Some(v) = host.literal(&node.kind, &port, &node.config) {
+            if let Some(v) = host.literals().read(&node.kind, &port, &node.config) {
                 inputs.insert(port.name, v);
             }
         }
