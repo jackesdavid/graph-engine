@@ -58,6 +58,10 @@ pub struct GraphNode {
     pub config: Json,
 }
 
+fn first_id() -> u32 {
+    1
+}
+
 fn empty_object() -> Json {
     json!({})
 }
@@ -104,6 +108,10 @@ pub struct Graph<M: GraphMeta = ()> {
     pub edges: Vec<Edge>,
     /// The next node id to hand out. Node ids are never reused: a stale reference must fail to
     /// resolve rather than silently point at a different node.
+    /// Defaults to **1**, not 0. A document missing this field is an old one, and handing out
+    /// id 0 for its first node is not a neutral choice: zero reads as "no node" in plenty of
+    /// code, including a consumer that builds a throwaway node with that id.
+    #[serde(default = "first_id")]
     pub next_id: u32,
     /// The product's own per-graph fields, spliced into the same JSON object.
     ///
