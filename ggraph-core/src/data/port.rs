@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Typed ports, and the one rule that decides whether an edge may exist.
 //!
 //! A node declares input and output ports; an edge maps one node's output port to another

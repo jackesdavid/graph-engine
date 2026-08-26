@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! The three ways a graph uses a model: `ask_llm`, `llm_decide`, `llm_extract`.
 //!
 //! One file, because they are one integration and one set of rules about what a model is

@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Whole graphs, built from the standard nodes and run end to end.
 //!
 //! The unit tests in each node file prove a node computes. These prove the *engine*: that a

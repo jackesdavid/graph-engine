@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! `compare` — is one value greater than, equal to, less than another?
 //!
 //! One node with an operator, rather than six nodes named after their operators. The engine this

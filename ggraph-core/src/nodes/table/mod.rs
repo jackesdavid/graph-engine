@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Named tables — the only thing in the standard set that outlives the run that wrote it.
 //!
 //! A variable is working state and dies with the run. A table is a *result*: the four hundred

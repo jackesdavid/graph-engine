@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Services the STANDARD NODES need — not the scheduler.
 //!
 //! Nothing in `exec.rs` calls any of these. They are here because the node library this crate

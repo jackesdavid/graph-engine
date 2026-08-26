@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Is this document runnable, and if not, what is wrong with all of it?
 //!
 //! [`Graph::add_edge`] checks one wire as it is drawn. This checks a document that already

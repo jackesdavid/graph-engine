@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! What a node declares about itself before it ever runs.
 //!
 //! Its pins, its arms, how long it may take, and whether it can be skipped when nothing changed.

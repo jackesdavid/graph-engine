@@ -149,4 +149,12 @@ persistence adapter (the `Host` traits against a real database), and retry with 
 
 ## Licence
 
-MIT or Apache-2.0, at your option.
+[Mozilla Public License 2.0](LICENSE).
+
+File-level copyleft, which is the point. Use this engine in anything, open or closed, and only
+the code you take from it stays open: if you modify one of ITS files, that file's source has to
+be available. Your own code — your nodes, your host, your product — is yours and is untouched by
+this.
+
+Every source file carries the notice, because MPL scope is per file and an unmarked one is a
+question nobody should have to answer later.

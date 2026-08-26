@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! What flows through a graph, and what the things in it are called.
 //!
 //! - [`id`] — the names. A node kind and a port are open strings, not enums, which is what lets
