@@ -401,3 +401,47 @@ fn an_arm_is_reported_with_the_port_it_left_by() {
         "the arm that did not fire must not be: {arms:?}"
     );
 }
+
+/// A resumption can read back what earlier runs left without the engine writing checkpoints.
+///
+/// These were one flag, and conflating them made a whole product's policy inexpressible: Sentinel
+/// remembers each node's last value on purpose — its editor shows them, and a window closing hours
+/// later on a timer has no other way to see what the arming run saw — while wanting nothing
+/// written or cleared mid-run. Writing checkpoints is about surviving a crash; restoring is about
+/// resuming something left open. Different questions.
+#[test]
+fn a_resumption_restores_without_the_engine_checkpointing() {
+    use ggraph_core::host::Host;
+
+    let reg = registry(Counter::default());
+    let host = TestHost::new();
+
+    let mut g: Graph = Graph::new("resumed");
+    let earlier = g.add_node(NodeId::new("counter"), 0, 0);
+    let later = g.add_node(NodeId::new("counter"), 0, 0);
+    g.add_edge(&reg, earlier, "exec_out", later, "exec_in")
+        .unwrap();
+
+    // What an earlier run of this instance left behind, put there by hand: with Checkpoint::None
+    // the engine writes nothing itself, which is the point.
+    let mut out = PortValues::new();
+    out.insert(ggraph_core::PortName::new("n"), Value::int(41));
+    host.state().set(
+        &ggraph_core::exec::values_key(g.id, earlier, ""),
+        &ggraph_core::codec::encode_ports(&out, host.io()),
+    );
+
+    let entry = Entry {
+        at: vec![later],
+        restore: true,
+        ..Default::default()
+    };
+    ggraph_core::run(&g, &reg, &host, &entry, &RunOptions::default()).expect("runs");
+
+    let started = host.inner().observer.started.lock().unwrap().clone();
+    assert_eq!(
+        started,
+        vec![later],
+        "only the node it entered at runs; the earlier one is restored, not re-run"
+    );
+}

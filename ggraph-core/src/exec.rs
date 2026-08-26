@@ -176,6 +176,16 @@ pub struct Entry {
     pub at: Vec<u32>,
     /// What the entry carries — the answer, the event payload.
     pub payload: PortValues,
+    /// Read back what earlier runs of this instance produced, for every node this one does not
+    /// run itself.
+    ///
+    /// Separate from the checkpoint policy on purpose, because they are separate questions that
+    /// were conflated. Writing checkpoints is about surviving the process a run started in;
+    /// restoring is about a run that resumes something an earlier one left open — a window closing
+    /// hours later, on a timer, with no payload of its own, needing the values the arming run saw.
+    /// A product can want the second without the first, and while these were one flag it could
+    /// not say so.
+    pub restore: bool,
 }
 
 /// What a finished run produced, per node.
@@ -237,7 +247,7 @@ fn run_inner<M: GraphMeta, H: Host<Meta = M>>(
     // A resumption reads back what the interrupted run had already produced. Only on a
     // resumption: seeding a fresh run from a previous one's leftovers would make stale values
     // look live and revive branches the engine deliberately left dead.
-    if !seed_entries && st.checkpoint == Checkpoint::EveryNode {
+    if !seed_entries && (entry.restore || st.checkpoint == Checkpoint::EveryNode) {
         restore(graph, reg, host, &instance, &forced, &mut st);
     }
 
@@ -274,7 +284,12 @@ fn run_inner<M: GraphMeta, H: Host<Meta = M>>(
     Ok(st.outputs)
 }
 
-fn values_key(graph: uuid::Uuid, node: u32, instance: &str) -> crate::host::StateKey {
+/// Where one node's outputs are remembered, for one instance of one graph.
+///
+/// Public because a host that wants to seed, inspect or migrate what a run will restore has to
+/// name the same key the engine does. Guessing it is how two halves of a product end up writing
+/// to two different places and neither noticing.
+pub fn values_key(graph: uuid::Uuid, node: u32, instance: &str) -> crate::host::StateKey {
     crate::host::StateKey {
         target: crate::host::NodeTarget {
             graph,
