@@ -149,19 +149,32 @@ persistence adapter (the `Host` traits against a real database), and retry with 
 
 ## Licence
 
-[Mozilla Public License 2.0](LICENSE).
+[GNU Affero General Public License v3.0](LICENSE), and only that version.
 
-File-level copyleft, which is the point. Use this engine in anything, open or closed, and only
-the code you take from it stays open: if you modify one of ITS files, that file's source has to
-be available. Your own code — your nodes, your host, your product — is yours and is untouched by
-this.
+**Use it freely. Change it and the change comes back.** Anyone may run this engine, build on it,
+and ship a product with it. What the AGPL adds over an ordinary copyleft licence is section 13:
+if you modify it and let people use it **over a network**, those users are entitled to your
+modified source. Running a service is not a way around publishing — which is the whole reason
+this licence and not a gentler one.
 
-Every source file carries the notice, because MPL scope is per file and an unmarked one is a
-question nobody should have to answer later.
+Two consequences worth stating plainly rather than leaving somebody to discover:
+
+- The AGPL does not distinguish modifying from linking. A program that links this library is a
+  work based on it, so **your program falls under the AGPL too**, not only the files you changed.
+  That is a real cost and it is deliberate.
+- No licence can require you to send changes to *this* repository — a term like that is what makes
+  a licence non-free, and the ones that tried were rejected for it. What the AGPL requires is that
+  your modified source be **available**. It is then available to us as well, under the same terms,
+  and we can take it from wherever you publish it.
+
+If those terms do not fit what you are building, ask: the copyright is undivided and other
+arrangements are possible.
 
 The copyright holder reserves the right to use and distribute this code under other terms. The
-MPL is the offer made to everyone else; it is not a constraint the author licenses to himself,
-because an author does not need permission from his own work. This is what every dual-licensed
-project relies on, and it holds only while the copyright is undivided — the first outside
-contribution accepted without a contributor agreement ends it, and relicensing then needs every
-contributor's consent.
+AGPL is the offer made to everyone else; it is not a constraint the author licenses to himself,
+because an author does not need permission from his own work. This holds only while the copyright
+is undivided — the first outside contribution accepted without a contributor agreement ends it,
+and relicensing then needs every contributor's consent.
+
+Earlier tags carry earlier terms and always will: `v0.1.0`–`v0.15.0` are MIT OR Apache-2.0 and
+`v0.16.0` is MPL-2.0. Tightening a licence only ever applies forward.
