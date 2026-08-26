@@ -467,7 +467,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
         Behavior::Inert => {
             host.observer().node_started(nid);
             st.ran.insert(nid);
-            fire_default(spec, nid, &node.config, st);
+            fire_default(spec, host, nid, &node.config, st);
             Ok(false)
         }
 
@@ -491,7 +491,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
             st.ran.insert(nid);
-            fire_default(spec, nid, &node.config, st);
+            fire_default(spec, host, nid, &node.config, st);
             Ok(false)
         }
 
@@ -522,7 +522,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
             let arms = router.arms(&cx, &out);
             host.observer().node_finished(nid, &summary, ms);
             for a in arms {
-                st.live_arms.insert((nid, a));
+                fire_arm(host, st, nid, a);
             }
             record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
@@ -562,7 +562,7 @@ fn execute<M: GraphMeta, H: Host<Meta = M>>(
                     .node_finished(nid, msg, started.elapsed().as_millis());
             }
             for a in &step.arms {
-                st.live_arms.insert((nid, a.clone()));
+                fire_arm(host, st, nid, a.clone());
             }
             record(host, graph.id, nid, instance, &step.outputs, st);
             st.outputs.insert(nid, step.outputs);
@@ -662,10 +662,20 @@ fn record<H: Host>(
     host.state().set(&values_key(graph, nid, instance), &j);
 }
 
+/// Fire one exec arm: mark it live, and say so.
+///
+/// Every arm goes through here. Marking an arm live and reporting it are the same event seen from
+/// two sides — a scheduler where they are two statements is one that eventually fires an arm it
+/// never reports, and an editor downstream of that lights the wrong edge.
+fn fire_arm<H: Host>(host: &H, st: &mut State, nid: u32, port: PortName) {
+    host.observer().arm(nid, port.as_str());
+    st.live_arms.insert((nid, port));
+}
+
 /// Fire the node's exec arms for a node that does not choose them itself.
-fn fire_default<H: Host>(spec: &NodeSpec<H>, nid: u32, config: &Json, st: &mut State) {
+fn fire_default<H: Host>(spec: &NodeSpec<H>, host: &H, nid: u32, config: &Json, st: &mut State) {
     for p in spec.exec_out.resolve(config) {
-        st.live_arms.insert((nid, p.name));
+        fire_arm(host, st, nid, p.name);
     }
 }
 

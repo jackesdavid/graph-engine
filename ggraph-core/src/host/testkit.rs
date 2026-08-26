@@ -85,6 +85,8 @@ pub struct Recorder {
     /// Kept separately from `finished` so that adding it did not change what every existing
     /// assertion compares against.
     pub elapsed: Mutex<Vec<u128>>,
+    /// Which arms fired, in order, as `(node, port)`.
+    pub arms: Mutex<Vec<(u32, String)>>,
     /// How many times the run was declared over. A buffering observer flushes here, so a test
     /// can prove the hook fires — including on the path where the run failed.
     pub ends: Mutex<usize>,
@@ -110,6 +112,9 @@ impl Observer for Recorder {
     }
     fn emitted(&self, event: &str, _payload: &PortValues) {
         self.events.lock().unwrap().push(event.to_string());
+    }
+    fn arm(&self, node: u32, port: &str) {
+        self.arms.lock().unwrap().push((node, port.to_string()));
     }
     fn run_finished(&self) {
         *self.ends.lock().unwrap() += 1;

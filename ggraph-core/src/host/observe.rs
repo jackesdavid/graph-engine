@@ -15,6 +15,12 @@ pub trait Observer: Send + Sync {
     fn emitted(&self, _event: &str, _payload: &PortValues) {}
     /// A node produced something for a person to look at right now.
     fn ui(&self, _node: u32, _event: UiEvent) {}
+    /// An exec arm fired: control left `node` through `port`.
+    ///
+    /// The only signal that says WHICH edge control travelled along. Without it an editor has to
+    /// infer the edge from the node it arrives at, which is right by accident until two branches
+    /// converge on one node and both edges light.
+    fn arm(&self, _node: u32, _port: &str) {}
     /// The run is over — nothing else will be reported for it.
     ///
     /// Only interesting to an observer that BUFFERS. One that decides whether to report a node

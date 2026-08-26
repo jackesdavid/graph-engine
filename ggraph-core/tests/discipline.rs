@@ -44,6 +44,21 @@ impl NodeRun<TestHost> for Counter {
     }
 }
 
+/// Produces `false`. The plain test host reads no literals — that is a capability a product
+/// supplies — so a branch in a test is fed by a wire, like a branch in a real graph usually is.
+struct Falsehood;
+
+static FALSEHOOD_OUT: [ggraph_core::Port; 1] =
+    [ggraph_core::Port::opt("out", ggraph_core::PortType::BOOL)];
+
+impl NodeRun<TestHost> for Falsehood {
+    fn run(&self, _cx: &NodeCx<'_, TestHost>) -> Result<PortValues, NodeError> {
+        let mut out = PortValues::new();
+        out.insert(ggraph_core::PortName::new("out"), Value::Bool(false));
+        Ok(out)
+    }
+}
+
 fn registry(counter: Counter) -> NodeRegistry<TestHost> {
     let mut r = NodeRegistry::new();
     ggraph_core::nodes::register_all(&mut r, &ggraph_core::Services::none());
@@ -52,6 +67,11 @@ fn registry(counter: Counter) -> NodeRegistry<TestHost> {
             .with_config(|| json!({ "sleep_ms": "0" }))
             .with_timeout(Timeout::Secs(1))
             .running(Slow),
+    );
+    r.register(
+        NodeSpec::effectful("falsehood", "Falsehood", "Test")
+            .with_outputs(Ports::Static(&FALSEHOOD_OUT))
+            .running(Falsehood),
     );
     r.register(
         NodeSpec::effectful("counter", "Counter", "Test")
@@ -348,5 +368,36 @@ fn the_observer_learns_the_run_ended_even_when_it_failed() {
         *host.inner().observer.ends.lock().unwrap(),
         2,
         "a failed run must still tell the observer it is over"
+    );
+}
+
+/// The scheduler says which arm control left by, not merely which node it reached.
+///
+/// Downstream of this an editor draws the live edge. Told only the destination it has to guess
+/// the edge, and the guess is right until two branches converge on one node — then BOTH edges
+/// light, including the one from the branch that never ran.
+#[test]
+fn an_arm_is_reported_with_the_port_it_left_by() {
+    let reg = registry(Counter::default());
+    let host = TestHost::new();
+
+    let mut g: Graph = Graph::new("converging");
+    let cond = g.add_node(NodeId::new("falsehood"), 0, 0);
+    let gate = g.add_node(NodeId::new("if"), 0, 0);
+    let target = g.add_node(NodeId::new("counter"), 0, 0);
+    g.add_edge(&reg, cond, "out", gate, "condition").unwrap();
+    g.add_edge(&reg, gate, "true", target, "exec_in").unwrap();
+    g.add_edge(&reg, gate, "false", target, "exec_in").unwrap();
+
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default()).expect("runs");
+
+    let arms = host.inner().observer.arms.lock().unwrap().clone();
+    assert!(
+        arms.contains(&(gate, "false".to_string())),
+        "the arm that fired must be named: {arms:?}"
+    );
+    assert!(
+        !arms.contains(&(gate, "true".to_string())),
+        "the arm that did not fire must not be: {arms:?}"
     );
 }
