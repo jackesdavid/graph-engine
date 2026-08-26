@@ -532,3 +532,22 @@ fn a_node_wired_to_nothing_is_left_alone() {
         "asked for explicitly, it runs: {ran:?}"
     );
 }
+
+/// O registry enumera-se, e em ordem estável.
+///
+/// Sem isto não há catálogo, e o catálogo é como um editor descobre o que pode desenhar. Um produto
+/// com um enum de tipos itera o enum; um que use identificadores abertos — que é o que esta engine
+/// oferece — só tem o registry. Sem enumeração, cada consumidor mantinha uma segunda lista à parte,
+/// e duas listas da mesma coisa divergem.
+#[test]
+fn o_catalogo_sai_do_registry_e_sai_igual_duas_vezes() {
+    let reg = registry(Counter::default());
+
+    let uma: Vec<&str> = reg.iter().map(|s| s.id.as_str()).collect();
+    let outra: Vec<&str> = reg.iter().map(|s| s.id.as_str()).collect();
+
+    assert_eq!(uma, outra, "duas leituras têm de dar a mesma ordem");
+    assert_eq!(uma.len(), reg.len(), "enumera tudo o que está registado");
+    assert!(uma.windows(2).all(|w| w[0] <= w[1]), "ordenado: {uma:?}");
+    assert!(uma.contains(&"counter"), "inclui o que foi registado à mão");
+}

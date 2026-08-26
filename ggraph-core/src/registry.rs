@@ -144,6 +144,20 @@ impl<H: Host> NodeRegistry<H> {
         self.specs.get(id)
     }
 
+    /// Todas as declarações, para quem precisa de listar o que existe.
+    ///
+    /// Sem isto não há catálogo — e o catálogo é como um editor descobre o que pode desenhar. Um
+    /// produto com um enum de tipos consegue iterar o enum; um que use identificadores abertos, que
+    /// é o que esta engine oferece, só tem o registry. Recusar a enumeração obrigava cada consumidor
+    /// a manter uma segunda lista à parte, e duas listas da mesma coisa divergem.
+    ///
+    /// A ordem é estável: por identificador, para um catálogo servido duas vezes sair igual.
+    pub fn iter(&self) -> impl Iterator<Item = &Arc<NodeSpec<H>>> {
+        let mut v: Vec<_> = self.specs.values().collect();
+        v.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+        v.into_iter()
+    }
+
     pub fn len(&self) -> usize {
         self.specs.len()
     }
