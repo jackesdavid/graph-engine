@@ -114,11 +114,50 @@ impl Default for Purity {
 }
 
 /// How long a node may take before the engine gives up on it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 pub enum Timeout {
     /// Runs inline. For nodes that cannot block — arithmetic, string formatting.
     Inline,
     Secs(u64),
+    /// How long this node may take, read from its own configuration.
+    ///
+    /// The same reason [`Ports::Dynamic`] exists: a declaration that depends on how the user
+    /// filled the node in cannot be a constant, and a scheduler asking the constant while an
+    /// editor asks the node gives two answers about one node. "Too long" is exactly that kind of
+    /// property — a person who sets a slow endpoint to sixty seconds means it, and a spec that
+    /// can only state the default silently gives them fifteen.
+    ///
+    /// Returning `None` means inline.
+    FromConfig(TimeoutFn),
+}
+
+/// Reads a node's timeout out of its configuration. `None` means inline.
+pub type TimeoutFn = Arc<dyn Fn(&Json) -> Option<u64> + Send + Sync>;
+
+impl std::fmt::Debug for Timeout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Timeout::Inline => write!(f, "Inline"),
+            Timeout::Secs(s) => write!(f, "Secs({s})"),
+            Timeout::FromConfig(_) => write!(f, "FromConfig(..)"),
+        }
+    }
+}
+
+impl Timeout {
+    /// Settle it against a node's actual configuration.
+    pub fn resolve(&self, config: &Json) -> Option<u64> {
+        match self {
+            Timeout::Inline => None,
+            Timeout::Secs(s) => Some(*s),
+            Timeout::FromConfig(f) => f(config),
+        }
+    }
+
+    /// Build one from a closure over configuration.
+    pub fn from_config(f: impl Fn(&Json) -> Option<u64> + Send + Sync + 'static) -> Timeout {
+        Timeout::FromConfig(Arc::new(f))
+    }
 }
 
 /// What fires after a node runs.

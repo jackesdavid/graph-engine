@@ -118,7 +118,10 @@ fn an_inline_node_is_not_supervised_by_a_thread() {
     // arithmetic costs more than the risk it removes, so the scheduler takes it at its word.
     let reg = registry(Counter::default());
     let spec = reg.resolve("compare").expect("registered");
-    assert_eq!(spec.timeout, Timeout::Inline);
+    assert!(
+        matches!(spec.timeout, Timeout::Inline),
+        "a comparison declares it cannot block"
+    );
     let spec = reg.resolve("http_request").expect("registered");
     assert!(
         matches!(spec.timeout, Timeout::Secs(_)),
@@ -444,4 +447,33 @@ fn a_resumption_restores_without_the_engine_checkpointing() {
         vec![later],
         "only the node it entered at runs; the earlier one is restored, not re-run"
     );
+}
+
+/// A node's timeout can come from its own configuration, not only from its kind.
+///
+/// The same reason `Ports::Dynamic` exists. A person who sets a slow endpoint to sixty seconds
+/// means it, and a spec that can only state the kind's default silently gives them the default —
+/// which surfaces as a node that "randomly" fails on exactly the requests it was configured to
+/// wait for.
+#[test]
+fn a_node_may_take_as_long_as_its_configuration_says() {
+    let mut reg = registry(Counter::default());
+    reg.register(
+        NodeSpec::effectful("patient", "Patient", "Test")
+            .with_config(|| json!({ "sleep_ms": "0", "timeout_secs": "" }))
+            .with_timeout(Timeout::from_config(|cfg| {
+                cfg.get("timeout_secs")?.as_str()?.parse::<u64>().ok()
+            }))
+            .running(Slow),
+    );
+
+    let host = TestHost::new();
+    let mut g: Graph = Graph::new("patient");
+    let n = g.add_node(NodeId::new("patient"), 0, 0);
+    // Sleeps past the one second the kind's siblings get, and says so in its own configuration.
+    g.node_mut(n).unwrap().config["sleep_ms"] = json!("1500");
+    g.node_mut(n).unwrap().config["timeout_secs"] = json!("30");
+
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default())
+        .expect("a node configured to take longer is allowed to take longer");
 }

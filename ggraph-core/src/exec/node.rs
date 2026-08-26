@@ -59,7 +59,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
             host.observer().node_started(nid);
             let (out, summary, ms) = run_timed(
                 runner,
-                spec.timeout,
+                &spec.timeout,
                 &node.config,
                 &inputs,
                 nid,
@@ -84,7 +84,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
             let as_run: Arc<dyn NodeRun<H>> = router.clone();
             let (out, summary, ms) = run_timed(
                 &as_run,
-                spec.timeout,
+                &spec.timeout,
                 &node.config,
                 &inputs,
                 nid,
@@ -166,7 +166,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
 /// socket holding a run open until somebody restarts the process.
 pub(crate) fn run_timed<H: Host>(
     runner: &Arc<dyn NodeRun<H>>,
-    timeout: Timeout,
+    timeout: &Timeout,
     config: &Json,
     inputs: &PortValues,
     nid: u32,
@@ -175,7 +175,9 @@ pub(crate) fn run_timed<H: Host>(
 ) -> Result<(PortValues, String, u128), NodeError> {
     let started = Instant::now();
 
-    if let Timeout::Secs(secs) = timeout {
+    // Settled against this node's own configuration, because "too long" is a property a person
+    // can set per node and a spec that could only state the default silently overrode them.
+    if let Some(secs) = timeout.resolve(config) {
         let (tx, rx) = std::sync::mpsc::channel();
         let runner = Arc::clone(runner);
         // Cloning the inputs is cheap where it matters: `Bytes` holds an `Arc<[u8]>`, so a frame
