@@ -15,6 +15,14 @@ pub trait Observer: Send + Sync {
     fn emitted(&self, _event: &str, _payload: &PortValues) {}
     /// A node produced something for a person to look at right now.
     fn ui(&self, _node: u32, _event: UiEvent) {}
+    /// The run is over — nothing else will be reported for it.
+    ///
+    /// Only interesting to an observer that BUFFERS. One that decides whether to report a node
+    /// based on what happened later in the run has no other moment at which to make that call,
+    /// and without this hook it would have to be flushed by hand at every call site of
+    /// [`run`](crate::run) — which is the kind of thing somebody forgets once and then debugs
+    /// as missing output.
+    fn run_finished(&self) {}
 }
 
 /// Something a node wants shown, live, while the graph runs.

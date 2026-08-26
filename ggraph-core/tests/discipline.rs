@@ -314,3 +314,39 @@ fn every_run_failure_says_whether_retrying_could_help() {
         "the same graph reaches the same ceiling"
     );
 }
+
+/// The run's end is reported on both paths, including the one that failed.
+///
+/// An observer that buffers — one deciding whether to report a node based on what happened
+/// later in the run — has no other moment to make that call. Firing this only on success loses
+/// everything it was holding exactly when a run went wrong, which is the run somebody most
+/// wants the report from.
+#[test]
+fn the_observer_learns_the_run_ended_even_when_it_failed() {
+    let reg = registry(Counter::default());
+    let host = TestHost::new();
+
+    let mut good: Graph = Graph::new("fine");
+    good.add_node(NodeId::new("counter"), 0, 0);
+    assert!(ggraph_core::run(
+        &good,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions::default()
+    )
+    .is_ok());
+    assert_eq!(*host.inner().observer.ends.lock().unwrap(), 1);
+
+    // A graph that cannot run: the kind was never registered.
+    let mut bad: Graph = Graph::new("doomed");
+    bad.add_node(NodeId::new("no_such_kind"), 0, 0);
+    assert!(
+        ggraph_core::run(&bad, &reg, &host, &Entry::default(), &RunOptions::default()).is_err()
+    );
+    assert_eq!(
+        *host.inner().observer.ends.lock().unwrap(),
+        2,
+        "a failed run must still tell the observer it is over"
+    );
+}

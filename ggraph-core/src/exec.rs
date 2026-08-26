@@ -182,7 +182,25 @@ pub struct Entry {
 pub type Outputs = HashMap<u32, PortValues>;
 
 /// Run a graph to completion.
+/// Run a graph to completion.
+///
+/// The observer is told the run finished on **either** path. An observer that buffers — one
+/// deciding whether to report a node based on what happened later — would otherwise lose
+/// everything it was holding whenever a run failed, which is the run you most want the report
+/// from.
 pub fn run<M: GraphMeta, H: Host<Meta = M>>(
+    graph: &Graph<M>,
+    reg: &NodeRegistry<H>,
+    host: &H,
+    entry: &Entry,
+    opts: &RunOptions,
+) -> Result<Outputs, RunError> {
+    let out = run_inner(graph, reg, host, entry, opts);
+    host.observer().run_finished();
+    out
+}
+
+fn run_inner<M: GraphMeta, H: Host<Meta = M>>(
     graph: &Graph<M>,
     reg: &NodeRegistry<H>,
     host: &H,
