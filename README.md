@@ -158,3 +158,10 @@ this.
 
 Every source file carries the notice, because MPL scope is per file and an unmarked one is a
 question nobody should have to answer later.
+
+The copyright holder reserves the right to use and distribute this code under other terms. The
+MPL is the offer made to everyone else; it is not a constraint the author licenses to himself,
+because an author does not need permission from his own work. This is what every dual-licensed
+project relies on, and it holds only while the copyright is undivided — the first outside
+contribution accepted without a contributor agreement ends it, and relicensing then needs every
+contributor's consent.
