@@ -23,18 +23,19 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
-pub mod codec;
+pub mod data;
 pub mod exec;
 pub mod graph;
 pub mod host;
-pub mod id;
 pub mod nodes;
-pub mod port;
 pub mod registry;
 pub mod spec;
-pub mod topo;
-pub mod validate;
-pub mod value;
+
+// The modules moved into `data/` and `graph/`, but their paths did not: a consumer still writes
+// `ggraph_core::codec` or `ggraph_core::topo`. Grouping files is for whoever reads them, and is no
+// reason to break anybody's imports.
+pub use data::{codec, id, port, value};
+pub use graph::{topo, validate};
 
 pub use codec::{decode, decode_ports, encode, encode_ports};
 pub use exec::{run, Budget, Checkpoint, Entry, Outputs, RunError, RunOptions};
