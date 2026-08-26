@@ -59,6 +59,18 @@ impl NodeRun<TestHost> for Falsehood {
     }
 }
 
+/// Options for a graph that is a single node with no edges.
+///
+/// A bag of one. `Isolated::Skip` is the default and the right one for a canvas full of leftovers,
+/// so a test whose whole graph is one unwired node has to say it means it — otherwise the run
+/// succeeds without running anything and the test proves nothing at all.
+fn lone_node() -> RunOptions {
+    RunOptions {
+        isolated: ggraph_core::exec::Isolated::Run,
+        ..Default::default()
+    }
+}
+
 fn registry(counter: Counter) -> NodeRegistry<TestHost> {
     let mut r = NodeRegistry::new();
     ggraph_core::nodes::register_all(&mut r, &ggraph_core::Services::none());
@@ -90,7 +102,7 @@ fn a_node_that_overruns_its_timeout_is_abandoned_and_says_so() {
     g.node_mut(n).unwrap().config = json!({ "sleep_ms": "3000" });
 
     let host = TestHost::new();
-    let err = ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default())
+    let err = ggraph_core::run(&g, &reg, &host, &Entry::default(), &lone_node())
         .expect_err("a node past its deadline must not simply hang the run");
 
     match err {
@@ -137,7 +149,7 @@ fn the_observer_is_handed_a_real_elapsed_time() {
     g.node_mut(n).unwrap().config = json!({ "sleep_ms": "40" });
 
     let host = TestHost::new();
-    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default()).expect("runs");
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &lone_node()).expect("runs");
 
     let finished = host.inner().observer.finished.lock().unwrap().clone();
     assert!(!finished.is_empty(), "the node reported nothing at all");
@@ -195,7 +207,7 @@ fn a_node_refusing_its_inputs_is_not_worth_retrying() {
     g.add_edge(&reg, cmp, "result", br, "condition").unwrap();
 
     let host = TestHost::new();
-    match ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default()) {
+    match ggraph_core::run(&g, &reg, &host, &Entry::default(), &lone_node()) {
         Err(RunError::Node { retry, .. }) => assert_eq!(
             retry,
             Retry::Never,
@@ -278,7 +290,7 @@ fn an_unwired_input_falls_back_to_configuration() {
     g.add_edge(&reg, br, "true", taken, "exec_in").unwrap();
 
     let host = WithLiterals::default();
-    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default())
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &lone_node())
         .expect("a condition typed into the inspector must satisfy the required port");
 
     let ran = host.0.inner().observer.started.lock().unwrap().clone();
@@ -327,7 +339,7 @@ fn every_run_failure_says_whether_retrying_could_help() {
         &Entry::default(),
         &RunOptions {
             budget: ggraph_core::Budget { max_steps: 2 },
-            ..RunOptions::default()
+            ..lone_node()
         },
     )
     .expect_err("a run past its ceiling fails");
@@ -474,6 +486,46 @@ fn a_node_may_take_as_long_as_its_configuration_says() {
     g.node_mut(n).unwrap().config["sleep_ms"] = json!("1500");
     g.node_mut(n).unwrap().config["timeout_secs"] = json!("30");
 
-    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default())
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &lone_node())
         .expect("a node configured to take longer is allowed to take longer");
+}
+
+/// A node wired to nothing does not run, unless the run says otherwise.
+///
+/// It has no incoming exec edge, so by the plain reading it is somewhere control can start. But a
+/// canvas collects leftovers — a node dropped while trying something out and never wired — and
+/// running those is how a graph sends a notification nobody asked for.
+#[test]
+fn a_node_wired_to_nothing_is_left_alone() {
+    let counter = Counter::default();
+    let reg = registry(counter.clone());
+    let host = TestHost::new();
+
+    let mut g: Graph = Graph::new("with a leftover");
+    let wired_a = g.add_node(NodeId::new("counter"), 0, 0);
+    let wired_b = g.add_node(NodeId::new("counter"), 0, 0);
+    g.add_edge(&reg, wired_a, "exec_out", wired_b, "exec_in")
+        .unwrap();
+    let leftover = g.add_node(NodeId::new("counter"), 0, 0);
+
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &RunOptions::default()).expect("runs");
+    let ran = host.inner().observer.started.lock().unwrap().clone();
+    assert_eq!(
+        ran,
+        vec![wired_a, wired_b],
+        "the leftover must not run just because nothing points at it"
+    );
+
+    // And a graph that IS a bag of independent nodes can say so.
+    let opts = RunOptions {
+        isolated: ggraph_core::exec::Isolated::Run,
+        ..Default::default()
+    };
+    let host = TestHost::new();
+    ggraph_core::run(&g, &reg, &host, &Entry::default(), &opts).expect("runs");
+    let ran = host.inner().observer.started.lock().unwrap().clone();
+    assert!(
+        ran.contains(&leftover),
+        "asked for explicitly, it runs: {ran:?}"
+    );
 }

@@ -120,6 +120,25 @@ pub enum Checkpoint {
 pub struct RunOptions {
     pub budget: Budget,
     pub checkpoint: Checkpoint,
+    /// What to do with a node that is wired to nothing at all.
+    pub isolated: Isolated,
+}
+
+/// Whether a node with no edges whatsoever takes part in a run.
+///
+/// It has no incoming exec edge, so it looks like somewhere control can start — and by that
+/// reading it runs. But a canvas collects leftovers: a node dropped while trying something out,
+/// unwired, forgotten. Running those is how a graph sends a notification nobody asked for.
+///
+/// Having no edges is not the same as having no INCOMING edges: a node feeding another is wired,
+/// and a node fed by another is wired. This is only about the ones connected to nothing.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Isolated {
+    /// Leave them out. The safe default — an unwired node did not ask to run.
+    #[default]
+    Skip,
+    /// Run them. For a graph that is a bag of independent nodes on purpose.
+    Run,
 }
 
 impl RunOptions {

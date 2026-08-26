@@ -100,12 +100,28 @@ fn run_inner<M: GraphMeta, H: Host<Meta = M>>(
         live_arms: HashSet::new(),
         scratch: HashMap::new(),
         steps: 0,
+        isolated: HashSet::new(),
         halted: false,
     };
 
     // The first epoch's entry set: an explicit resumption, or everything control can start at.
     let mut forced: HashSet<u32> = entry.at.iter().copied().collect();
     let seed_entries = forced.is_empty();
+
+    // A node wired to nothing has no incoming exec edge, so it reads as a place control can start.
+    // Usually it is a leftover somebody dropped on the canvas while trying something out, and
+    // running it is how a graph sends a notification nobody asked for.
+    st.isolated = if opts.isolated == Isolated::Run {
+        HashSet::new()
+    } else {
+        let wired: HashSet<u32> = graph.edges.iter().flat_map(|e| [e.from, e.to]).collect();
+        graph
+            .nodes
+            .iter()
+            .map(|n| n.id)
+            .filter(|id| !wired.contains(id))
+            .collect()
+    };
 
     // A resumption reads back what the interrupted run had already produced. Only on a
     // resumption: seeding a fresh run from a previous one's leftovers would make stale values

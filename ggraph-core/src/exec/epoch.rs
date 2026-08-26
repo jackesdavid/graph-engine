@@ -33,6 +33,8 @@ pub(crate) struct State {
     pub(crate) live_arms: HashSet<(u32, PortName)>,
     pub(crate) scratch: HashMap<u32, Json>,
     pub(crate) steps: u32,
+    /// Nodes wired to nothing, which this run leaves alone. Empty when it runs them.
+    pub(crate) isolated: HashSet<u32>,
     pub(crate) halted: bool,
 }
 
@@ -113,6 +115,11 @@ pub(crate) fn should_run<M: GraphMeta, H: Host>(
     seed_entries: bool,
     st: &State,
 ) -> bool {
+    // Wired to nothing, so nothing asked for it. See `Isolated`.
+    if st.isolated.contains(&nid) {
+        return false;
+    }
+
     // Pure nodes are pulled, never pushed.
     if !spec.purity.has_exec() {
         return false;
