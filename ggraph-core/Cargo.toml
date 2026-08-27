@@ -11,6 +11,10 @@ repository.workspace = true
 # Everything that touches the world arrives through the `Host` traits, implemented by the
 # product. A dependency added here is paid for by every consumer, forever.
 [dependencies]
+# Charts as static SVG. `svg_backend` only: no font handling, because the browser measures the
+# text. Three crates and nothing transitive worth naming — the weight that usually makes a chart
+# library not worth it does not appear here.
+plotters = { version = "0.3.7", default-features = false, features = ["svg_backend"] }
 serde.workspace = true
 serde_json.workspace = true
 smol_str.workspace = true

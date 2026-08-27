@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 Jackes David Lemos
+
+//! `report_table` — rows under named columns.
+//!
+//! Rows arrive as a list of lists or a list of maps, and both are accepted because both are what a
+//! graph naturally produces: a `for_each` collecting values gives lists, a search giving structured
+//! hits gives maps. Refusing one would push the caller into a reshaping node that exists only to
+//! satisfy this one.
+
+use super::{to_value, BLOCK, ROWS};
+use crate::host::Host;
+use crate::id::PortName;
+use crate::port::Port;
+use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
+use crate::value::{PortValues, Value};
+use serde_json::{json, Value as Json};
+
+/// `rows`, not a list. The editor refuses anything else while the wire is being drawn, which is
+/// the whole reason the report set has its own types.
+static IN: [Port; 1] = [Port::req("rows", ROWS)];
+static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
+
+fn columns(cfg: &Json) -> Vec<String> {
+    cfg.get("columns")
+        .and_then(Json::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|c| c.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+struct Table;
+
+impl<H: Host> NodeRun<H> for Table {
+    fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+        // Already reduced to cells by `report_rows`. Nothing to interpret here, which is what the
+        // typed port bought: the shape is known because only one node can produce it.
+        let rows: Vec<Vec<String>> = match cx.input("rows") {
+            Some(Value::List(rows)) => rows
+                .iter()
+                .map(|r| match r {
+                    Value::List(cells) => cells
+                        .iter()
+                        .map(|c| c.as_text().unwrap_or_else(|| c.summary()))
+                        .collect(),
+                    one => vec![one.as_text().unwrap_or_else(|| one.summary())],
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+
+        let mut out = PortValues::new();
+        out.insert(
+            PortName::new("block"),
+            to_value(&crate::report::Block::Table {
+                columns: columns(cx.config),
+                rows,
+            }),
+        );
+        Ok(out)
+    }
+
+    fn summary(&self, cx: &NodeCx<'_, H>, _out: &PortValues) -> String {
+        let n = match cx.input("rows") {
+            Some(Value::List(r)) => r.len(),
+            Some(_) => 1,
+            None => 0,
+        };
+        format!("{n} row(s)")
+    }
+}
+
+pub(super) fn spec<H: Host>() -> NodeSpec<H> {
+    NodeSpec::pure("report_table", "Table", "Report")
+        .with_inputs(Ports::Static(&IN))
+        .with_outputs(Ports::Static(&OUT))
+        .with_config(|| json!({ "columns": [] }))
+        .with_timeout(Timeout::Inline)
+        .running(Table)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Columns are the author's, and they name what `report_rows` already extracted. Two lists that
+    /// must agree — and the node that produces the rows is the one that decided their order.
+    #[test]
+    fn the_columns_are_the_authors() {
+        assert_eq!(
+            columns(&json!({ "columns": ["Documento", "Página"] })),
+            vec!["Documento", "Página"]
+        );
+    }
+}

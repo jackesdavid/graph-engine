@@ -25,7 +25,8 @@ pub mod format;
 pub mod http_request;
 pub mod llm;
 pub mod print;
-pub mod table;
+pub mod report;
+mod table;
 pub mod variables;
 pub mod wait;
 
@@ -49,6 +50,9 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>, services: &services::Ser
     reg.register(llm::extract_spec(services));
     reg.register(format::spec(services));
     reg.register(print::spec(services));
+    // The report set: pure, and the only write goes through the host's own ValueIo.
+    report::register_all(reg);
+
     reg.register(table::append::spec(services));
     reg.register(table::clear::spec(services));
     reg.register(table::count::spec(services));

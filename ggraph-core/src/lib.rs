@@ -32,6 +32,7 @@ pub mod graph;
 pub mod host;
 pub mod nodes;
 pub mod registry;
+pub mod report;
 pub mod spec;
 
 // The modules moved into `data/` and `graph/`, but their paths did not: a consumer still writes

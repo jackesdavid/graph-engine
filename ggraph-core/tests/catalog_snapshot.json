@@ -442,6 +442,234 @@
       "slug": "print"
     },
     {
+      "category": "Report",
+      "default_config": {
+        "level": "1",
+        "text": ""
+      },
+      "inputs": [
+        {
+          "name": "text",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "label": "Heading",
+      "outputs": [
+        {
+          "name": "block",
+          "required": false,
+          "type": "block"
+        }
+      ],
+      "slug": "report_heading"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "text": ""
+      },
+      "inputs": [
+        {
+          "name": "text",
+          "required": false,
+          "type": "text"
+        },
+        {
+          "name": "source",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "label": "Paragraph",
+      "outputs": [
+        {
+          "name": "block",
+          "required": false,
+          "type": "block"
+        }
+      ],
+      "slug": "report_paragraph"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "fields": []
+      },
+      "inputs": [
+        {
+          "name": "items",
+          "required": true,
+          "type": "list"
+        }
+      ],
+      "label": "Rows from data",
+      "outputs": [
+        {
+          "name": "rows",
+          "required": false,
+          "type": "rows"
+        }
+      ],
+      "slug": "report_rows"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "label_field": "",
+        "value_field": ""
+      },
+      "inputs": [
+        {
+          "name": "items",
+          "required": true,
+          "type": "list"
+        }
+      ],
+      "label": "Series from data",
+      "outputs": [
+        {
+          "name": "values",
+          "required": false,
+          "type": "series"
+        },
+        {
+          "name": "labels",
+          "required": false,
+          "type": "labels"
+        }
+      ],
+      "slug": "report_series"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "columns": []
+      },
+      "inputs": [
+        {
+          "name": "rows",
+          "required": true,
+          "type": "rows"
+        }
+      ],
+      "label": "Table",
+      "outputs": [
+        {
+          "name": "block",
+          "required": false,
+          "type": "block"
+        }
+      ],
+      "slug": "report_table"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "title": ""
+      },
+      "inputs": [
+        {
+          "name": "values",
+          "required": true,
+          "type": "series"
+        },
+        {
+          "name": "labels",
+          "required": false,
+          "type": "labels"
+        }
+      ],
+      "label": "Bar chart",
+      "outputs": [
+        {
+          "name": "block",
+          "required": false,
+          "type": "block"
+        }
+      ],
+      "slug": "report_bar_chart"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "align": "stretch",
+        "direction": "column",
+        "gap": 16,
+        "justify": "start",
+        "slots": 2
+      },
+      "inputs": [
+        {
+          "name": "slot_1",
+          "required": false,
+          "type": "block"
+        },
+        {
+          "name": "slot_2",
+          "required": false,
+          "type": "block"
+        }
+      ],
+      "label": "Layout",
+      "outputs": [
+        {
+          "name": "block",
+          "required": false,
+          "type": "block"
+        }
+      ],
+      "slug": "report_layout"
+    },
+    {
+      "category": "Report",
+      "default_config": {
+        "align": "stretch",
+        "direction": "column",
+        "format": "html",
+        "gap": 16,
+        "justify": "start",
+        "slots": 1,
+        "title": "Report"
+      },
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "slot_1",
+          "required": false,
+          "type": "block"
+        },
+        {
+          "name": "theme",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "label": "Render report",
+      "outputs": [
+        {
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "key",
+          "required": false,
+          "type": "text"
+        },
+        {
+          "name": "bytes",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "report_render"
+    },
+    {
       "category": "Tables",
       "default_config": {
         "columns": [],

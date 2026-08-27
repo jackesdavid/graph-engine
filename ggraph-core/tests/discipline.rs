@@ -710,3 +710,89 @@ fn a_fabricated_context_reports_nothing() {
     assert!(cx.input("anything").is_none());
     assert!(host.inner().observer.defects.lock().unwrap().is_empty());
 }
+
+/// A report assembled by a graph, with a row nested inside a column.
+///
+/// The property the whole design rests on: a layout takes blocks and IS a block, so it takes
+/// layouts. If this stops working, every arrangement more complex than a list stops with it — and a
+/// column of stacked things is what a linear chain already produced.
+///
+/// Note what the graph does NOT have: exec wires between components. They are pure, so the render
+/// pulls the whole tree backwards through the data wires on its own.
+#[test]
+fn a_graph_assembles_a_nested_report() {
+    use ggraph_core::report::{Block, Direction};
+
+    let reg: NodeRegistry<TestHost> = {
+        let mut r = NodeRegistry::new();
+        ggraph_core::nodes::register_all(&mut r, &ggraph_core::Services::none());
+        r
+    };
+
+    let mut g: Graph = Graph::new("report");
+    let heading = g.add_node(NodeId::new("report_heading"), 0, 0);
+    let table = g.add_node(NodeId::new("report_table"), 200, 100);
+    let chart = g.add_node(NodeId::new("report_bar_chart"), 200, 200);
+    let row = g.add_node(NodeId::new("report_layout"), 400, 150);
+    let col = g.add_node(NodeId::new("report_layout"), 600, 75);
+    // A pure node is PULLED, never entered. Something effectful has to want its value, and `print`
+    // is the smallest thing that does — the report's own render needs a blob store the test host
+    // does not have.
+    let sink = g.add_node(NodeId::new("print"), 800, 75);
+
+    g.node_mut(heading).unwrap().config["text"] = json!("Findings");
+    g.node_mut(table).unwrap().config["columns"] = json!(["Document"]);
+    g.node_mut(chart).unwrap().config["title"] = json!("Relevance");
+    // The row: table beside chart. What a linear chain could never produce.
+    g.node_mut(row).unwrap().config["direction"] = json!("row");
+    g.node_mut(row).unwrap().config["slots"] = json!(2);
+    g.node_mut(col).unwrap().config["slots"] = json!(2);
+
+    g.add_edge(&reg, table, "block", row, "slot_1").unwrap();
+    g.add_edge(&reg, chart, "block", row, "slot_2").unwrap();
+    g.add_edge(&reg, heading, "block", col, "slot_1").unwrap();
+    g.add_edge(&reg, row, "block", col, "slot_2").unwrap();
+    g.add_edge(&reg, col, "block", sink, "message").unwrap();
+
+    let host = TestHost::new();
+    let outs = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry {
+            at: vec![sink],
+            ..Default::default()
+        },
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    )
+    .expect("the graph runs");
+
+    let Some(Value::Json(j)) = outs.get(&col).and_then(|v| v.get(&PortName::new("block"))) else {
+        panic!("the column produced a block")
+    };
+    let tree: Block = serde_json::from_value(j.clone()).expect("it is a Block");
+
+    let Block::Layout { children, .. } = &tree else {
+        panic!("root is a layout")
+    };
+    assert_eq!(children.len(), 2, "heading and the row");
+    let Block::Layout {
+        layout,
+        children: pair,
+    } = &children[1]
+    else {
+        panic!("the second child is the nested layout")
+    };
+    assert_eq!(layout.direction, Direction::Row, "a row inside a column");
+    assert_eq!(pair.len(), 2, "table beside chart");
+
+    // And it renders as nested flex, which is what a reader sees.
+    let html = ggraph_core::report::render_html(&tree, "Report", None);
+    assert!(html.contains("flex-direction:column"));
+    assert!(html.contains("flex-direction:row"));
+    assert!(html.contains("<table"));
+    assert!(html.contains("<svg"));
+}
