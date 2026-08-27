@@ -49,10 +49,21 @@ pub(crate) enum FieldRef<'a> {
 }
 
 impl FieldRef<'_> {
+    /// The cell as a number, when it is one.
+    ///
+    /// Matched on the variant rather than asked with `as_f64`: `Value::as_text` answers for a
+    /// number too, so a filter of "not text" rejects every number there is. That check read as
+    /// caution and was the opposite — it emptied the column it was guarding.
     pub(crate) fn as_f64(&self) -> Option<f64> {
         match self {
             FieldRef::Json(j) => j.as_f64(),
-            FieldRef::Value(v) => v.as_f64().filter(|_| v.as_text().is_none()),
+            FieldRef::Value(crate::value::Value::Num(_)) => match self {
+                FieldRef::Value(v) => v.as_f64(),
+                _ => None,
+            },
+            // Text that holds a number is left to a node that says it converts. Reading it here
+            // would make a column silently numeric depending on what happened to be in it.
+            FieldRef::Value(_) => None,
         }
     }
 

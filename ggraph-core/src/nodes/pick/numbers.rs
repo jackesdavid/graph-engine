@@ -60,6 +60,14 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
 mod tests {
     use super::*;
 
+    /// A number is a number. `Value::as_text` answers for one too, so a "not text" guard rejects
+    /// every number there is — which emptied this column while reading as caution.
+    #[test]
+    fn a_numeric_cell_is_read() {
+        let row = Value::Map(vec![("score".into(), Value::float(0.0328))]);
+        assert_eq!(at(&row, "score").and_then(|f| f.as_f64()), Some(0.0328));
+    }
+
     /// "We could not read this" is a different statement from "this measured zero".
     #[test]
     fn a_record_without_the_field_is_skipped() {
