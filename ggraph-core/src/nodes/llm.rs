@@ -273,6 +273,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         // No answer at all — the model would not commit.
         let got: Vec<String> = r
@@ -312,6 +313,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         assert_eq!(r.run(&cx).unwrap_err(), NodeError::new("nothing to ask"));
     }

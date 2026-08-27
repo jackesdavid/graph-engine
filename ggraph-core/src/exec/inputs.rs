@@ -100,12 +100,14 @@ pub(crate) fn pull<M: GraphMeta, H: Host<Meta = M>>(
         st.ran.insert(nid);
         return Ok(());
     };
+    let declared = spec.inputs.resolve(&node.config);
     let cx = NodeCx {
         config: &node.config,
         inputs: &inputs,
         node: nid,
         host,
         vars,
+        declared_inputs: Some(&declared),
     };
     st.steps += 1;
     host.observer().node_started(nid);

@@ -110,6 +110,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         let arms: Vec<&str> = NodeRoute::arms(r.as_ref(), &cx, &PortValues::new())
             .iter()
@@ -136,6 +137,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         assert!(
             r.run(&cx).is_err(),

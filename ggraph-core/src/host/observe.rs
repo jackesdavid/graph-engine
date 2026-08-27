@@ -24,6 +24,15 @@ pub trait Observer: Send + Sync {
     /// infer the edge from the node it arrives at, which is right by accident until two branches
     /// converge on one node and both edges light.
     fn arm(&self, _node: u32, _port: &str) {}
+    /// A node's declaration disagrees with what it did — a defect in the node, not in the graph.
+    ///
+    /// Reported here rather than through a log crate: a library that picks a logging framework
+    /// picks it for every consumer. This hands the decision to the host, which can log it, count
+    /// it, or fail a test on it.
+    ///
+    /// The run continues. Taking down a running installation over a node that returns one port
+    /// too many is worse than the defect.
+    fn defect(&self, _node: u32, _message: &str) {}
     /// The run is over — nothing else will be reported for it.
     ///
     /// Only interesting to an observer that BUFFERS. One that decides whether to report a node

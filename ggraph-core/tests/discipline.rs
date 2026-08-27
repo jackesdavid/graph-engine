@@ -11,10 +11,12 @@
 //!
 //! These tests exist so that stays fixed.
 
-use ggraph_core::exec::{Entry, RunOptions};
+use ggraph_core::exec::{Entry, Isolated, RunOptions};
 use ggraph_core::host::testkit::TestHost;
+use ggraph_core::host::Host;
+use ggraph_core::port::{Port, PortType};
 use ggraph_core::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
-use ggraph_core::{Graph, NodeId, NodeRegistry, PortValues, Retry, RunError, Value};
+use ggraph_core::{Graph, NodeId, NodeRegistry, PortName, PortValues, Retry, RunError, Value};
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -74,6 +76,10 @@ fn lone_node() -> RunOptions {
     }
 }
 
+/// What `counter` returns. Declared because the engine now checks — and the check caught this
+/// very node returning `n` without declaring it.
+static COUNTER_OUT: [Port; 1] = [Port::opt("n", PortType::NUM)];
+
 fn registry(counter: Counter) -> NodeRegistry<TestHost> {
     let mut r = NodeRegistry::new();
     ggraph_core::nodes::register_all(&mut r, &ggraph_core::Services::none());
@@ -90,6 +96,7 @@ fn registry(counter: Counter) -> NodeRegistry<TestHost> {
     );
     r.register(
         NodeSpec::effectful("counter", "Counter", "Test")
+            .with_outputs(Ports::Static(&COUNTER_OUT))
             .with_outputs(Ports::Static(&[]))
             .running(counter),
     );
@@ -550,4 +557,156 @@ fn o_catalogo_sai_do_registry_e_sai_igual_duas_vezes() {
     assert_eq!(uma.len(), reg.len(), "enumera tudo o que está registado");
     assert!(uma.windows(2).all(|w| w[0] <= w[1]), "ordenado: {uma:?}");
     assert!(uma.contains(&"counter"), "inclui o que foi registado à mão");
+}
+
+/// A node that returns a port it never declared is caught.
+///
+/// The value goes nowhere — nothing can wire to a port the catalog does not list — so the graph
+/// looks correct on the canvas and the flow silently loses what the node produced.
+#[test]
+fn returning_an_undeclared_port_is_reported() {
+    struct Leaky;
+    impl<H: Host> NodeRun<H> for Leaky {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            out.insert(PortName::new("declared"), Value::int(1));
+            out.insert(PortName::new("surprise"), Value::int(2));
+            Ok(out)
+        }
+    }
+
+    static OUT: [Port; 1] = [Port::opt("declared", PortType::NUM)];
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("leaky", "Leaky", "Test")
+            .with_outputs(Ports::Static(&OUT))
+            .running(Leaky),
+    );
+
+    let mut g: Graph = Graph::new("leaky");
+    g.add_node(NodeId::new("leaky"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    let defects = host.inner().observer.defects.lock().unwrap().clone();
+    assert_eq!(defects.len(), 1, "one undeclared port: {defects:?}");
+    assert!(defects[0].contains("surprise"), "{}", defects[0]);
+}
+
+/// And a node that declares what it returns reports nothing — the check must not cry wolf, or it
+/// gets muted and stops catching the real thing.
+#[test]
+fn a_node_that_declares_what_it_returns_is_silent() {
+    struct Honest;
+    impl<H: Host> NodeRun<H> for Honest {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            out.insert(PortName::new("value"), Value::int(1));
+            Ok(out)
+        }
+    }
+
+    static OUT: [Port; 1] = [Port::opt("value", PortType::NUM)];
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("honest", "Honest", "Test")
+            .with_outputs(Ports::Static(&OUT))
+            .running(Honest),
+    );
+
+    let mut g: Graph = Graph::new("honest");
+    g.add_node(NodeId::new("honest"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    assert!(host.inner().observer.defects.lock().unwrap().is_empty());
+}
+
+/// Reading an input port the node never declared is caught.
+///
+/// It returns `None` forever, indistinguishable from a declared port that is simply unwired —
+/// which is how a renamed port becomes a node that quietly does nothing.
+#[test]
+fn reading_an_undeclared_input_is_reported() {
+    struct Confused;
+    impl<H: Host> NodeRun<H> for Confused {
+        fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let _ = cx.input("document"); // declared
+            let _ = cx.input("fille"); // typo
+            Ok(PortValues::new())
+        }
+    }
+
+    static IN: [Port; 1] = [Port::opt("document", PortType::TEXT)];
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("confused", "Confused", "Test")
+            .with_inputs(Ports::Static(&IN))
+            .running(Confused),
+    );
+
+    let mut g: Graph = Graph::new("confused");
+    g.add_node(NodeId::new("confused"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    let defects = host.inner().observer.defects.lock().unwrap().clone();
+    assert_eq!(defects.len(), 1, "only the typo: {defects:?}");
+    assert!(defects[0].contains("fille"), "{}", defects[0]);
+}
+
+/// A hand-built context declares nothing, and reports nothing.
+///
+/// "This node declares no inputs" and "nobody told me what it declares" want opposite answers.
+/// Conflating them would make every fabricated test context report a defect, and a check that
+/// cries wolf gets muted.
+#[test]
+fn a_fabricated_context_reports_nothing() {
+    let host = TestHost::new();
+    let cfg = json!({});
+    let inputs = PortValues::new();
+    let cx = NodeCx {
+        config: &cfg,
+        inputs: &inputs,
+        node: 1,
+        host: &host,
+        vars: Default::default(),
+        declared_inputs: None,
+    };
+
+    assert!(cx.input("anything").is_none());
+    assert!(host.inner().observer.defects.lock().unwrap().is_empty());
 }

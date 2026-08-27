@@ -15,6 +15,7 @@ use super::*;
 use crate::graph::{Graph, GraphMeta};
 use crate::host::Host;
 use crate::id::PortName;
+use crate::port::Port;
 use crate::registry::NodeRegistry;
 use crate::spec::{Behavior, Next, NodeCx, NodeError, NodeRun, NodeSpec, Step, StepCx, Timeout};
 use crate::value::PortValues;
@@ -22,6 +23,40 @@ use serde_json::{json, Value as Json};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+/// A port a node returns but never declared.
+///
+/// Nothing downstream can wire to it, so the value silently goes nowhere and the graph looks
+/// correct on the canvas. Resolved against THIS node's config, because `Ports::Dynamic` derives
+/// the list from it — checking against an empty config would fail every configurable node.
+///
+/// Reported, never fatal. The engine does not decide the severity: a product whose tests should
+/// fail on this makes its observer panic, and a running installation logs it and carries on.
+/// Deciding here would force one answer on every consumer — and asserting in the engine also makes
+/// a deliberate negative test impossible to write.
+fn check_declared<H: Host>(
+    spec: &NodeSpec<H>,
+    config: &Json,
+    out: &PortValues,
+    nid: u32,
+    host: &H,
+) {
+    let ports = spec.outputs.resolve(config);
+    let declared: HashSet<&str> = ports.iter().map(|p| p.name.as_str()).collect();
+
+    for name in out.keys() {
+        if !declared.contains(name.as_str()) {
+            let msg = format!(
+                "node `{}` returned undeclared output port `{}` — nothing can wire to it \
+                 (declared: {:?})",
+                spec.id.as_str(),
+                name.as_str(),
+                declared
+            );
+            host.observer().defect(nid, &msg);
+        }
+    }
+}
 
 /// Run one node and record what it produced.
 #[allow(clippy::too_many_arguments)]
@@ -60,6 +95,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
             // thing it consumes.
             let inputs = gather(graph, reg, host, nid, st)?;
             host.observer().node_started(nid);
+            let declared = spec.inputs.resolve(&node.config);
             let (out, summary, ms) = run_timed(
                 runner,
                 &spec.timeout,
@@ -68,9 +104,11 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
                 nid,
                 host,
                 &vars,
+                &declared,
             )
             .map_err(fail)?;
             host.observer().node_finished(nid, &summary, ms);
+            check_declared(spec, &node.config, &out, nid, host);
             record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
             st.ran.insert(nid);
@@ -85,6 +123,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
             let inputs = gather(graph, reg, host, nid, st)?;
             host.observer().node_started(nid);
             let as_run: Arc<dyn NodeRun<H>> = router.clone();
+            let declared = spec.inputs.resolve(&node.config);
             let (out, summary, ms) = run_timed(
                 &as_run,
                 &spec.timeout,
@@ -93,6 +132,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
                 nid,
                 host,
                 &vars,
+                &declared,
             )
             .map_err(fail)?;
             let cx = NodeCx {
@@ -101,12 +141,14 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
                 node: nid,
                 host,
                 vars: vars.clone(),
+                declared_inputs: Some(&declared),
             };
             let arms = router.arms(&cx, &out);
             host.observer().node_finished(nid, &summary, ms);
             for a in arms {
                 fire_arm(host, st, nid, a);
             }
+            check_declared(spec, &node.config, &out, nid, host);
             record(host, graph.id, nid, instance, &out, st);
             st.outputs.insert(nid, out);
             st.ran.insert(nid);
@@ -147,6 +189,7 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
             for a in &step.arms {
                 fire_arm(host, st, nid, a.clone());
             }
+            check_declared(spec, &node.config, &step.outputs, nid, host);
             record(host, graph.id, nid, instance, &step.outputs, st);
             st.outputs.insert(nid, step.outputs);
             st.ran.insert(nid);
@@ -167,6 +210,9 @@ pub(crate) fn execute<M: GraphMeta, H: Host<Meta = M>>(
 /// killed — a thread cannot be killed, so the overrunning work carries on and its result is
 /// dropped when it finally arrives. That is the honest trade: the alternative is one wedged
 /// socket holding a run open until somebody restarts the process.
+// Eight, because a node needs its config, its inputs, its declared ports and the run's variables,
+// and bundling them into a struct here would only move the same eight across the boundary.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_timed<H: Host>(
     runner: &Arc<dyn NodeRun<H>>,
     timeout: &Timeout,
@@ -175,6 +221,7 @@ pub(crate) fn run_timed<H: Host>(
     nid: u32,
     host: &H,
     vars: &crate::spec::Vars,
+    declared: &[Port],
 ) -> Result<(PortValues, String, u128), NodeError> {
     let started = Instant::now();
 
@@ -188,6 +235,7 @@ pub(crate) fn run_timed<H: Host>(
         let (config, inputs, host) = (config.clone(), inputs.clone(), host.clone());
         // An Arc: the thread shares the run's variables rather than a copy of them.
         let vars = vars.clone();
+        let declared = declared.to_vec();
         std::thread::spawn(move || {
             let cx = NodeCx {
                 config: &config,
@@ -195,6 +243,7 @@ pub(crate) fn run_timed<H: Host>(
                 node: nid,
                 host: &host,
                 vars,
+                declared_inputs: Some(&declared),
             };
             let out = runner.run(&cx);
             let summary = match &out {
@@ -225,6 +274,7 @@ pub(crate) fn run_timed<H: Host>(
         node: nid,
         host,
         vars: vars.clone(),
+        declared_inputs: Some(declared),
     };
     let out = runner.run(&cx)?;
     let summary = runner.summary(&cx, &out);

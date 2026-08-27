@@ -93,6 +93,9 @@ pub struct Recorder {
     /// How many times the run was declared over. A buffering observer flushes here, so a test
     /// can prove the hook fires — including on the path where the run failed.
     pub ends: Mutex<usize>,
+    /// Declaration defects the engine found. Recorded here so every test that runs a node gets
+    /// the check for free, rather than each one having to opt in.
+    pub defects: Mutex<Vec<String>>,
 }
 
 impl Recorder {
@@ -103,6 +106,9 @@ impl Recorder {
 }
 
 impl Observer for Recorder {
+    fn defect(&self, _node: u32, message: &str) {
+        self.defects.lock().unwrap().push(message.to_string());
+    }
     fn node_started(&self, node: u32) {
         self.started.lock().unwrap().push(node);
     }

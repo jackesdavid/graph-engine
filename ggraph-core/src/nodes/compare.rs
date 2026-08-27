@@ -102,6 +102,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()
@@ -160,6 +161,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         let Behavior::Run(r) = &s.behavior else {
             unreachable!()

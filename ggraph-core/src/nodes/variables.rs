@@ -120,6 +120,7 @@ mod tests {
             node: 1,
             host,
             vars: vars.clone(),
+            declared_inputs: None,
         };
         r.run(&cx)
     }

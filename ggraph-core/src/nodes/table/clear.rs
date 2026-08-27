@@ -60,6 +60,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         assert!(r.run(&cx).is_err());
     }

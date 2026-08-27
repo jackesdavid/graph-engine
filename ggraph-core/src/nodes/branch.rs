@@ -117,6 +117,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         let Behavior::Route(r) = &s.behavior else {
             panic!("a branch must route")
@@ -155,6 +156,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         let Behavior::Route(r) = &s.behavior else {
             unreachable!()

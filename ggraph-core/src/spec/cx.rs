@@ -39,10 +39,36 @@ pub struct NodeCx<'a, H: Host> {
     /// that dies when the run does. A graph wanting a value to outlive its run wants a table,
     /// and that difference should be visible in the palette rather than hidden in a lifetime.
     pub vars: Vars,
+    /// The node's declared input ports, for catching a read of a port that does not exist.
+    ///
+    /// `None` in a hand-built context — a test that fabricates a `NodeCx` has no declaration to
+    /// check against, and the check simply does not run there.
+    ///
+    /// An `Option` rather than a slice with a default because the two cases are different: "this
+    /// node declares no inputs" and "nobody told me what it declares" want opposite answers, and
+    /// conflating them would report every fabricated context as a defect.
+    pub declared_inputs: Option<&'a [Port]>,
 }
 
 impl<H: Host> NodeCx<'_, H> {
+    /// An input by name.
+    ///
+    /// Reading a port the node never declared returns `None` forever, indistinguishable from a
+    /// declared port that is simply unwired — which is how a renamed port becomes a node that
+    /// quietly does nothing. Reported through the observer; the host decides what that means.
     pub fn input(&self, name: &str) -> Option<&Value> {
+        if let Some(declared) = self.declared_inputs {
+            if !declared.iter().any(|p| p.name.as_str() == name) {
+                self.host.observer().defect(
+                    self.node,
+                    &format!(
+                        "node read undeclared input port {name:?} — it will always be empty \
+                         (declared: {:?})",
+                        declared.iter().map(|p| p.name.as_str()).collect::<Vec<_>>()
+                    ),
+                );
+            }
+        }
         self.inputs.get(name)
     }
 

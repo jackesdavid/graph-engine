@@ -76,6 +76,7 @@ mod tests {
             node: 1,
             host: &host,
             vars: Default::default(),
+            declared_inputs: None,
         };
         let err = r.run(&cx).unwrap_err();
         assert!(
