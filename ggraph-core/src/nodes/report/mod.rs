@@ -18,10 +18,10 @@
 //! report-specific type could never be fed by anything else, and there is nothing about a list of
 //! numbers that belongs to reporting.
 //!
-//! Data from the world arrives as lists, so the boundary has to exist somewhere. It exists **in the
-//! open**, as two adapter nodes — `report_rows` and `report_series` — that read fields out of a list
-//! and hand back report data. On the canvas that is a visible step saying "here is where results
-//! become a table", which is better than a conversion hidden inside every component.
+//! Data reaches a report as `records` — a list of things with named fields — and the step that turns
+//! it into report data is a node in the open: `report_rows` for a table, and the engine's own
+//! `pick_numbers` / `pick_texts` for a chart. On the canvas that is a visible step saying "here is
+//! where results become a column", which beats a conversion hidden inside every component.
 //!
 //! **The components are pure**, and that is not a detail: a heading is a function from text to a
 //! block, not an action. Being pure they are PULLED — `report_render` is reached by exec, and every
@@ -41,7 +41,6 @@ mod layout;
 mod paragraph;
 mod render;
 mod rows;
-mod series;
 mod table;
 
 use crate::host::Host;
@@ -83,7 +82,6 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(heading::spec());
     reg.register(paragraph::spec());
     reg.register(rows::spec());
-    reg.register(series::spec());
     reg.register(table::spec());
     reg.register(bar_chart::spec());
     reg.register(layout::spec());

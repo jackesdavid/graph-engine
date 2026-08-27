@@ -14,7 +14,7 @@
 use ggraph_core::exec::{Entry, Isolated, RunOptions};
 use ggraph_core::host::testkit::TestHost;
 use ggraph_core::host::Host;
-use ggraph_core::port::{Port, PortType};
+use ggraph_core::port::{Column, Port, PortType};
 use ggraph_core::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use ggraph_core::{Graph, NodeId, NodeRegistry, PortName, PortValues, Retry, RunError, Value};
 use serde_json::json;
@@ -795,4 +795,233 @@ fn a_graph_assembles_a_nested_report() {
     assert!(html.contains("flex-direction:row"));
     assert!(html.contains("<table"));
     assert!(html.contains("<svg"));
+}
+
+/// A node that declares a type and returns something else is caught.
+///
+/// A declared type is a promise to everything downstream. Without this check the wire is drawn, the
+/// editor allows it, and the far end receives something it cannot read — so the failure surfaces in
+/// a node that did nothing wrong, which is the expensive kind of failure to chase.
+#[test]
+fn returning_the_wrong_type_is_reported() {
+    struct Liar;
+    impl<H: Host> NodeRun<H> for Liar {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            // Declared `numbers`; these are text.
+            out.insert(
+                PortName::new("values"),
+                Value::List(vec![Value::text("a"), Value::text("b")]),
+            );
+            Ok(out)
+        }
+    }
+
+    static OUT: [Port; 1] = [Port::opt("values", PortType::NUMBERS)];
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("liar", "Liar", "Test")
+            .with_outputs(Ports::Static(&OUT))
+            .running(Liar),
+    );
+
+    let mut g: Graph = Graph::new("liar");
+    g.add_node(NodeId::new("liar"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    let defects = host.inner().observer.defects.lock().unwrap().clone();
+    assert_eq!(defects.len(), 1, "{defects:?}");
+    assert!(
+        defects[0].contains("declared port `values` as `numbers`"),
+        "{}",
+        defects[0]
+    );
+    assert!(
+        defects[0].contains("a list of text"),
+        "it says what arrived: {}",
+        defects[0]
+    );
+}
+
+/// A product's own type is not the engine's to judge.
+///
+/// `block`, `document`, `rows` — an open identifier is a product's vocabulary, and the engine
+/// guessing at its runtime shape would be the engine acquiring knowledge it has no business having.
+/// Reporting a defect on one would make the check cry wolf on every product type, and a check that
+/// cries wolf gets muted.
+#[test]
+fn a_product_type_is_left_alone() {
+    struct Custom;
+    impl<H: Host> NodeRun<H> for Custom {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            out.insert(
+                PortName::new("thing"),
+                Value::text("whatever this product means"),
+            );
+            Ok(out)
+        }
+    }
+
+    static OUT: [Port; 1] = [Port::opt("thing", PortType::new_static("invoice"))];
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("custom", "Custom", "Test")
+            .with_outputs(Ports::Static(&OUT))
+            .running(Custom),
+    );
+
+    let mut g: Graph = Graph::new("custom");
+    g.add_node(NodeId::new("custom"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    assert!(host.inner().observer.defects.lock().unwrap().is_empty());
+}
+
+/// An empty list satisfies every element type. There is nothing in it to be wrong.
+#[test]
+fn an_empty_list_is_not_a_defect() {
+    assert!(PortType::NUMBERS.accepts(&Value::List(vec![])));
+    assert!(PortType::RECORDS.accepts(&Value::List(vec![])));
+}
+
+/// One bad element is enough. A `numbers` holding one string is the wire that feeds a chart a bar
+/// it cannot draw, and finding out on the tenth element is finding out.
+#[test]
+fn one_wrong_element_fails_the_list() {
+    let mostly = Value::List(vec![
+        Value::float(1.0),
+        Value::text("oops"),
+        Value::float(3.0),
+    ]);
+    assert!(!PortType::NUMBERS.accepts(&mostly));
+}
+
+/// A declared column that the rows do not carry is caught.
+///
+/// The schema is the contract everything downstream is built against. Without this check a source
+/// can promise a column, hand back rows without it, and the failure surfaces in a chart that finds
+/// nothing to plot — a node that did nothing wrong.
+#[test]
+fn a_missing_column_is_reported() {
+    struct ShortRows;
+    impl<H: Host> NodeRun<H> for ShortRows {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            // Declared `document` and `score`; only one of them is here.
+            out.insert(
+                PortName::new("results"),
+                Value::List(vec![Value::Map(vec![(
+                    "document".into(),
+                    Value::text("a.pdf"),
+                )])]),
+            );
+            Ok(out)
+        }
+    }
+
+    fn ports(_: &serde_json::Value) -> Vec<Port> {
+        vec![Port::opt("results", PortType::TABLE).with_columns(vec![
+            Column::new(PortName::new("document"), PortType::TEXT),
+            Column::new(PortName::new("score"), PortType::NUM),
+        ])]
+    }
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("short", "Short", "Test")
+            .with_outputs(Ports::dynamic(ports))
+            .running(ShortRows),
+    );
+
+    let mut g: Graph = Graph::new("short");
+    g.add_node(NodeId::new("short"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    let defects = host.inner().observer.defects.lock().unwrap().clone();
+    assert_eq!(defects.len(), 1, "{defects:?}");
+    assert!(defects[0].contains("column `score`"), "{}", defects[0]);
+}
+
+/// An optional column may be absent. That is what optional means, and a check that ignored it
+/// would make every schema with a sometimes-empty column noisy enough to be muted.
+#[test]
+fn an_optional_column_may_be_missing() {
+    struct Rows;
+    impl<H: Host> NodeRun<H> for Rows {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            out.insert(
+                PortName::new("results"),
+                Value::List(vec![Value::Map(vec![("a".into(), Value::text("x"))])]),
+            );
+            Ok(out)
+        }
+    }
+
+    fn ports(_: &serde_json::Value) -> Vec<Port> {
+        vec![Port::opt("results", PortType::TABLE).with_columns(vec![
+            Column::new(PortName::new("a"), PortType::TEXT),
+            Column::optional(PortName::new("b"), PortType::TEXT),
+        ])]
+    }
+
+    let mut reg: NodeRegistry<TestHost> = NodeRegistry::new();
+    reg.register(
+        NodeSpec::effectful("rows", "Rows", "Test")
+            .with_outputs(Ports::dynamic(ports))
+            .running(Rows),
+    );
+
+    let mut g: Graph = Graph::new("rows");
+    g.add_node(NodeId::new("rows"), 0, 0);
+
+    let host = TestHost::new();
+    let _ = ggraph_core::run(
+        &g,
+        &reg,
+        &host,
+        &Entry::default(),
+        &RunOptions {
+            isolated: Isolated::Run,
+            ..Default::default()
+        },
+    );
+
+    assert!(host.inner().observer.defects.lock().unwrap().is_empty());
 }

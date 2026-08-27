@@ -486,6 +486,50 @@
       "slug": "round_each"
     },
     {
+      "category": "Data",
+      "default_config": {
+        "field": ""
+      },
+      "inputs": [
+        {
+          "name": "records",
+          "required": true,
+          "type": "records"
+        }
+      ],
+      "label": "Pick numbers",
+      "outputs": [
+        {
+          "name": "values",
+          "required": false,
+          "type": "numbers"
+        }
+      ],
+      "slug": "pick_numbers"
+    },
+    {
+      "category": "Data",
+      "default_config": {
+        "field": ""
+      },
+      "inputs": [
+        {
+          "name": "records",
+          "required": true,
+          "type": "records"
+        }
+      ],
+      "label": "Pick texts",
+      "outputs": [
+        {
+          "name": "values",
+          "required": false,
+          "type": "texts"
+        }
+      ],
+      "slug": "pick_texts"
+    },
+    {
       "category": "Report",
       "default_config": {
         "level": "1",
@@ -542,9 +586,9 @@
       },
       "inputs": [
         {
-          "name": "items",
+          "name": "records",
           "required": true,
-          "type": "list"
+          "type": "records"
         }
       ],
       "label": "Rows from data",
@@ -556,34 +600,6 @@
         }
       ],
       "slug": "report_rows"
-    },
-    {
-      "category": "Report",
-      "default_config": {
-        "label_field": "",
-        "value_field": ""
-      },
-      "inputs": [
-        {
-          "name": "items",
-          "required": true,
-          "type": "list"
-        }
-      ],
-      "label": "Series from data",
-      "outputs": [
-        {
-          "name": "values",
-          "required": false,
-          "type": "numbers"
-        },
-        {
-          "name": "labels",
-          "required": false,
-          "type": "texts"
-        }
-      ],
-      "slug": "report_series"
     },
     {
       "category": "Report",
@@ -840,7 +856,7 @@
         {
           "name": "rows",
           "required": false,
-          "type": "list"
+          "type": "records"
         },
         {
           "name": "count",

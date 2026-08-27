@@ -42,6 +42,7 @@ pub use data::{codec, id, port, value};
 pub use graph::{topo, validate};
 
 pub use codec::{decode, decode_ports, encode, encode_ports};
+pub use data::schema;
 pub use exec::{run, Budget, Checkpoint, Entry, Outputs, RunError, RunOptions};
 pub use graph::{Edge, Graph, GraphMeta, GraphNode, PortLookup, WireError};
 pub use host::{
@@ -53,7 +54,7 @@ pub use nodes::services::{
     ApprovalRequest, Approvals, Http, HttpRequest, HttpResponse, Llm, LlmRequest, Services,
     TableStore, Verdict,
 };
-pub use port::{compatible, Port, PortType, EXEC_IN, EXEC_OUT};
+pub use port::{compatible, Column, Port, PortType, EXEC_IN, EXEC_OUT};
 pub use registry::{NodeRegistry, RegistryError};
 /// Re-exported because it appears in this crate's public API (`Host::instance_key`,
 /// `NodeTarget::instance`). A consumer must not have to guess which version to depend on, nor

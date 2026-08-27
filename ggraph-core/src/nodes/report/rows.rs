@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Jackes David Lemos
 
-//! `report_rows` — where results become a table.
+//! `report_rows` — records become table rows.
+//!
+//! Takes `records`, not a bare list: reading a field by name is an assumption about the shape of
+//! what arrived, and an assumption the port does not state is one the editor cannot check.
 //!
 //! The boundary between the world's data and report data, and it is a node on the canvas rather
-//! than a conversion hidden inside the table. Someone reading the graph sees where a list of
-//! whatever became rows of something, and can change which fields without touching the table.
+//! than a conversion hidden inside the table. Someone reading the graph sees where results became
+//! rows, and can change which fields without touching the table.
 
 use super::ROWS;
 use crate::host::Host;
@@ -15,7 +18,7 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
 
-static IN: [Port; 1] = [Port::req("items", PortType::LIST)];
+static IN: [Port; 1] = [Port::req("records", PortType::RECORDS)];
 static OUT: [Port; 1] = [Port::opt("rows", ROWS)];
 
 pub(super) fn fields(cfg: &Json) -> Vec<String> {
@@ -99,7 +102,7 @@ impl<H: Host> NodeRun<H> for Rows {
             ));
         }
 
-        let rows: Vec<Value> = match cx.input("items") {
+        let rows: Vec<Value> = match cx.input("records") {
             Some(Value::List(items)) => items.iter().map(|i| Value::List(read(i, &f))).collect(),
             Some(one) => vec![Value::List(read(one, &f))],
             None => Vec::new(),

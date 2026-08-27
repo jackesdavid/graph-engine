@@ -24,6 +24,7 @@ pub mod for_each;
 pub mod format;
 pub mod http_request;
 pub mod llm;
+pub mod pick;
 pub mod print;
 pub mod report;
 pub mod round;
@@ -52,6 +53,7 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>, services: &services::Ser
     reg.register(format::spec(services));
     reg.register(print::spec(services));
     round::register_all(reg);
+    pick::register_all(reg);
     // The report set: pure, and the only write goes through the host's own ValueIo.
     report::register_all(reg);
 

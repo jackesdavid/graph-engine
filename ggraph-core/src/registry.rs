@@ -211,7 +211,28 @@ impl<H: Host> NodeRegistry<H> {
 }
 
 fn port_json(p: &Port) -> Json {
-    json!({ "name": p.name.as_str(), "type": p.ty.as_str(), "required": p.required })
+    let mut j = json!({
+        "name": p.name.as_str(),
+        "type": p.ty.as_str(),
+        "required": p.required,
+    });
+    // Only when there are any. A `columns: []` on every text port would be noise in a catalogue a
+    // person reads and a model parses.
+    if !p.columns.is_empty() {
+        j["columns"] = Json::Array(
+            p.columns
+                .iter()
+                .map(|c| {
+                    json!({
+                        "name": c.name.as_str(),
+                        "type": c.ty.as_str(),
+                        "optional": c.optional,
+                    })
+                })
+                .collect(),
+        );
+    }
+    j
 }
 
 impl<H: Host> std::fmt::Debug for NodeRegistry<H> {

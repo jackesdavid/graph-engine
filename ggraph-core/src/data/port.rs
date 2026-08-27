@@ -59,6 +59,14 @@ impl PortType {
     /// An ordered sequence.
     pub const LIST: PortType = PortType::new_static("list");
 
+    /// A list of things with named fields — query results, rows read from a table, parsed records.
+    ///
+    /// Not `LIST`, which says only "several of something". A node that reads a field by name is
+    /// assuming named fields exist, and an assumption the port does not state is one the editor
+    /// cannot check: `LIST` accepts a list of numbers into something that will look for `score` in
+    /// each of them and find nothing.
+    pub const RECORDS: PortType = PortType::new_static("records");
+
     /// A list of numbers.
     ///
     /// Distinct from `LIST` so that arithmetic — rounding, scaling, summing — declares what it can
@@ -80,6 +88,69 @@ impl PortType {
     pub const EXEC: PortType = PortType::new_static("exec");
     /// Wildcard: compatible with everything, in both directions.
     pub const ANY: PortType = PortType::new_static("any");
+
+    /// Does this value satisfy this type?
+    ///
+    /// **Only the types the engine defines are checked.** An open identifier — `block`, `document`,
+    /// whatever a product declares — is that product's vocabulary, and the engine guessing at its
+    /// runtime shape would be the engine acquiring knowledge it has no business having. Unknown
+    /// types pass, and that is a boundary rather than a gap.
+    ///
+    /// Element types walk the whole list. A `numbers` holding one string is not "mostly numbers":
+    /// it is the wire that will feed a chart a bar it cannot draw, and finding out on the tenth
+    /// element is finding out.
+    pub fn accepts(&self, v: &crate::value::Value) -> bool {
+        use crate::value::Value as V;
+        use serde_json::Value as Json;
+
+        let is_num = |x: &V| matches!(x, V::Num(_)) || matches!(x, V::Json(Json::Number(_)));
+        let is_text = |x: &V| matches!(x, V::Text(_)) || matches!(x, V::Json(Json::String(_)));
+        let is_record = |x: &V| matches!(x, V::Map(_)) || matches!(x, V::Json(Json::Object(_)));
+        let every = |items: &[V], f: &dyn Fn(&V) -> bool| items.iter().all(f);
+
+        // Compared rather than matched: a `PortType` wraps a `SmolStr`, which cannot appear in a
+        // pattern. The order below is the order of the constants above.
+        let t = self.as_str();
+        match t {
+            // Exec carries no value; a node returning one on an exec port is confused, but that is
+            // not this check's business.
+            "any" | "exec" => true,
+            "text" => is_text(v),
+            "num" => is_num(v),
+            "bool" => matches!(v, V::Bool(_)) || matches!(v, V::Json(Json::Bool(_))),
+            "file" | "image" => matches!(v, V::Bytes(_)),
+            "json" => matches!(v, V::Json(_)),
+            "dictionary" => matches!(v, V::Map(_)) || matches!(v, V::Json(Json::Object(_))),
+            "list" => matches!(v, V::List(_)),
+            "numbers" => matches!(v, V::List(items) if every(items, &is_num)),
+            "texts" => matches!(v, V::List(items) if every(items, &is_text)),
+            "records" => matches!(v, V::List(items) if every(items, &is_record)),
+            // A product's own vocabulary. Not the engine's to judge.
+            _ => true,
+        }
+    }
+
+    /// A short description of what arrived, for a defect message.
+    ///
+    /// The name of the value's own shape, not a guess at what it should have been: "returned a
+    /// list of text where `numbers` was declared" is a sentence somebody can act on.
+    pub fn describe(v: &crate::value::Value) -> String {
+        use crate::value::Value as V;
+        use serde_json::Value as Json;
+        match v {
+            V::Text(_) | V::Json(Json::String(_)) => "text".into(),
+            V::Num(_) | V::Json(Json::Number(_)) => "a number".into(),
+            V::Bool(_) | V::Json(Json::Bool(_)) => "a bool".into(),
+            V::Bytes(_) => "bytes".into(),
+            V::Map(_) | V::Json(Json::Object(_)) => "a record".into(),
+            V::List(items) => match items.first() {
+                None => "an empty list".into(),
+                Some(first) => format!("a list of {}", Self::describe(first)),
+            },
+            V::Json(_) => "json".into(),
+            V::Extern(_) => "an external value".into(),
+        }
+    }
 
     pub fn is_exec(&self) -> bool {
         *self == Self::EXEC
@@ -112,6 +183,38 @@ pub fn compatible(from: &PortType, to: &PortType) -> bool {
     from == to || from.is_any() || to.is_any()
 }
 
+/// One column of a `table`.
+///
+/// Declared so the shape is known before anything runs: an editor offers a list instead of a text
+/// field, and a model assembling a graph reads what it can ask for rather than guessing.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Column {
+    pub name: PortName,
+    #[serde(rename = "type")]
+    pub ty: PortType,
+    /// Not every row carries it. An optional column is one that can come out empty.
+    #[serde(default)]
+    pub optional: bool,
+}
+
+impl Column {
+    pub fn new(name: impl Into<PortName>, ty: PortType) -> Self {
+        Column {
+            name: name.into(),
+            ty,
+            optional: false,
+        }
+    }
+
+    pub fn optional(name: impl Into<PortName>, ty: PortType) -> Self {
+        Column {
+            name: name.into(),
+            ty,
+            optional: true,
+        }
+    }
+}
+
 /// One port on a node: its name, what flows through it, and whether the node can run without it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Port {
@@ -121,11 +224,30 @@ pub struct Port {
     /// A required input with nothing wired and no config literal fails the node before it runs.
     /// Outputs are never required.
     pub required: bool,
+    /// The columns, when the type is `table`. Empty for everything else.
+    ///
+    /// A `Vec` rather than a static slice because a table's columns can come from configuration —
+    /// `table_read` knows them only once a table is chosen. `Vec::new()` is `const`, so the const
+    /// constructors below still work inside a `static`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub columns: Vec<Column>,
 }
 
 impl Port {
+    /// The columns this port carries. Only meaningful for a `table`.
+    pub fn with_columns(mut self, columns: Vec<Column>) -> Self {
+        self.columns = columns;
+        self
+    }
+
     pub const fn new(name: PortName, ty: PortType, required: bool) -> Self {
-        Port { name, ty, required }
+        Port {
+            name,
+            ty,
+            required,
+            // `Vec::new()` is const, which is what keeps every `static [Port; N]` working.
+            columns: Vec::new(),
+        }
     }
 
     /// A required input port.

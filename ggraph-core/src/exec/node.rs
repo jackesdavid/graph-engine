@@ -24,7 +24,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// A port a node returns but never declared.
+/// A port a node returns but never declared, or a value that is not what the port promised.
 ///
 /// Nothing downstream can wire to it, so the value silently goes nowhere and the graph looks
 /// correct on the canvas. Resolved against THIS node's config, because `Ports::Dynamic` derives
@@ -42,20 +42,80 @@ fn check_declared<H: Host>(
     host: &H,
 ) {
     let ports = spec.outputs.resolve(config);
-    let declared: HashSet<&str> = ports.iter().map(|p| p.name.as_str()).collect();
 
-    for name in out.keys() {
-        if !declared.contains(name.as_str()) {
-            let msg = format!(
-                "node `{}` returned undeclared output port `{}` — nothing can wire to it \
-                 (declared: {:?})",
-                spec.id.as_str(),
-                name.as_str(),
-                declared
+    for (name, value) in out.iter() {
+        let Some(port) = ports.iter().find(|p| p.name == *name) else {
+            let declared: Vec<&str> = ports.iter().map(|p| p.name.as_str()).collect();
+            host.observer().defect(
+                nid,
+                &format!(
+                    "node `{}` returned undeclared output port `{}` — nothing can wire to it \
+                     (declared: {declared:?})",
+                    spec.id.as_str(),
+                    name.as_str(),
+                ),
             );
-            host.observer().defect(nid, &msg);
+            continue;
+        };
+
+        // A declared type is a promise to everything downstream. A node that says `records` and
+        // returns a list of text has drawn a wire the editor allowed and handed the far end
+        // something it cannot read — and the failure surfaces there, in a node that did nothing
+        // wrong.
+        if !port.ty.accepts(value) {
+            host.observer().defect(
+                nid,
+                &format!(
+                    "node `{}` declared port `{}` as `{}` but returned {}",
+                    spec.id.as_str(),
+                    name.as_str(),
+                    port.ty.as_str(),
+                    crate::port::PortType::describe(value),
+                ),
+            );
+            continue;
+        }
+
+        // A declared column is the same promise one level down. Without this the schema is worth
+        // exactly what the bare type was worth before: an intention.
+        if let Some(missing) = missing_column(port, value) {
+            host.observer().defect(
+                nid,
+                &format!(
+                    "node `{}` declared column `{}` on port `{}` and returned rows without it",
+                    spec.id.as_str(),
+                    missing,
+                    name.as_str(),
+                ),
+            );
         }
     }
+}
+
+/// The first declared column that some row does not carry.
+///
+/// Optional columns are exempt — that is what optional means. Every row is checked rather than the
+/// first: a table whose tenth row is short misaligns everything after it, and finding out on the
+/// tenth row is finding out.
+fn missing_column(port: &crate::port::Port, value: &crate::value::Value) -> Option<String> {
+    use crate::value::Value as V;
+
+    if port.columns.is_empty() {
+        return None;
+    }
+    let V::List(rows) = value else { return None };
+
+    port.columns
+        .iter()
+        .filter(|c| !c.optional)
+        .find(|c| {
+            rows.iter().any(|row| match row {
+                V::Map(pairs) => !pairs.iter().any(|(k, _)| k == c.name.as_str()),
+                V::Json(serde_json::Value::Object(m)) => !m.contains_key(c.name.as_str()),
+                _ => true,
+            })
+        })
+        .map(|c| c.name.as_str().to_string())
 }
 
 /// Run one node and record what it produced.
