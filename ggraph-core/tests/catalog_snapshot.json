@@ -442,6 +442,29 @@
       "slug": "print"
     },
     {
+      "category": "Math",
+      "default_config": {
+        "decimals": 2,
+        "field": ""
+      },
+      "inputs": [
+        {
+          "name": "value",
+          "required": true,
+          "type": "any"
+        }
+      ],
+      "label": "Round",
+      "outputs": [
+        {
+          "name": "value",
+          "required": false,
+          "type": "any"
+        }
+      ],
+      "slug": "round"
+    },
+    {
       "category": "Report",
       "default_config": {
         "level": "1",

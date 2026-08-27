@@ -32,21 +32,27 @@ fn columns(cfg: &Json) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// A value as it will be printed.
+///
+/// The last moment a value becomes text, and it does so plainly: a number that should read as
+/// currency or to two decimals was rounded by a node upstream, where somebody could see it.
+fn cell(v: &Value) -> String {
+    v.as_text().unwrap_or_else(|| v.summary())
+}
+
 struct Table;
 
 impl<H: Host> NodeRun<H> for Table {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        // Already reduced to cells by `report_rows`. Nothing to interpret here, which is what the
-        // typed port bought: the shape is known because only one node can produce it.
+        // Already reduced to cells by `report_rows`, which kept their types. This is the last
+        // moment a value becomes text, and it does so plainly: a number that should read as
+        // currency or to two decimals was rounded by a node upstream, where somebody could see it.
         let rows: Vec<Vec<String>> = match cx.input("rows") {
             Some(Value::List(rows)) => rows
                 .iter()
                 .map(|r| match r {
-                    Value::List(cells) => cells
-                        .iter()
-                        .map(|c| c.as_text().unwrap_or_else(|| c.summary()))
-                        .collect(),
-                    one => vec![one.as_text().unwrap_or_else(|| one.summary())],
+                    Value::List(cells) => cells.iter().map(cell).collect(),
+                    one => vec![cell(one)],
                 })
                 .collect(),
             _ => Vec::new(),

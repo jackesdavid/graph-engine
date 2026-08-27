@@ -33,16 +33,43 @@ pub(super) fn fields(cfg: &Json) -> Vec<String> {
 ///
 /// The author's order wins over whatever order the producer used: a table is read by a person, and
 /// the person who chose the columns chose their order too.
-pub(super) fn read(item: &Value, fields: &[String]) -> Vec<String> {
+/// A JSON value as one of the engine's own.
+///
+/// Not wrapped in `Value::Json`: a wrapped number cannot be read by `as_f64`, so a rounding node
+/// downstream would see nothing to round and a table would print the word "json". Converting here
+/// is what keeps the cells usable by every node after this one.
+fn native(j: &Json) -> Value {
+    match j {
+        Json::String(s) => Value::text(s.clone()),
+        Json::Bool(b) => Value::Bool(*b),
+        Json::Number(n) => match n.as_i64() {
+            Some(i) => Value::int(i),
+            None => n
+                .as_f64()
+                .map(Value::float)
+                .unwrap_or_else(|| Value::text("")),
+        },
+        Json::Null => Value::text(""),
+        // Nested shapes keep their JSON: a cell holding an object is unusual, and flattening it
+        // would invent a rendering nobody asked for.
+        other => Value::Json(other.clone()),
+    }
+}
+
+/// One item reduced to the declared fields, **keeping their types**.
+///
+/// A number stays a number here. How it should read — two decimals, a currency prefix, a percent
+/// sign — is a presentation decision, and presentation decisions belong to a node in the flow where
+/// somebody can see and change them, not to a config field on the extractor.
+pub(super) fn read(item: &Value, fields: &[String]) -> Vec<Value> {
     match item {
         Value::Json(j) if j.is_object() => fields
             .iter()
             .map(|f| match j.get(f) {
-                Some(Json::String(s)) => s.clone(),
+                Some(v) => native(v),
                 // Absent is an empty cell, never a missing one: a ragged row misaligns every row
                 // after it.
-                Some(other) => other.to_string(),
-                None => String::new(),
+                None => Value::text(""),
             })
             .collect(),
         Value::Map(pairs) => fields
@@ -51,16 +78,13 @@ pub(super) fn read(item: &Value, fields: &[String]) -> Vec<String> {
                 pairs
                     .iter()
                     .find(|(k, _)| k == f)
-                    .map(|(_, v)| v.as_text().unwrap_or_else(|| v.summary()))
-                    .unwrap_or_default()
+                    .map(|(_, v)| v.clone())
+                    .unwrap_or_else(|| Value::text(""))
             })
             .collect(),
         // A list is already in order — nothing to look up.
-        Value::List(cells) => cells
-            .iter()
-            .map(|c| c.as_text().unwrap_or_else(|| c.summary()))
-            .collect(),
-        one => vec![one.as_text().unwrap_or_else(|| one.summary())],
+        Value::List(cells) => cells.clone(),
+        one => vec![one.clone()],
     }
 }
 
@@ -76,13 +100,8 @@ impl<H: Host> NodeRun<H> for Rows {
         }
 
         let rows: Vec<Value> = match cx.input("items") {
-            Some(Value::List(items)) => items
-                .iter()
-                .map(|i| Value::List(read(i, &f).into_iter().map(Value::text).collect()))
-                .collect(),
-            Some(one) => vec![Value::List(
-                read(one, &f).into_iter().map(Value::text).collect(),
-            )],
+            Some(Value::List(items)) => items.iter().map(|i| Value::List(read(i, &f))).collect(),
+            Some(one) => vec![Value::List(read(one, &f))],
             None => Vec::new(),
         };
 
@@ -117,13 +136,27 @@ mod tests {
     fn fields_are_read_in_the_declared_order() {
         let f = vec!["page".to_string(), "document".to_string()];
         let item = Value::Json(json!({ "document": "a.pdf", "page": 4, "score": 0.9 }));
-        assert_eq!(read(&item, &f), vec!["4", "a.pdf"]);
+        let cells: Vec<String> = read(&item, &f)
+            .iter()
+            .map(|c| c.as_text().unwrap_or_else(|| c.summary()))
+            .collect();
+        assert_eq!(cells, vec!["4", "a.pdf"]);
     }
 
     /// A ragged row would misalign every row after it.
     #[test]
     fn an_absent_field_is_an_empty_cell() {
         let f = vec!["a".to_string(), "b".to_string()];
-        assert_eq!(read(&Value::Json(json!({ "a": 1 })), &f), vec!["1", ""]);
+        let cells = read(&Value::Json(json!({ "a": 1 })), &f);
+        assert_eq!(cells.len(), 2);
+        assert_eq!(cells[1].as_text().unwrap_or_default(), "");
+    }
+
+    /// A number stays a number. How it reads is decided later, by a node somebody can see.
+    #[test]
+    fn a_number_keeps_its_type() {
+        let f = vec!["score".to_string()];
+        let cells = read(&Value::Json(json!({ "score": 0.0327 })), &f);
+        assert_eq!(cells[0].as_f64(), Some(0.0327));
     }
 }
