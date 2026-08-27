@@ -58,6 +58,20 @@ impl PortType {
     pub const JSON: PortType = PortType::new_static("json");
     /// An ordered sequence.
     pub const LIST: PortType = PortType::new_static("list");
+
+    /// A list of numbers.
+    ///
+    /// Distinct from `LIST` so that arithmetic — rounding, scaling, summing — declares what it can
+    /// actually operate on. A node taking `LIST` accepts a list of documents, and the mistake only
+    /// shows at run time.
+    pub const NUMBERS: PortType = PortType::new_static("numbers");
+
+    /// A list of text.
+    ///
+    /// Its own type rather than `LIST` for the same reason, and one specific one: a chart whose
+    /// values and names are swapped is wrong and looks entirely fine. Two different types make that
+    /// wire impossible to draw.
+    pub const TEXTS: PortType = PortType::new_static("texts");
     /// Key/value pairs.
     pub const MAP: PortType = PortType::new_static("dictionary");
     /// A named table of rows.

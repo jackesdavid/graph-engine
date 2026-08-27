@@ -51,7 +51,7 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>, services: &services::Ser
     reg.register(llm::extract_spec(services));
     reg.register(format::spec(services));
     reg.register(print::spec(services));
-    reg.register(round::spec(services));
+    round::register_all(reg);
     // The report set: pure, and the only write goes through the host's own ValueIo.
     report::register_all(reg);
 

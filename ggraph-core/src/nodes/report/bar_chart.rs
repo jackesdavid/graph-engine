@@ -3,17 +3,20 @@
 
 //! `report_bar_chart` — one bar per label.
 
-use super::{to_value, BLOCK, LABELS, SERIES};
+use super::{to_value, BLOCK};
 use crate::host::Host;
 use crate::id::PortName;
-use crate::port::Port;
+use crate::port::{Port, PortType};
 use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
 /// Two different types on purpose. Swapping a chart's values and names is the mistake that yields
 /// a chart which is wrong and looks entirely fine — so the editor refuses the wire.
-static IN: [Port; 2] = [Port::req("values", SERIES), Port::opt("labels", LABELS)];
+static IN: [Port; 2] = [
+    Port::req("values", PortType::NUMBERS),
+    Port::opt("labels", PortType::TEXTS),
+];
 static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
 
 fn numbers(v: Option<&Value>) -> Vec<f64> {

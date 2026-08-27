@@ -444,14 +444,13 @@
     {
       "category": "Math",
       "default_config": {
-        "decimals": 2,
-        "field": ""
+        "decimals": 2
       },
       "inputs": [
         {
           "name": "value",
           "required": true,
-          "type": "any"
+          "type": "num"
         }
       ],
       "label": "Round",
@@ -459,10 +458,32 @@
         {
           "name": "value",
           "required": false,
-          "type": "any"
+          "type": "num"
         }
       ],
       "slug": "round"
+    },
+    {
+      "category": "Math",
+      "default_config": {
+        "decimals": 2
+      },
+      "inputs": [
+        {
+          "name": "values",
+          "required": true,
+          "type": "numbers"
+        }
+      ],
+      "label": "Round each",
+      "outputs": [
+        {
+          "name": "values",
+          "required": false,
+          "type": "numbers"
+        }
+      ],
+      "slug": "round_each"
     },
     {
       "category": "Report",
@@ -554,12 +575,12 @@
         {
           "name": "values",
           "required": false,
-          "type": "series"
+          "type": "numbers"
         },
         {
           "name": "labels",
           "required": false,
-          "type": "labels"
+          "type": "texts"
         }
       ],
       "slug": "report_series"
@@ -595,12 +616,12 @@
         {
           "name": "values",
           "required": true,
-          "type": "series"
+          "type": "numbers"
         },
         {
           "name": "labels",
           "required": false,
-          "type": "labels"
+          "type": "texts"
         }
       ],
       "label": "Bar chart",

@@ -34,10 +34,26 @@ fn columns(cfg: &Json) -> Vec<String> {
 
 /// A value as it will be printed.
 ///
-/// The last moment a value becomes text, and it does so plainly: a number that should read as
-/// currency or to two decimals was rounded by a node upstream, where somebody could see it.
+/// Choosing a representation IS the renderer's job — a number has to become text somewhere, and
+/// full float precision is what a float prints, not what a person reads: a relevance score arrived
+/// here as `0.03278688524590164`.
+///
+/// This is not the same decision as `round`, which changes a value. A flow that needs the value
+/// itself rounded — because it will be compared, summed or exported — rounds it upstream.
 fn cell(v: &Value) -> String {
-    v.as_text().unwrap_or_else(|| v.summary())
+    match v {
+        // Six significant decimals, trailing zeros dropped. Enough for anything a report shows,
+        // and short enough to read in a column.
+        Value::Num(_) => match v.as_f64() {
+            Some(n) if n.fract() == 0.0 && n.abs() < 1e15 => format!("{n:.0}"),
+            Some(n) => {
+                let s = format!("{n:.6}");
+                s.trim_end_matches('0').trim_end_matches('.').to_string()
+            }
+            None => v.summary(),
+        },
+        other => other.as_text().unwrap_or_else(|| other.summary()),
+    }
 }
 
 struct Table;
@@ -91,6 +107,20 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Full precision is what a float prints and nobody reads.
+    #[test]
+    fn a_number_is_written_for_a_reader() {
+        assert_eq!(cell(&Value::float(0.03278688524590164)), "0.032787");
+        assert_eq!(cell(&Value::float(2.50)), "2.5", "trailing zeros dropped");
+    }
+
+    /// A page number is not a measurement.
+    #[test]
+    fn a_whole_number_has_no_decimal_point() {
+        assert_eq!(cell(&Value::int(14)), "14");
+        assert_eq!(cell(&Value::float(3.0)), "3");
+    }
 
     /// Columns are the author's, and they name what `report_rows` already extracted. Two lists that
     /// must agree — and the node that produces the rows is the one that decided their order.

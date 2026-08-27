@@ -7,7 +7,6 @@
 //! That swap is the mistake worth designing against: it produces a chart that is wrong and looks
 //! entirely fine.
 
-use super::{LABELS, SERIES};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::port::{Port, PortType};
@@ -16,7 +15,10 @@ use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
 
 static IN: [Port; 1] = [Port::req("items", PortType::LIST)];
-static OUT: [Port; 2] = [Port::opt("values", SERIES), Port::opt("labels", LABELS)];
+static OUT: [Port; 2] = [
+    Port::opt("values", PortType::NUMBERS),
+    Port::opt("labels", PortType::TEXTS),
+];
 
 fn field(cfg: &Json, key: &str) -> Option<String> {
     cfg.get(key)

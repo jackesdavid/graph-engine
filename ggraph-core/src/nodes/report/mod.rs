@@ -9,10 +9,14 @@
 //!
 //! # The ports are report types, not lists
 //!
-//! A table takes `rows`, a chart takes `series` and `labels`. None of them takes a bare list, so the
+//! A table takes `rows`, a chart takes `numbers` and `texts`. None of them takes a bare list, so the
 //! editor refuses a wrong wire while it is being drawn rather than producing a nonsense report at
-//! run time. `labels` is a separate type from `series` for one reason: swapping a chart's values and
-//! names is the mistake that yields a chart which is wrong and looks fine.
+//! run time. `texts` is a different type from `numbers` for one reason: swapping a chart's values
+//! and names is the mistake that yields a chart which is wrong and looks fine.
+//!
+//! `numbers` and `texts` are the ENGINE's types, not the report's. A chart fed only by a
+//! report-specific type could never be fed by anything else, and there is nothing about a list of
+//! numbers that belongs to reporting.
 //!
 //! Data from the world arrives as lists, so the boundary has to exist somewhere. It exists **in the
 //! open**, as two adapter nodes — `report_rows` and `report_series` — that read fields out of a list
@@ -54,16 +58,10 @@ use crate::value::Value;
 pub const BLOCK: PortType = PortType::new_static("block");
 
 /// Table data: rows already reduced to the declared columns.
-pub const ROWS: PortType = PortType::new_static("rows");
-
-/// Chart data: the numbers.
-pub const SERIES: PortType = PortType::new_static("series");
-
-/// Chart data: the names the numbers are read against.
 ///
-/// Distinct from `SERIES` so a chart cannot be wired with its labels and values swapped — the one
-/// mistake that produces a chart which is wrong and looks fine.
-pub const LABELS: PortType = PortType::new_static("labels");
+/// Report-specific because it is: a row is cells under an author's columns, and nothing outside a
+/// report produces one.
+pub const ROWS: PortType = PortType::new_static("rows");
 
 /// A block on a wire.
 ///
