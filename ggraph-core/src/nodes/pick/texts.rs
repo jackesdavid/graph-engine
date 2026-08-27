@@ -3,7 +3,7 @@
 
 //! `pick_texts` — one field, down a column of records, as text.
 
-use super::{at, field};
+use super::{at, column};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::port::{Port, PortType};
@@ -11,18 +11,18 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
-static IN: [Port; 1] = [Port::req("records", PortType::RECORDS)];
+static IN: [Port; 1] = [Port::req("table", PortType::TABLE)];
 static OUT: [Port; 1] = [Port::opt("values", PortType::TEXTS)];
 
 struct PickTexts;
 
 impl<H: Host> NodeRun<H> for PickTexts {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let name = field(cx.config)
-            .ok_or_else(|| NodeError::new("no field — which one should be read?"))?;
+        let name = column(cx.config)
+            .ok_or_else(|| NodeError::new("no column — which one should be read?"))?;
 
-        let values: Vec<Value> = match cx.input("records") {
-            Some(Value::List(records)) => records
+        let values: Vec<Value> = match cx.input("table") {
+            Some(Value::List(rows)) => rows
                 .iter()
                 // Absent reads as empty rather than being dropped: a label column has to stay in
                 // step with the numbers it names, and a shorter one silently renames every bar
@@ -42,7 +42,7 @@ impl<H: Host> NodeRun<H> for PickTexts {
             Some(Value::List(v)) => v.len(),
             _ => 0,
         };
-        format!("{} × {n}", field(cx.config).unwrap_or_default())
+        format!("{} × {n}", column(cx.config).unwrap_or_default())
     }
 }
 
@@ -50,7 +50,7 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("pick_texts", "Pick texts", "Data")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
-        .with_config(|| json!({ "field": "" }))
+        .with_config(|| json!({ "column": "" }))
         .with_timeout(Timeout::Inline)
         .running(PickTexts)
 }

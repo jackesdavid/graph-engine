@@ -14,11 +14,11 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
-/// `records`, not a list. A row read from a table is a thing with named columns, and every node
-/// downstream that reads one by name is assuming exactly that — an assumption the port should state
+/// A `table`, not a list. A row read from a store is cells under named columns, and every node
+/// downstream that reads one by name assumes exactly that — an assumption the port should state
 /// rather than leave to hope.
 static OUT: [Port; 2] = [
-    Port::opt("rows", PortType::RECORDS),
+    Port::opt("rows", PortType::TABLE),
     Port::opt("count", PortType::NUM),
 ];
 

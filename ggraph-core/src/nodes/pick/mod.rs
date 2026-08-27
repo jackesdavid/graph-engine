@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Jackes David Lemos
 
-//! Pulling one field out of records, as a column.
+//! Pulling one column out of a table.
 //!
-//! This is how a list of results becomes something a chart or a table can take: `records` in, one
-//! named field out, as `numbers` or as `texts`.
+//! This is how a table becomes something a chart can take: `table` in, one named column out, as
+//! `numbers` or as `texts`.
 //!
 //! Two nodes rather than one, for the reason the rounding pair exists: a node that returned numbers
 //! or text depending on what it found would have an output port that cannot say what it produces,
@@ -23,17 +23,17 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(texts::spec());
 }
 
-/// The field to read, from config.
-pub(crate) fn field(cfg: &Json) -> Option<String> {
-    cfg.get("field")
+/// The column to read, from config.
+pub(crate) fn column(cfg: &Json) -> Option<String> {
+    cfg.get("column")
         .and_then(Json::as_str)
         .filter(|s| !s.trim().is_empty())
         .map(str::to_string)
 }
 
-/// One field of one record, whatever shape the record arrived in.
-pub(crate) fn at<'a>(record: &'a Value, name: &str) -> Option<FieldRef<'a>> {
-    match record {
+/// One cell of one row, whatever shape the row arrived in.
+pub(crate) fn at<'a>(row: &'a Value, name: &str) -> Option<FieldRef<'a>> {
+    match row {
         Value::Json(Json::Object(map)) => map.get(name).map(FieldRef::Json),
         Value::Map(pairs) => pairs
             .iter()

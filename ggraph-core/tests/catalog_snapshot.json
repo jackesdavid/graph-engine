@@ -488,13 +488,13 @@
     {
       "category": "Data",
       "default_config": {
-        "field": ""
+        "column": ""
       },
       "inputs": [
         {
-          "name": "records",
+          "name": "table",
           "required": true,
-          "type": "records"
+          "type": "table"
         }
       ],
       "label": "Pick numbers",
@@ -510,13 +510,13 @@
     {
       "category": "Data",
       "default_config": {
-        "field": ""
+        "column": ""
       },
       "inputs": [
         {
-          "name": "records",
+          "name": "table",
           "required": true,
-          "type": "records"
+          "type": "table"
         }
       ],
       "label": "Pick texts",
@@ -581,36 +581,12 @@
     },
     {
       "category": "Report",
-      "default_config": {
-        "fields": []
-      },
+      "default_config": {},
       "inputs": [
         {
-          "name": "records",
+          "name": "table",
           "required": true,
-          "type": "records"
-        }
-      ],
-      "label": "Rows from data",
-      "outputs": [
-        {
-          "name": "rows",
-          "required": false,
-          "type": "rows"
-        }
-      ],
-      "slug": "report_rows"
-    },
-    {
-      "category": "Report",
-      "default_config": {
-        "columns": []
-      },
-      "inputs": [
-        {
-          "name": "rows",
-          "required": true,
-          "type": "rows"
+          "type": "table"
         }
       ],
       "label": "Table",
@@ -856,7 +832,7 @@
         {
           "name": "rows",
           "required": false,
-          "type": "records"
+          "type": "table"
         },
         {
           "name": "count",

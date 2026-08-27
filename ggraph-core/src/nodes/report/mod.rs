@@ -9,19 +9,18 @@
 //!
 //! # The ports are report types, not lists
 //!
-//! A table takes `rows`, a chart takes `numbers` and `texts`. None of them takes a bare list, so the
-//! editor refuses a wrong wire while it is being drawn rather than producing a nonsense report at
-//! run time. `texts` is a different type from `numbers` for one reason: swapping a chart's values
-//! and names is the mistake that yields a chart which is wrong and looks fine.
+//! A table component takes a `table`, a chart takes `numbers` and `texts`. None of them takes a bare
+//! list, so the editor refuses a wrong wire while it is being drawn rather than producing a nonsense
+//! report at run time. `texts` is a different type from `numbers` for one reason: swapping a chart's
+//! values and names is the mistake that yields a chart which is wrong and looks fine.
 //!
-//! `numbers` and `texts` are the ENGINE's types, not the report's. A chart fed only by a
-//! report-specific type could never be fed by anything else, and there is nothing about a list of
-//! numbers that belongs to reporting.
+//! All three are the ENGINE's types, not the report's. A component fed only by a report-specific
+//! type could never be fed by anything else, and there is nothing about a table or a list of numbers
+//! that belongs to reporting.
 //!
-//! Data reaches a report as `records` — a list of things with named fields — and the step that turns
-//! it into report data is a node in the open: `report_rows` for a table, and the engine's own
-//! `pick_numbers` / `pick_texts` for a chart. On the canvas that is a visible step saying "here is
-//! where results become a column", which beats a conversion hidden inside every component.
+//! Data reaches a report as a `table` — rows of named cells, in the author's column order — and a
+//! component takes it as it is. There used to be an adapter between the two; it went away when the
+//! source started declaring its own schema, which is where that decision belongs.
 //!
 //! **The components are pure**, and that is not a detail: a heading is a function from text to a
 //! block, not an action. Being pure they are PULLED — `report_render` is reached by exec, and every
@@ -40,7 +39,6 @@ mod heading;
 mod layout;
 mod paragraph;
 mod render;
-mod rows;
 mod table;
 
 use crate::host::Host;
@@ -55,12 +53,6 @@ use crate::value::Value;
 /// vocabulary among several a product may add, and reserving a slot in a closed enum for each would
 /// make the engine grow with its consumers.
 pub const BLOCK: PortType = PortType::new_static("block");
-
-/// Table data: rows already reduced to the declared columns.
-///
-/// Report-specific because it is: a row is cells under an author's columns, and nothing outside a
-/// report produces one.
-pub const ROWS: PortType = PortType::new_static("rows");
 
 /// A block on a wire.
 ///
@@ -81,7 +73,6 @@ pub(crate) fn from_value(v: &Value) -> Option<Block> {
 pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(heading::spec());
     reg.register(paragraph::spec());
-    reg.register(rows::spec());
     reg.register(table::spec());
     reg.register(bar_chart::spec());
     reg.register(layout::spec());

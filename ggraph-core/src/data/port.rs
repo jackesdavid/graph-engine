@@ -59,14 +59,6 @@ impl PortType {
     /// An ordered sequence.
     pub const LIST: PortType = PortType::new_static("list");
 
-    /// A list of things with named fields — query results, rows read from a table, parsed records.
-    ///
-    /// Not `LIST`, which says only "several of something". A node that reads a field by name is
-    /// assuming named fields exist, and an assumption the port does not state is one the editor
-    /// cannot check: `LIST` accepts a list of numbers into something that will look for `score` in
-    /// each of them and find nothing.
-    pub const RECORDS: PortType = PortType::new_static("records");
-
     /// A list of numbers.
     ///
     /// Distinct from `LIST` so that arithmetic — rounding, scaling, summing — declares what it can
@@ -124,7 +116,8 @@ impl PortType {
             "list" => matches!(v, V::List(_)),
             "numbers" => matches!(v, V::List(items) if every(items, &is_num)),
             "texts" => matches!(v, V::List(items) if every(items, &is_text)),
-            "records" => matches!(v, V::List(items) if every(items, &is_record)),
+            // A table is rows of named cells, in the author's column order.
+            "table" => matches!(v, V::List(items) if every(items, &is_record)),
             // A product's own vocabulary. Not the engine's to judge.
             _ => true,
         }

@@ -906,7 +906,7 @@ fn a_product_type_is_left_alone() {
 #[test]
 fn an_empty_list_is_not_a_defect() {
     assert!(PortType::NUMBERS.accepts(&Value::List(vec![])));
-    assert!(PortType::RECORDS.accepts(&Value::List(vec![])));
+    assert!(PortType::TABLE.accepts(&Value::List(vec![])));
 }
 
 /// One bad element is enough. A `numbers` holding one string is the wire that feeds a chart a bar

@@ -8,28 +8,28 @@
 //! hits gives maps. Refusing one would push the caller into a reshaping node that exists only to
 //! satisfy this one.
 
-use super::{to_value, BLOCK, ROWS};
+use super::{to_value, BLOCK};
 use crate::host::Host;
 use crate::id::PortName;
-use crate::port::Port;
+use crate::port::{Port, PortType};
 use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
-use serde_json::{json, Value as Json};
+use serde_json::json;
 
-/// `rows`, not a list. The editor refuses anything else while the wire is being drawn, which is
-/// the whole reason the report set has its own types.
-static IN: [Port; 1] = [Port::req("rows", ROWS)];
+/// A `table`, taken as it comes. The source declared its schema, so the columns are the author's
+/// already — projecting them again here would be a second place to decide the same thing.
+static IN: [Port; 1] = [Port::req("table", PortType::TABLE)];
 static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
 
-fn columns(cfg: &Json) -> Vec<String> {
-    cfg.get("columns")
-        .and_then(Json::as_array)
-        .map(|a| {
-            a.iter()
-                .filter_map(|c| c.as_str().map(str::to_string))
-                .collect()
-        })
-        .unwrap_or_default()
+/// The column names, read off the first row.
+///
+/// Not from config: the source already declared them, and a second declaration here is a second
+/// thing to keep in step. A table with no rows has no columns to name, and renders as an empty one.
+fn columns(rows: &[Value]) -> Vec<String> {
+    match rows.first() {
+        Some(Value::Map(pairs)) => pairs.iter().map(|(k, _)| k.clone()).collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// A value as it will be printed.
@@ -60,25 +60,36 @@ struct Table;
 
 impl<H: Host> NodeRun<H> for Table {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        // Already reduced to cells by `report_rows`, which kept their types. This is the last
-        // moment a value becomes text, and it does so plainly: a number that should read as
-        // currency or to two decimals was rounded by a node upstream, where somebody could see it.
-        let rows: Vec<Vec<String>> = match cx.input("rows") {
-            Some(Value::List(rows)) => rows
-                .iter()
-                .map(|r| match r {
-                    Value::List(cells) => cells.iter().map(cell).collect(),
-                    one => vec![cell(one)],
-                })
-                .collect(),
+        let source: Vec<Value> = match cx.input("table") {
+            Some(Value::List(rows)) => rows.clone(),
             _ => Vec::new(),
         };
+        let names = columns(&source);
+
+        // Read in the schema's order, not each row's. They agree when the source built them, and
+        // when they do not it is the column order a person expects that should win.
+        let rows: Vec<Vec<String>> = source
+            .iter()
+            .map(|r| match r {
+                Value::Map(pairs) => names
+                    .iter()
+                    .map(|n| {
+                        pairs
+                            .iter()
+                            .find(|(k, _)| k == n)
+                            .map(|(_, v)| cell(v))
+                            .unwrap_or_default()
+                    })
+                    .collect(),
+                one => vec![cell(one)],
+            })
+            .collect();
 
         let mut out = PortValues::new();
         out.insert(
             PortName::new("block"),
             to_value(&crate::report::Block::Table {
-                columns: columns(cx.config),
+                columns: names,
                 rows,
             }),
         );
@@ -86,7 +97,7 @@ impl<H: Host> NodeRun<H> for Table {
     }
 
     fn summary(&self, cx: &NodeCx<'_, H>, _out: &PortValues) -> String {
-        let n = match cx.input("rows") {
+        let n = match cx.input("table") {
             Some(Value::List(r)) => r.len(),
             Some(_) => 1,
             None => 0,
@@ -99,7 +110,7 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_table", "Table", "Report")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
-        .with_config(|| json!({ "columns": [] }))
+        .with_config(|| json!({}))
         .with_timeout(Timeout::Inline)
         .running(Table)
 }
@@ -122,13 +133,21 @@ mod tests {
         assert_eq!(cell(&Value::float(3.0)), "3");
     }
 
-    /// Columns are the author's, and they name what `report_rows` already extracted. Two lists that
-    /// must agree — and the node that produces the rows is the one that decided their order.
+    /// The columns come from the data, because the source already declared them. A second
+    /// declaration here would be a second thing to keep in step with the first.
     #[test]
-    fn the_columns_are_the_authors() {
-        assert_eq!(
-            columns(&json!({ "columns": ["Documento", "Página"] })),
-            vec!["Documento", "Página"]
-        );
+    fn the_columns_come_from_the_rows() {
+        let rows = [Value::Map(vec![
+            ("Documento".into(), Value::text("a.pdf")),
+            ("Página".into(), Value::int(2)),
+        ])];
+        assert_eq!(columns(&rows), vec!["Documento", "Página"]);
+    }
+
+    /// A table with no rows has no columns to name, and renders as an empty one rather than
+    /// failing a report built around it.
+    #[test]
+    fn an_empty_table_names_no_columns() {
+        assert!(columns(&[]).is_empty());
     }
 }
