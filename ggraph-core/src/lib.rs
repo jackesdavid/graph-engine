@@ -43,6 +43,7 @@ pub use graph::{topo, validate};
 
 pub use codec::{decode, decode_ports, encode, encode_ports};
 pub use data::schema;
+pub use data::table;
 pub use exec::{run, Budget, Checkpoint, Entry, Outputs, RunError, RunOptions};
 pub use graph::{Edge, Graph, GraphMeta, GraphNode, PortLookup, WireError};
 pub use host::{

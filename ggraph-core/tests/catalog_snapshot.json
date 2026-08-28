@@ -54,6 +54,7 @@
       "default_config": {
         "unknown_arm": false
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "exec_in",
@@ -365,6 +366,7 @@
         "text": "",
         "timeout_secs": "60"
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "exec_in",
@@ -402,6 +404,7 @@
       "default_config": {
         "template": ""
       },
+      "dynamic": true,
       "inputs": [],
       "label": "Format",
       "outputs": [
@@ -531,9 +534,121 @@
     },
     {
       "category": "Data",
+      "default_config": {},
+      "inputs": [
+        {
+          "name": "table",
+          "required": true,
+          "type": "table"
+        }
+      ],
+      "label": "Table rows",
+      "outputs": [
+        {
+          "name": "rows",
+          "required": false,
+          "type": "table_rows"
+        }
+      ],
+      "slug": "get_table_rows"
+    },
+    {
+      "category": "Data",
+      "default_config": {},
+      "inputs": [
+        {
+          "name": "table",
+          "required": true,
+          "type": "table"
+        }
+      ],
+      "label": "First row",
+      "outputs": [
+        {
+          "name": "row",
+          "required": false,
+          "type": "table_row"
+        }
+      ],
+      "slug": "first_row"
+    },
+    {
+      "category": "Data",
+      "default_config": {
+        "column": "",
+        "columns": []
+      },
+      "dynamic": true,
+      "fields": [
+        {
+          "key": "column",
+          "kind": "choice",
+          "label": "Column",
+          "options": []
+        }
+      ],
+      "inputs": [
+        {
+          "name": "row",
+          "required": true,
+          "type": "table_row"
+        },
+        {
+          "name": "schema",
+          "required": false,
+          "type": "schema"
+        }
+      ],
+      "label": "Cell value",
+      "outputs": [],
+      "slug": "cell"
+    },
+    {
+      "category": "Data",
+      "default_config": {},
+      "inputs": [
+        {
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "table",
+          "required": true,
+          "type": "table"
+        }
+      ],
+      "label": "For each row",
+      "outputs": [
+        {
+          "name": "loop_body",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "completed",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "name": "row",
+          "required": false,
+          "type": "table_row"
+        },
+        {
+          "name": "index",
+          "required": false,
+          "type": "num"
+        }
+      ],
+      "slug": "for_each_row"
+    },
+    {
+      "category": "Data",
       "default_config": {
         "columns": []
       },
+      "dynamic": true,
       "fields": [
         {
           "fields": [
@@ -675,6 +790,7 @@
         "justify": "start",
         "slots": 2
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "slot_1",
@@ -708,6 +824,7 @@
         "slots": 1,
         "title": "Report"
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "exec_in",
@@ -751,6 +868,7 @@
         "columns": [],
         "table": ""
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "exec_in",
@@ -922,6 +1040,7 @@
       "default_config": {
         "variable": ""
       },
+      "dynamic": true,
       "inputs": [],
       "label": "Get Variable",
       "outputs": [],
@@ -932,6 +1051,7 @@
       "default_config": {
         "variable": ""
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "exec_in",

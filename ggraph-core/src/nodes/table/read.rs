@@ -32,9 +32,19 @@ impl<H: Host> NodeRun<H> for Read {
         let rows = self.tables.read(&table)?;
         let mut out = PortValues::new();
         out.insert(PortName::new("count"), Value::int(rows.len() as i64));
+        // The declared columns travel with the rows, so a table that came back empty still says
+        // what shape it has.
+        let cols = crate::nodes::table::columns(cx.config);
+        let cols: Vec<crate::port::Column> = cols
+            .iter()
+            .map(|c| {
+                crate::port::Column::new(crate::id::PortName::new(c.clone()), crate::port::PortType::TEXT)
+            })
+            .collect();
+        let values: Vec<Value> = rows.iter().map(|r| row_value(r)).collect();
         out.insert(
             PortName::new("rows"),
-            Value::List(rows.iter().map(|r| row_value(r)).collect()),
+            crate::table::make(&cols, values),
         );
         Ok(out)
     }

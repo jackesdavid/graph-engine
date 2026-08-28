@@ -25,12 +25,7 @@ static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
 ///
 /// Not from config: the source already declared them, and a second declaration here is a second
 /// thing to keep in step. A table with no rows has no columns to name, and renders as an empty one.
-fn columns(rows: &[Value]) -> Vec<String> {
-    match rows.first() {
-        Some(Value::Map(pairs)) => pairs.iter().map(|(k, _)| k.clone()).collect(),
-        _ => Vec::new(),
-    }
-}
+
 
 /// A value as it will be printed.
 ///
@@ -60,11 +55,13 @@ struct Table;
 
 impl<H: Host> NodeRun<H> for Table {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let source: Vec<Value> = match cx.input("table") {
-            Some(Value::List(rows)) => rows.clone(),
-            _ => Vec::new(),
-        };
-        let names = columns(&source);
+        let source = crate::table::rows(cx.input("table"));
+        // The columns come from the table itself. Reading them back off the first row was an order
+        // that happened to hold, and it had nothing to say about a table with no rows at all.
+        let names: Vec<String> = crate::table::columns(cx.input("table"))
+            .iter()
+            .map(|c| c.name.as_str().to_string())
+            .collect();
 
         // Read in the schema's order, not each row's. They agree when the source built them, and
         // when they do not it is the column order a person expects that should win.
@@ -133,21 +130,31 @@ mod tests {
         assert_eq!(cell(&Value::float(3.0)), "3");
     }
 
-    /// The columns come from the data, because the source already declared them. A second
-    /// declaration here would be a second thing to keep in step with the first.
+    /// The columns come from the table, because the source already declared them. Reading them
+    /// back off the first row was an order that happened to hold.
     #[test]
-    fn the_columns_come_from_the_rows() {
-        let rows = [Value::Map(vec![
-            ("Documento".into(), Value::text("a.pdf")),
-            ("Página".into(), Value::int(2)),
-        ])];
-        assert_eq!(columns(&rows), vec!["Documento", "Página"]);
+    fn the_columns_come_from_the_table() {
+        let cols = [
+            crate::port::Column::new(crate::id::PortName::new("Documento"), PortType::TEXT),
+            crate::port::Column::new(crate::id::PortName::new("Página"), PortType::NUM),
+        ];
+        let t = crate::table::make(&cols, Vec::new());
+        let names: Vec<String> = crate::table::columns(Some(&t))
+            .iter()
+            .map(|c| c.name.as_str().to_string())
+            .collect();
+        assert_eq!(names, vec!["Documento", "Página"]);
     }
 
-    /// A table with no rows has no columns to name, and renders as an empty one rather than
-    /// failing a report built around it.
+    /// And a table with no rows still names them, which is the case the old way could not answer:
+    /// an empty report used to lose its headings as well as its data.
     #[test]
-    fn an_empty_table_names_no_columns() {
-        assert!(columns(&[]).is_empty());
+    fn an_empty_table_still_names_its_columns() {
+        let cols = [crate::port::Column::new(
+            crate::id::PortName::new("Documento"),
+            PortType::TEXT,
+        )];
+        let t = crate::table::make(&cols, Vec::new());
+        assert_eq!(crate::table::columns(Some(&t)).len(), 1);
     }
 }

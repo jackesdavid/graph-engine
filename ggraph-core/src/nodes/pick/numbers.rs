@@ -21,17 +21,14 @@ impl<H: Host> NodeRun<H> for PickNumbers {
         let name = column(cx.config)
             .ok_or_else(|| NodeError::new("no column — which one should be read?"))?;
 
-        let values: Vec<Value> = match cx.input("table") {
-            Some(Value::List(rows)) => rows
-                .iter()
-                // A record with no number there is SKIPPED, not read as zero: "we could not read
-                // this" and "this measured zero" are different statements, and a zero bar makes the
-                // second one.
-                .filter_map(|r| at(r, &name).and_then(|f| f.as_f64()))
-                .map(Value::float)
-                .collect(),
-            _ => Vec::new(),
-        };
+        let values: Vec<Value> = crate::table::rows(cx.input("table"))
+            .iter()
+            // A row with no number there is SKIPPED, not read as zero: "we could not read
+            // this" and "this measured zero" are different statements, and a zero bar makes the
+            // second one.
+            .filter_map(|r| at(r, &name).and_then(|f| f.as_f64()))
+            .map(Value::float)
+            .collect();
 
         let mut out = PortValues::new();
         out.insert(PortName::new("values"), Value::List(values));

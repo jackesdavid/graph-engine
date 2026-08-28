@@ -21,16 +21,12 @@ impl<H: Host> NodeRun<H> for PickTexts {
         let name = column(cx.config)
             .ok_or_else(|| NodeError::new("no column — which one should be read?"))?;
 
-        let values: Vec<Value> = match cx.input("table") {
-            Some(Value::List(rows)) => rows
-                .iter()
-                // Absent reads as empty rather than being dropped: a label column has to stay in
-                // step with the numbers it names, and a shorter one silently renames every bar
-                // after the gap.
-                .map(|r| Value::text(at(r, &name).map(|f| f.as_text()).unwrap_or_default()))
-                .collect(),
-            _ => Vec::new(),
-        };
+        let values: Vec<Value> = crate::table::rows(cx.input("table"))
+            .iter()
+            // Absent reads as empty rather than being dropped: a label column has to stay in step
+            // with the numbers it names, and a shorter one silently renames every bar after the gap.
+            .map(|r| Value::text(at(r, &name).map(|f| f.as_text()).unwrap_or_default()))
+            .collect();
 
         let mut out = PortValues::new();
         out.insert(PortName::new("values"), Value::List(values));

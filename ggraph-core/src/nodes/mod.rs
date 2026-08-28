@@ -28,6 +28,7 @@ pub mod pick;
 pub mod print;
 pub mod report;
 pub mod round;
+pub mod row;
 pub mod schema;
 mod table;
 pub mod variables;
@@ -55,6 +56,7 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>, services: &services::Ser
     reg.register(print::spec(services));
     round::register_all(reg);
     pick::register_all(reg);
+    row::register_all(reg);
     reg.register(schema::spec());
     // The report set: pure, and the only write goes through the host's own ValueIo.
     report::register_all(reg);

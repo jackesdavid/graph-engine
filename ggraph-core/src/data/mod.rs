@@ -17,4 +17,5 @@ pub mod codec;
 pub mod id;
 pub mod port;
 pub mod schema;
+pub mod table;
 pub mod value;

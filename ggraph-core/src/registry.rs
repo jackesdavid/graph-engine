@@ -24,7 +24,7 @@ use crate::graph::PortLookup;
 use crate::host::{Host, ValueIo};
 use crate::id::NodeId;
 use crate::port::Port;
-use crate::spec::{Field, FieldKind, NodeSpec};
+use crate::spec::{ExecOut, Field, FieldKind, Fields, NodeSpec, Ports};
 use crate::value::Value;
 use serde_json::{json, Value as Json};
 use std::collections::HashMap;
@@ -221,6 +221,16 @@ fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
         "outputs": outputs,
         "default_config": (s.default_config)(),
     });
+    // Whether this kind's pins depend on its configuration. An editor showing a configured node
+    // has to ask again for those; without being told which, it keeps its own list of them, and a
+    // list of that kind is one somebody forgets to add the next node to.
+    if matches!(s.inputs, Ports::Dynamic(_))
+        || matches!(s.outputs, Ports::Dynamic(_))
+        || matches!(s.exec_out, ExecOut::Dynamic(_))
+        || matches!(s.fields, Fields::Dynamic(_))
+    {
+        j["dynamic"] = Json::Bool(true);
+    }
     // Only when declared. A node that says nothing leaves the editor guessing from the default
     // value, which is what every node did before fields existed.
     let fields = s.fields.resolve(cfg);

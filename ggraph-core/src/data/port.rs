@@ -83,6 +83,16 @@ impl PortType {
     /// different things to wire: one search's results must not be pluggable into another search's
     /// schema input, which is a wire the editor would happily draw and which means nothing.
     pub const SCHEMA: PortType = PortType::new_static("schema");
+
+    /// A table's rows, on their own. What a loop walks.
+    pub const TABLE_ROWS: PortType = PortType::new_static("table_rows");
+    /// One row: named cells, in the author's column order.
+    pub const TABLE_ROW: PortType = PortType::new_static("table_row");
+    /// One column's name and type.
+    pub const TABLE_COLUMN: PortType = PortType::new_static("table_column");
+    /// One cell, addressed rather than read. A node that READS a cell returns the type its column
+    /// was declared as, so the value can go straight into whatever wanted a number.
+    pub const TABLE_CELL: PortType = PortType::new_static("table_cell");
     /// Control flow, not data. Exec ports carry no value — they say *when*, not *what*.
     pub const EXEC: PortType = PortType::new_static("exec");
     /// Wildcard: compatible with everything, in both directions.
@@ -123,8 +133,13 @@ impl PortType {
             "list" => matches!(v, V::List(_)),
             "numbers" => matches!(v, V::List(items) if every(items, &is_num)),
             "texts" => matches!(v, V::List(items) if every(items, &is_text)),
-            // A table is rows of named cells, in the author's column order.
-            "table" => matches!(v, V::List(items) if every(items, &is_record)),
+            // A table is its columns and its rows. A bare list of rows is accepted too: stored
+            // graphs predate the columns travelling alongside the data.
+            "table" => {
+                is_record(v) || matches!(v, V::List(items) if every(items, &is_record))
+            }
+            "table_rows" => matches!(v, V::List(items) if every(items, &is_record)),
+            "table_row" | "table_column" => is_record(v),
             // A schema is the column list itself — named shapes, no rows.
             "schema" => matches!(v, V::List(items) if every(items, &is_record)),
             // A product's own vocabulary. Not the engine's to judge.
@@ -136,6 +151,18 @@ impl PortType {
     ///
     /// The name of the value's own shape, not a guess at what it should have been: "returned a
     /// list of text where `numbers` was declared" is a sentence somebody can act on.
+    /// The engine type a value already is. Used to read a column's type back off a table that
+    /// arrived without one.
+    pub fn describe_type(v: &crate::value::Value) -> PortType {
+        use crate::value::Value as V;
+        use serde_json::Value as Json;
+        match v {
+            V::Num(_) | V::Json(Json::Number(_)) => PortType::NUM,
+            V::Bool(_) | V::Json(Json::Bool(_)) => PortType::BOOL,
+            _ => PortType::TEXT,
+        }
+    }
+
     pub fn describe(v: &crate::value::Value) -> String {
         use crate::value::Value as V;
         use serde_json::Value as Json;
