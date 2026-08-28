@@ -198,3 +198,108 @@ impl std::fmt::Debug for ExecOut {
         }
     }
 }
+
+/// Builds a node kind's editable fields from its configuration.
+pub type FieldsFn = Arc<dyn Fn(&Json) -> Vec<Field> + Send + Sync>;
+
+/// How one configuration key is edited.
+///
+/// The catalogue has always said *what* a config key is — its default value — and never how to
+/// edit it, so an editor had to guess from the value's shape. That guess is right for text and
+/// wrong for everything else: an enumeration became a free-text box, and a list of records became
+/// the string `[object Object]` which the first keystroke wrote back over the list.
+///
+/// These are constraints, not widgets. The engine says a field is one of three values; which
+/// control that becomes is the editor's business.
+#[derive(Clone, Debug)]
+pub enum FieldKind {
+    Text,
+    /// Text long enough to want room — a question, a prompt.
+    LongText,
+    Num,
+    Bool,
+    /// One of a fixed set of values.
+    Choice(Vec<String>),
+    /// A list of records, each with these fields. Nests: a schema is rows of name and type.
+    Rows(Vec<Field>),
+}
+
+/// One editable key of a node's configuration.
+#[derive(Clone, Debug)]
+pub struct Field {
+    pub key: PortName,
+    pub label: String,
+    pub kind: FieldKind,
+}
+
+impl Field {
+    pub fn new(key: &str, label: &str, kind: FieldKind) -> Self {
+        Field {
+            key: PortName::new(key),
+            label: label.to_string(),
+            kind,
+        }
+    }
+
+    pub fn text(key: &str, label: &str) -> Self {
+        Field::new(key, label, FieldKind::Text)
+    }
+
+    pub fn long_text(key: &str, label: &str) -> Self {
+        Field::new(key, label, FieldKind::LongText)
+    }
+
+    pub fn num(key: &str, label: &str) -> Self {
+        Field::new(key, label, FieldKind::Num)
+    }
+
+    pub fn bool(key: &str, label: &str) -> Self {
+        Field::new(key, label, FieldKind::Bool)
+    }
+
+    pub fn choice(key: &str, label: &str, options: impl IntoIterator<Item = impl ToString>) -> Self {
+        let opts = options.into_iter().map(|o| o.to_string()).collect();
+        Field::new(key, label, FieldKind::Choice(opts))
+    }
+
+    pub fn rows(key: &str, label: &str, fields: Vec<Field>) -> Self {
+        Field::new(key, label, FieldKind::Rows(fields))
+    }
+}
+
+/// A node's editable fields, which may depend on its configuration.
+///
+/// Dynamic for the same reason [`Ports`] is: a source publishes the fields it can offer, and the
+/// schema editor has to list those rather than a fixed set.
+#[derive(Clone)]
+pub enum Fields {
+    /// Nothing declared. The editor falls back to guessing from the default config, which is what
+    /// every node did before this existed.
+    None,
+    List(Vec<Field>),
+    Dynamic(FieldsFn),
+}
+
+impl Fields {
+    pub fn dynamic(f: impl Fn(&Json) -> Vec<Field> + Send + Sync + 'static) -> Self {
+        Fields::Dynamic(Arc::new(f))
+    }
+
+    pub fn resolve(&self, config: &Json) -> Vec<Field> {
+        match self {
+            Fields::None => Vec::new(),
+            Fields::List(f) => f.clone(),
+            Fields::Dynamic(f) => f(config),
+        }
+    }
+}
+
+impl std::fmt::Debug for Fields {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Fields::None => write!(f, "None"),
+            Fields::List(l) => write!(f, "List({} field(s))", l.len()),
+            Fields::Dynamic(_) => write!(f, "Dynamic"),
+        }
+    }
+}

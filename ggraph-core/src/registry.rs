@@ -24,7 +24,7 @@ use crate::graph::PortLookup;
 use crate::host::{Host, ValueIo};
 use crate::id::NodeId;
 use crate::port::Port;
-use crate::spec::NodeSpec;
+use crate::spec::{Field, FieldKind, NodeSpec};
 use crate::value::Value;
 use serde_json::{json, Value as Json};
 use std::collections::HashMap;
@@ -184,30 +184,69 @@ impl<H: Host> NodeRegistry<H> {
     pub fn catalog_json(&self) -> Json {
         let kinds: Vec<Json> = self
             .palette()
-            .map(|s| {
-                let cfg = (s.default_config)();
-                let mut inputs: Vec<Json> = Vec::new();
-                let mut outputs: Vec<Json> = Vec::new();
-                // Exec pins come first and are omitted entirely for a pure node, so the editor
-                // knows to hide the exec circles rather than drawing dead ones.
-                if s.purity.has_exec() {
-                    inputs.push(port_json(&crate::port::EXEC_IN));
-                    outputs.extend(s.exec_out.resolve(&cfg).iter().map(port_json));
-                }
-                inputs.extend(s.inputs.resolve(&cfg).iter().map(port_json));
-                outputs.extend(s.outputs.resolve(&cfg).iter().map(port_json));
-                json!({
-                    "slug": s.id.as_str(),
-                    "label": s.label,
-                    "category": s.category,
-                    "inputs": inputs,
-                    "outputs": outputs,
-                    "default_config": cfg,
-                })
-            })
+            .map(|s| kind_json(s, &(s.default_config)()))
             .collect();
         json!({ "kinds": kinds })
     }
+
+    /// One kind, resolved against a node's actual configuration.
+    ///
+    /// The catalogue can only resolve dynamic ports against the DEFAULT config, so an editor that
+    /// wants the pins a configured node really has had to re-implement [`Ports::dynamic`] in its
+    /// own language — and two implementations of a port list is how a canvas comes to draw a pin
+    /// the run does not have. This is the same answer, from the side that knows.
+    pub fn resolve_json(&self, slug: &str, config: &Json) -> Option<Json> {
+        self.get(&NodeId::new(slug)).map(|s| kind_json(s, config))
+    }
+}
+
+/// One kind as the editor reads it, resolved against `cfg`.
+fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
+    let mut inputs: Vec<Json> = Vec::new();
+    let mut outputs: Vec<Json> = Vec::new();
+    // Exec pins come first and are omitted entirely for a pure node, so the editor knows to hide
+    // the exec circles rather than drawing dead ones.
+    if s.purity.has_exec() {
+        inputs.push(port_json(&crate::port::EXEC_IN));
+        outputs.extend(s.exec_out.resolve(cfg).iter().map(port_json));
+    }
+    inputs.extend(s.inputs.resolve(cfg).iter().map(port_json));
+    outputs.extend(s.outputs.resolve(cfg).iter().map(port_json));
+
+    let mut j = json!({
+        "slug": s.id.as_str(),
+        "label": s.label,
+        "category": s.category,
+        "inputs": inputs,
+        "outputs": outputs,
+        "default_config": (s.default_config)(),
+    });
+    // Only when declared. A node that says nothing leaves the editor guessing from the default
+    // value, which is what every node did before fields existed.
+    let fields = s.fields.resolve(cfg);
+    if !fields.is_empty() {
+        j["fields"] = Json::Array(fields.iter().map(field_json).collect());
+    }
+    j
+}
+
+fn field_json(f: &Field) -> Json {
+    let mut j = json!({ "key": f.key.as_str(), "label": f.label });
+    match &f.kind {
+        FieldKind::Text => j["kind"] = "text".into(),
+        FieldKind::LongText => j["kind"] = "long_text".into(),
+        FieldKind::Num => j["kind"] = "num".into(),
+        FieldKind::Bool => j["kind"] = "bool".into(),
+        FieldKind::Choice(options) => {
+            j["kind"] = "choice".into();
+            j["options"] = Json::Array(options.iter().map(|o| Json::from(o.as_str())).collect());
+        }
+        FieldKind::Rows(fields) => {
+            j["kind"] = "rows".into();
+            j["fields"] = Json::Array(fields.iter().map(field_json).collect());
+        }
+    }
+    j
 }
 
 fn port_json(p: &Port) -> Json {

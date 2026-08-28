@@ -530,6 +530,46 @@
       "slug": "pick_texts"
     },
     {
+      "category": "Data",
+      "default_config": {
+        "columns": []
+      },
+      "fields": [
+        {
+          "fields": [
+            {
+              "key": "name",
+              "kind": "text",
+              "label": "Name"
+            },
+            {
+              "key": "type",
+              "kind": "choice",
+              "label": "Type",
+              "options": [
+                "text",
+                "num",
+                "bool"
+              ]
+            }
+          ],
+          "key": "columns",
+          "kind": "rows",
+          "label": "Columns"
+        }
+      ],
+      "inputs": [],
+      "label": "Schema",
+      "outputs": [
+        {
+          "name": "schema",
+          "required": false,
+          "type": "schema"
+        }
+      ],
+      "slug": "table_schema"
+    },
+    {
       "category": "Report",
       "default_config": {
         "level": "1",

@@ -103,6 +103,9 @@ pub struct NodeSpec<H: Host> {
     pub outputs: Ports,
     pub exec_out: ExecOut,
     pub default_config: ConfigFn,
+    /// How each configuration key is edited. Empty means the editor guesses from the default
+    /// value, which is what every node did before this existed.
+    pub fields: Fields,
     pub purity: Purity,
     pub timeout: Timeout,
     pub behavior: Behavior<H>,
@@ -135,6 +138,7 @@ impl<H: Host> NodeSpec<H> {
             outputs: Ports::NONE,
             exec_out: ExecOut::DEFAULT,
             default_config: Arc::new(|| Json::Object(Default::default())),
+            fields: Fields::None,
             purity: Purity::EFFECTFUL,
             timeout: Timeout::Secs(30),
             behavior: Behavior::Inert,
@@ -165,6 +169,11 @@ impl<H: Host> NodeSpec<H> {
     }
     pub fn with_config(mut self, f: impl Fn() -> Json + Send + Sync + 'static) -> Self {
         self.default_config = Arc::new(f);
+        self
+    }
+    /// Declare how this node's configuration is edited. See [`Fields`].
+    pub fn with_fields(mut self, f: Fields) -> Self {
+        self.fields = f;
         self
     }
     pub fn with_timeout(mut self, t: Timeout) -> Self {

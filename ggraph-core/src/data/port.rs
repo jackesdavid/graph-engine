@@ -76,6 +76,13 @@ impl PortType {
     pub const MAP: PortType = PortType::new_static("dictionary");
     /// A named table of rows.
     pub const TABLE: PortType = PortType::new_static("table");
+
+    /// The shape of a table — columns and their types, with no rows.
+    ///
+    /// Its own type rather than an empty `TABLE`, because a shape and the data shaped by it are
+    /// different things to wire: one search's results must not be pluggable into another search's
+    /// schema input, which is a wire the editor would happily draw and which means nothing.
+    pub const SCHEMA: PortType = PortType::new_static("schema");
     /// Control flow, not data. Exec ports carry no value — they say *when*, not *what*.
     pub const EXEC: PortType = PortType::new_static("exec");
     /// Wildcard: compatible with everything, in both directions.
@@ -118,6 +125,8 @@ impl PortType {
             "texts" => matches!(v, V::List(items) if every(items, &is_text)),
             // A table is rows of named cells, in the author's column order.
             "table" => matches!(v, V::List(items) if every(items, &is_record)),
+            // A schema is the column list itself — named shapes, no rows.
+            "schema" => matches!(v, V::List(items) if every(items, &is_record)),
             // A product's own vocabulary. Not the engine's to judge.
             _ => true,
         }
