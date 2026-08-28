@@ -20,6 +20,12 @@ use serde_json::json;
 /// went wrong.
 static IN: [Port; 1] = [Port::opt("message", PortType::ANY)];
 
+/// What to write down. A table is drawn as a table — this is the node people reach for when a graph
+/// did not do what they expected, and "2 field(s)" is the answer that sends them somewhere else.
+fn shown(v: &Value) -> String {
+    crate::table::render(v).unwrap_or_else(|| v.summary())
+}
+
 struct Print;
 
 impl<H: Host> NodeRun<H> for Print {
@@ -27,7 +33,7 @@ impl<H: Host> NodeRun<H> for Print {
         let text = cx
             .input_or_cfg("message")
             .as_ref()
-            .map(Value::summary)
+            .map(shown)
             .unwrap_or_default();
         cx.host.observer().ui(
             cx.node,
@@ -39,10 +45,19 @@ impl<H: Host> NodeRun<H> for Print {
         Ok(PortValues::new())
     }
 
+    /// One line, so a table reports its shape rather than its contents — the contents went to the
+    /// console, which is where there is room for them.
     fn summary(&self, cx: &NodeCx<'_, H>, _out: &PortValues) -> String {
         cx.input_or_cfg("message")
             .as_ref()
-            .map(Value::summary)
+            .map(|v| match crate::table::columns(Some(v)) {
+                c if !c.is_empty() => format!(
+                    "{} column(s), {} row(s)",
+                    c.len(),
+                    crate::table::rows(Some(v)).len()
+                ),
+                _ => v.summary(),
+            })
             .unwrap_or_default()
     }
 }

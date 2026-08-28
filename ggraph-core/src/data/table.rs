@@ -96,6 +96,61 @@ fn column_of(v: &Value) -> Option<Column> {
     Some(Column::new(PortName::new(name), PortType::new(ty)))
 }
 
+/// A table drawn as text, for a log a person reads.
+///
+/// `Value::summary` answers "2 field(s)" for one, which is true of its shape and useless about its
+/// contents — and the node that exists to show you what is on a wire is the last place that should
+/// happen. `None` for anything that is not a table, so a caller falls back to the summary.
+pub fn render(v: &Value) -> Option<String> {
+    let cols = columns(Some(v));
+    if cols.is_empty() {
+        return None;
+    }
+    let rows = rows(Some(v));
+    let names: Vec<String> = cols.iter().map(|c| c.name.as_str().to_string()).collect();
+
+    let cells: Vec<Vec<String>> = rows
+        .iter()
+        .map(|r| {
+            names
+                .iter()
+                .map(|n| cell(r, n).map(|v| v.as_text().unwrap_or_else(|| v.summary())).unwrap_or_default())
+                .collect()
+        })
+        .collect();
+
+    // Width from the widest thing in the column, header included, so a column is never cut by a
+    // value it is meant to show.
+    let width: Vec<usize> = names
+        .iter()
+        .enumerate()
+        .map(|(i, n)| {
+            cells
+                .iter()
+                .map(|r| r[i].chars().count())
+                .chain(std::iter::once(n.chars().count()))
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+
+    let line = |vals: &[String]| -> String {
+        vals.iter()
+            .enumerate()
+            .map(|(i, v)| format!("{:w$}", v, w = width[i]))
+            .collect::<Vec<_>>()
+            .join("  ")
+    };
+
+    let mut out = vec![line(&names)];
+    out.push(width.iter().map(|w| "-".repeat(*w)).collect::<Vec<_>>().join("  "));
+    out.extend(cells.iter().map(|r| line(r)));
+    if rows.is_empty() {
+        out.push("(no rows)".to_string());
+    }
+    Some(out.join("\n"))
+}
+
 /// One named cell of a row.
 pub fn cell(row: &Value, name: &str) -> Option<Value> {
     match row {
@@ -148,6 +203,32 @@ mod tests {
         let t = Value::List(vec![row()]);
         assert_eq!(rows(Some(&t)).len(), 1);
         assert_eq!(columns(Some(&t)).len(), 2, "read back off the first row");
+    }
+
+    /// The node that exists to show you what is on a wire must show it. `summary` says
+    /// "2 field(s)", which is true of the shape and useless about the contents.
+    #[test]
+    fn a_table_draws_itself_for_a_person() {
+        let t = make(&cols(), vec![row()]);
+        let drawn = render(&t).unwrap();
+        assert!(drawn.contains("document"), "the heading");
+        assert!(drawn.contains("a.pdf"), "the value");
+        assert_eq!(drawn.lines().count(), 3, "heading, rule, one row");
+    }
+
+    /// An empty table still shows its shape — which is the case that matters, because an empty
+    /// result is when somebody most wants to know what was expected.
+    #[test]
+    fn an_empty_table_still_shows_its_columns() {
+        let drawn = render(&make(&cols(), Vec::new())).unwrap();
+        assert!(drawn.contains("document") && drawn.contains("score"));
+        assert!(drawn.contains("(no rows)"));
+    }
+
+    /// Anything that is not a table declines, so a caller falls back to the summary.
+    #[test]
+    fn a_value_that_is_not_a_table_is_not_drawn() {
+        assert!(render(&Value::text("hello")).is_none());
     }
 
     #[test]
