@@ -94,7 +94,17 @@ fn block(b: &Block) -> String {
         // The recursive case, and the only one there is. A layout renders its children the same way
         // the root was rendered, so nesting costs nothing here either.
         Block::Layout { layout, children } => {
-            let inner: String = children.iter().map(block).collect();
+            // In a ROW each child is given an equal share and allowed to shrink. Left to themselves
+            // they size to their content — a chart is a fixed 640px and a table asks for all of it —
+            // so "a chart beside a table", the arrangement layouts exist for, was the one that
+            // overflowed. `min-width:0` is what lets a table narrower than its columns still fit.
+            let inner: String = match layout.direction {
+                crate::report::Direction::Row => children
+                    .iter()
+                    .map(|c| format!("<div style=\"flex:1 1 0;min-width:0\">\n{}</div>\n", block(c)))
+                    .collect(),
+                crate::report::Direction::Column => children.iter().map(block).collect(),
+            };
             format!("<div style=\"{}\">\n{inner}</div>\n", layout.css())
         }
     }
@@ -112,6 +122,45 @@ pub(crate) fn escape(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    /// The arrangement layouts exist for, and the one that used to overflow: left to size
+    /// themselves, a chart fixed at 640px and a table asking for all of it do not fit in 60rem.
+    #[test]
+    fn a_row_shares_its_width_between_its_children() {
+        let row = Block::stack(
+            crate::report::Layout::row(),
+            vec![
+                Block::Table {
+                    columns: vec!["a".into()],
+                    rows: vec![],
+                },
+                Block::BarChart {
+                    title: String::new(),
+                    labels: vec!["x".into()],
+                    values: vec![1.0],
+                },
+            ],
+        );
+        let html = render_html(&row, "t", None);
+        assert_eq!(html.matches("flex:1 1 0").count(), 2, "one share each");
+        assert!(
+            html.contains("min-width:0"),
+            "and a table may shrink below its columns, or it claims the row"
+        );
+    }
+
+    /// A column leaves its children alone: they stack, and each is as wide as the page.
+    #[test]
+    fn a_column_wraps_nothing() {
+        let col = Block::stack(
+            crate::report::Layout::column(),
+            vec![Block::Heading {
+                text: "x".into(),
+                level: 1,
+            }],
+        );
+        assert!(!render_html(&col, "t", None).contains("flex:1 1 0"));
+    }
     use super::*;
     use crate::report::layout::{Direction, Layout};
 

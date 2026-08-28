@@ -61,7 +61,7 @@ impl<H: Host> NodeRun<H> for Render {
             .filter_map(from_value)
             .collect();
 
-        let layout = serde_json::from_value(cx.config.clone()).unwrap_or_default();
+        let layout = crate::report::Layout::read(cx.config);
         let root = crate::report::Block::stack(layout, children);
         let title = cx.cfg_str("title").unwrap_or("Report");
 

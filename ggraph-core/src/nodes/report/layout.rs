@@ -42,7 +42,7 @@ fn ports(cfg: &Json) -> Vec<Port> {
 }
 
 fn layout_of(cfg: &Json) -> crate::report::Layout {
-    serde_json::from_value(cfg.clone()).unwrap_or_default()
+    crate::report::Layout::read(cfg)
 }
 
 struct LayoutNode;
