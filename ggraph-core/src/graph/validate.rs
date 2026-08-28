@@ -42,6 +42,12 @@ pub enum Problem {
         port: PortName,
         /// `true` for the target end of the wire.
         is_input: bool,
+        /// The ports that side of the node DOES have.
+        ///
+        /// Naming them turns the message from a wall into a signpost. Whoever is reading it —
+        /// a person or a model rewriting the document — wants the same next fact, and without
+        /// this they have to go and look it up, or guess again.
+        available: Vec<PortName>,
     },
 
     /// Both ends exist, and the types no longer permit the connection.
@@ -80,10 +86,20 @@ impl std::fmt::Display for Problem {
                 kind,
                 port,
                 is_input,
+                available,
             } => write!(
                 f,
-                "node {node} ({kind}) has no {} port {port:?}",
-                if *is_input { "input" } else { "output" }
+                "node {node} ({kind}) has no {} port {port:?}; it has {}",
+                if *is_input { "input" } else { "output" },
+                if available.is_empty() {
+                    "none".to_string()
+                } else {
+                    available
+                        .iter()
+                        .map(|p| format!("{p:?}"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
             ),
             Problem::TypeMismatch {
                 from,
@@ -164,6 +180,13 @@ pub fn validate<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) 
                 kind: src.kind.as_str().to_string(),
                 port: e.from_port.clone(),
                 is_input: false,
+                available: sspec
+                    .exec_out
+                    .resolve(&src.config)
+                    .into_iter()
+                    .chain(sspec.outputs.resolve(&src.config))
+                    .map(|p| p.name)
+                    .collect(),
             });
             continue;
         };
@@ -184,6 +207,11 @@ pub fn validate<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) 
                 kind: dst.kind.as_str().to_string(),
                 port: e.to_port.clone(),
                 is_input: true,
+                // `exec_in` is on every node that takes control and is not in `inputs`; leaving it
+                // out would send a reader looking for the one port they most likely wanted.
+                available: std::iter::once(EXEC_IN.name.clone())
+                    .chain(dspec.inputs.resolve(&dst.config).into_iter().map(|p| p.name))
+                    .collect(),
             });
             continue;
         };
