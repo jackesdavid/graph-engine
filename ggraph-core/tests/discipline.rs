@@ -1025,3 +1025,40 @@ fn an_optional_column_may_be_missing() {
 
     assert!(host.inner().observer.defects.lock().unwrap().is_empty());
 }
+
+/// A renamed kind keeps loading, because that is the only thing aliases are for.
+///
+/// The mechanism existed and the scheduler did not use it: it reached for a kind through a lookup
+/// that consulted ids and nothing else. So a rename passed every test here and failed on the first
+/// stored graph containing the old name — in front of somebody, at load time.
+#[test]
+fn a_graph_written_before_a_rename_still_runs() {
+    struct Ran;
+    impl<H: Host> NodeRun<H> for Ran {
+        fn run(&self, _cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
+            let mut out = PortValues::new();
+            out.insert(PortName::new("out"), Value::int(1));
+            Ok(out)
+        }
+    }
+    static OUT: [Port; 1] = [Port::opt("out", PortType::NUM)];
+
+    let mut reg = NodeRegistry::<TestHost>::new();
+    reg.register(
+        NodeSpec::effectful("new_name", "New", "Test")
+            .with_aliases(&["old_name"])
+            .with_outputs(Ports::Static(&OUT))
+            .running(Ran),
+    );
+
+    // The document says the old name, as every graph saved before the rename does.
+    let mut g = Graph::new("renamed");
+    let n = g.add_node("old_name", 0, 0);
+    let host = TestHost::new();
+    let outs = ggraph_core::run(&g, &reg, &host, &Entry::default(), &lone_node())
+        .expect("a stored graph must not stop loading because a node was renamed");
+    assert_eq!(
+        outs.get(&n).and_then(|o| o.get(&PortName::new("out"))),
+        Some(&Value::int(1))
+    );
+}

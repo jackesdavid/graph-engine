@@ -134,14 +134,19 @@ impl<H: Host> NodeRegistry<H> {
 
     /// Resolve a name from a stored document — the id, or any alias.
     pub fn resolve(&self, name: &str) -> Option<&Arc<NodeSpec<H>>> {
-        let id = NodeId::new(name);
-        self.specs
-            .get(&id)
-            .or_else(|| self.aliases.get(name).and_then(|id| self.specs.get(id)))
+        self.get(&NodeId::new(name))
     }
 
+    /// A kind by its id, or by any name it also answers to.
+    ///
+    /// Aliases are consulted HERE and not only in `resolve`, because the scheduler and the wire
+    /// check reach for a kind through this one. While they did not, the whole alias mechanism was
+    /// exercised by a catalogue test and by nothing else: a renamed node passed every test in the
+    /// repository and then failed to load the first stored graph that contained the old name.
     pub fn get(&self, id: &NodeId) -> Option<&Arc<NodeSpec<H>>> {
-        self.specs.get(id)
+        self.specs
+            .get(id)
+            .or_else(|| self.aliases.get(id.as_str()).and_then(|id| self.specs.get(id)))
     }
 
     /// Todas as declarações, para quem precisa de listar o que existe.
