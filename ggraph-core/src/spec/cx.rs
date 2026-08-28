@@ -90,16 +90,32 @@ impl<H: Host> NodeCx<'_, H> {
         if let Some(v) = self.input(name) {
             return Some(v.clone());
         }
-        match self.config.get(name)? {
-            Json::String(s) if s.is_empty() => None,
-            Json::String(s) => Some(Value::text(s.clone())),
-            Json::Bool(b) => Some(Value::Bool(*b)),
-            Json::Number(n) => n
-                .as_i64()
-                .map(Value::int)
-                .or_else(|| n.as_f64().map(Value::float)),
-            other => Some(Value::Json(other.clone())),
-        }
+        config_literal(self.config, name)
+    }
+}
+
+/// What an unwired port takes from the node's own configuration: the entry under the port's own
+/// name, if it holds anything.
+///
+/// Public, and called by `input_or_cfg` rather than copied into it, because two places ask this
+/// question: a node reading its inputs, and a readiness check deciding whether a required port is
+/// filled. Two copies would let a list say "ready" about a graph that then refuses to run — the
+/// disagreement is invisible until somebody presses Run.
+pub fn config_literal(config: &Json, name: &str) -> Option<Value> {
+    match config.get(name)? {
+        // A blank box is an empty box. Somebody clicked into the field and left.
+        Json::String(s) if s.trim().is_empty() => None,
+        Json::String(s) => Some(Value::text(s.clone())),
+        Json::Bool(b) => Some(Value::Bool(*b)),
+        Json::Number(n) => n
+            .as_i64()
+            .map(Value::int)
+            .or_else(|| n.as_f64().map(Value::float)),
+        // An empty object or list is a field nobody filled, not a value of none.
+        Json::Object(o) if o.is_empty() => None,
+        Json::Array(a) if a.is_empty() => None,
+        Json::Null => None,
+        other => Some(Value::Json(other.clone())),
     }
 }
 

@@ -12,8 +12,12 @@
 //! - [`validate`] — whether a graph is coherent, answered ahead of running it. A wire whose port
 //!   types disagree is refused when it is drawn; this catches what only shows up once the whole
 //!   document is in view.
+//! - [`readiness`] — whether it is FINISHED: wired up, with every required input filled. The
+//!   question a list of graphs asks, and the reason a list no longer has to carry every node and
+//!   edge of every graph to answer it.
 
 pub mod document;
+pub mod readiness;
 pub mod topo;
 pub mod validate;
 
