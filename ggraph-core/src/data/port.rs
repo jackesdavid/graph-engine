@@ -225,30 +225,35 @@ pub const LIST_TYPES: [&str; 4] = ["list", "table_rows", "numbers", "texts"];
 pub const SCALAR_TYPES: [&str; 3] = ["text", "num", "bool"];
 
 impl PortType {
-    /// The family this type belongs to, or `None` when it is only itself.
+    /// The family this type belongs to. Every type has one.
     ///
-    /// A family is a real attribute rather than a note in a comment: it is what makes a port able
-    /// to say "a list of something" without saying "anything", and what lets a palette offer the
-    /// types that would fit a pin instead of all of them.
+    /// A family is a real attribute rather than a note in a comment: it is what lets a port say
+    /// "a list of something" without saying "anything", what lets a palette offer the types that
+    /// would fit a pin instead of all of them, and what an editor filters on.
     ///
-    /// A port typed with a family NAME accepts every member — that is the whole of the rule in
-    /// [`compatible`], and there is no other widening anywhere.
-    pub fn family(&self) -> Option<&'static str> {
+    /// - `scalar` — one value a person could read: text, a number, a boolean.
+    /// - `list` — a sequence of something.
+    /// - `unique` — everything else. An image goes where an image goes, and nowhere else.
+    ///
+    /// Only `scalar` and `list` are also usable AS a port type, and a port typed with one accepts
+    /// every member. `unique` names the absence of that: it is what a type says about itself, not
+    /// something a port can ask for.
+    pub fn family(&self) -> &'static str {
         let t = self.as_str();
-        if SCALAR_TYPES.contains(&t) {
-            Some("scalar")
+        // A family's own name reports that family. `list` is already one of its members and
+        // `scalar` is not, and having the two answer differently was a difference with no meaning.
+        if t == "scalar" || SCALAR_TYPES.contains(&t) {
+            "scalar"
         } else if LIST_TYPES.contains(&t) {
-            Some("list")
-        } else if t == "image" {
-            Some("file")
+            "list"
         } else {
-            None
+            "unique"
         }
     }
 
     /// Is this type the name of a family rather than a concrete type?
     pub fn is_family(&self) -> bool {
-        matches!(self.as_str(), "scalar" | "list" | "file")
+        matches!(self.as_str(), "scalar" | "list")
     }
 }
 
@@ -272,14 +277,11 @@ pub fn element_of(list: &PortType) -> PortType {
 /// The family exists because the alternative was `any` on every loop, and `any` is the port that
 /// let a table be wired into one.
 pub fn compatible(from: &PortType, to: &PortType) -> bool {
-    let (f, t) = (from.as_str(), to.as_str());
     from == to
         || from.is_any()
         || to.is_any()
-        // The two families, and one directed fact: an image is a file.
-        || (t == "list" && LIST_TYPES.contains(&f))
-        || (t == "scalar" && SCALAR_TYPES.contains(&f))
-        || (t == "file" && f == "image")
+        // A port asking for a family takes any member of it. That is the whole widening.
+        || (to.is_family() && from.family() == to.as_str())
 }
 
 /// One column of a `table`.
@@ -369,6 +371,54 @@ pub const EXEC_OUT: Port = Port::opt("exec_out", PortType::EXEC);
 
 #[cfg(test)]
 mod tests {
+
+    /// Three families, and every type is in exactly one.
+    #[test]
+    fn every_type_belongs_to_one_family() {
+        assert_eq!(PortType::TEXT.family(), "scalar");
+        assert_eq!(PortType::NUM.family(), "scalar");
+        assert_eq!(PortType::BOOL.family(), "scalar");
+        assert_eq!(PortType::NUMBERS.family(), "list");
+        assert_eq!(PortType::TEXTS.family(), "list");
+        assert_eq!(PortType::TABLE_ROWS.family(), "list");
+        assert_eq!(PortType::LIST.family(), "list");
+        // A family's own name reports that family, whichever one it is.
+        assert_eq!(PortType::SCALAR.family(), "scalar");
+        // An image goes where an image goes, and nowhere else.
+        assert_eq!(PortType::IMAGE.family(), "unique");
+        assert_eq!(PortType::TABLE.family(), "unique");
+        assert_eq!(PortType::TABLE_ROW.family(), "unique");
+        assert_eq!(PortType::SCHEMA.family(), "unique");
+    }
+
+    /// A port asking for a family takes any member of it.
+    #[test]
+    fn a_family_port_takes_its_members() {
+        assert!(compatible(&PortType::NUM, &PortType::SCALAR));
+        assert!(compatible(&PortType::TEXT, &PortType::SCALAR));
+        assert!(compatible(&PortType::BOOL, &PortType::SCALAR));
+        assert!(compatible(&PortType::NUMBERS, &PortType::LIST));
+        assert!(compatible(&PortType::TABLE_ROWS, &PortType::LIST));
+    }
+
+    /// And nothing else. A table is columns and rows, so a loop handed one would walk those two
+    /// entries; its rows are a wire away, and that wire is something somebody can see.
+    #[test]
+    fn a_unique_type_only_goes_where_it_belongs() {
+        assert!(!compatible(&PortType::TABLE, &PortType::LIST));
+        assert!(!compatible(&PortType::TABLE, &PortType::SCALAR));
+        assert!(!compatible(&PortType::TABLE_ROW, &PortType::TABLE));
+        assert!(!compatible(&PortType::IMAGE, &PortType::BYTES));
+        assert!(compatible(&PortType::IMAGE, &PortType::IMAGE));
+    }
+
+    /// The widening goes one way. A port that produces "a list of something" cannot be plugged
+    /// into one that needs numbers, because the something might be documents.
+    #[test]
+    fn a_family_does_not_flow_back_into_a_member() {
+        assert!(!compatible(&PortType::LIST, &PortType::NUMBERS));
+        assert!(!compatible(&PortType::SCALAR, &PortType::NUM));
+    }
     use super::*;
 
     #[test]

@@ -9,6 +9,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -29,16 +30,19 @@
       "label": "Ask a Person",
       "outputs": [
         {
+          "family": "unique",
           "name": "approved",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "denied",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "unanswered",
           "required": false,
           "type": "exec"
@@ -60,6 +64,7 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -74,11 +79,13 @@
       "label": "Branch",
       "outputs": [
         {
+          "family": "unique",
           "name": "true",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "false",
           "required": false,
           "type": "exec"
@@ -93,6 +100,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -101,11 +109,13 @@
       "label": "Cooldown",
       "outputs": [
         {
+          "family": "unique",
           "name": "passed",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "blocked",
           "required": false,
           "type": "exec"
@@ -120,6 +130,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -128,11 +139,13 @@
       "label": "Start and Stop",
       "outputs": [
         {
+          "family": "unique",
           "name": "start",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "stop",
           "required": false,
           "type": "exec"
@@ -156,12 +169,14 @@
       "inputs": [
         {
           "accepts_family": true,
+          "family": "scalar",
           "name": "a",
           "required": false,
           "type": "scalar"
         },
         {
           "accepts_family": true,
+          "family": "scalar",
           "name": "b",
           "required": false,
           "type": "scalar"
@@ -187,6 +202,7 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -202,11 +218,13 @@
       "label": "For Each",
       "outputs": [
         {
+          "family": "unique",
           "name": "loop_body",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "completed",
           "required": false,
           "type": "exec"
@@ -236,6 +254,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -247,6 +266,7 @@
           "type": "text"
         },
         {
+          "family": "unique",
           "name": "headers",
           "required": false,
           "type": "dictionary"
@@ -261,6 +281,7 @@
       "label": "HTTP Request",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -284,6 +305,7 @@
           "type": "text"
         },
         {
+          "family": "unique",
           "name": "json",
           "required": false,
           "type": "json"
@@ -299,6 +321,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -310,7 +333,7 @@
           "type": "text"
         },
         {
-          "accepts_family": true,
+          "family": "unique",
           "name": "attachment",
           "required": false,
           "type": "file"
@@ -319,6 +342,7 @@
       "label": "Ask a Model",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -340,6 +364,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -351,7 +376,7 @@
           "type": "text"
         },
         {
-          "accepts_family": true,
+          "family": "unique",
           "name": "attachment",
           "required": false,
           "type": "file"
@@ -360,16 +385,19 @@
       "label": "Ask a Model to Decide",
       "outputs": [
         {
+          "family": "unique",
           "name": "yes",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "no",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "unknown",
           "required": false,
           "type": "exec"
@@ -394,6 +422,7 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -405,7 +434,7 @@
           "type": "text"
         },
         {
-          "accepts_family": true,
+          "family": "unique",
           "name": "attachment",
           "required": false,
           "type": "file"
@@ -414,11 +443,13 @@
       "label": "Extract Fields",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "fields",
           "required": false,
           "type": "dictionary"
@@ -452,11 +483,13 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "message",
           "required": false,
           "type": "any"
@@ -465,6 +498,7 @@
       "label": "Print",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -527,6 +561,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "table",
           "required": true,
           "type": "table"
@@ -550,6 +585,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "table",
           "required": true,
           "type": "table"
@@ -571,6 +607,7 @@
       "default_config": {},
       "inputs": [
         {
+          "family": "unique",
           "name": "table",
           "required": true,
           "type": "table"
@@ -592,6 +629,7 @@
       "default_config": {},
       "inputs": [
         {
+          "family": "unique",
           "name": "table",
           "required": true,
           "type": "table"
@@ -600,6 +638,7 @@
       "label": "First row",
       "outputs": [
         {
+          "family": "unique",
           "name": "row",
           "required": false,
           "type": "table_row"
@@ -624,11 +663,13 @@
       ],
       "inputs": [
         {
+          "family": "unique",
           "name": "row",
           "required": true,
           "type": "table_row"
         },
         {
+          "family": "unique",
           "name": "schema",
           "required": false,
           "type": "schema"
@@ -672,6 +713,7 @@
       "label": "Schema",
       "outputs": [
         {
+          "family": "unique",
           "name": "schema",
           "required": false,
           "type": "schema"
@@ -696,6 +738,7 @@
       "label": "Heading",
       "outputs": [
         {
+          "family": "unique",
           "name": "block",
           "required": false,
           "type": "block"
@@ -725,6 +768,7 @@
       "label": "Paragraph",
       "outputs": [
         {
+          "family": "unique",
           "name": "block",
           "required": false,
           "type": "block"
@@ -737,6 +781,7 @@
       "default_config": {},
       "inputs": [
         {
+          "family": "unique",
           "name": "table",
           "required": true,
           "type": "table"
@@ -745,6 +790,7 @@
       "label": "Table",
       "outputs": [
         {
+          "family": "unique",
           "name": "block",
           "required": false,
           "type": "block"
@@ -774,6 +820,7 @@
       "label": "Bar chart",
       "outputs": [
         {
+          "family": "unique",
           "name": "block",
           "required": false,
           "type": "block"
@@ -793,11 +840,13 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "slot_1",
           "required": false,
           "type": "block"
         },
         {
+          "family": "unique",
           "name": "slot_2",
           "required": false,
           "type": "block"
@@ -806,6 +855,7 @@
       "label": "Layout",
       "outputs": [
         {
+          "family": "unique",
           "name": "block",
           "required": false,
           "type": "block"
@@ -827,11 +877,13 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "slot_1",
           "required": false,
           "type": "block"
@@ -846,6 +898,7 @@
       "label": "Render report",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -874,6 +927,7 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -882,6 +936,7 @@
       "label": "Add a Row",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -896,6 +951,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -904,6 +960,7 @@
       "label": "Empty a Table",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -937,12 +994,14 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
         },
         {
           "accepts_family": true,
+          "family": "scalar",
           "name": "value",
           "required": false,
           "type": "scalar"
@@ -951,16 +1010,19 @@
       "label": "Find a Row",
       "outputs": [
         {
+          "family": "unique",
           "name": "found",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "missing",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "row",
           "required": false,
           "type": "table_row"
@@ -981,6 +1043,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -989,11 +1052,13 @@
       "label": "Read a Table",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
         },
         {
+          "family": "unique",
           "name": "table",
           "required": false,
           "type": "table"
@@ -1017,6 +1082,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -1029,6 +1095,7 @@
         },
         {
           "accepts_family": true,
+          "family": "scalar",
           "name": "value",
           "required": false,
           "type": "scalar"
@@ -1037,6 +1104,7 @@
       "label": "Change a Cell",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -1065,6 +1133,7 @@
       "dynamic": true,
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -1073,6 +1142,7 @@
       "label": "Set Variable",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"
@@ -1087,6 +1157,7 @@
       },
       "inputs": [
         {
+          "family": "unique",
           "name": "exec_in",
           "required": false,
           "type": "exec"
@@ -1101,6 +1172,7 @@
       "label": "Wait",
       "outputs": [
         {
+          "family": "unique",
           "name": "exec_out",
           "required": false,
           "type": "exec"

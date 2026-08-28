@@ -265,11 +265,9 @@ fn port_json(p: &Port) -> Json {
         "type": p.ty.as_str(),
         "required": p.required,
     });
-    // The family, when the type has one. It is what lets an editor offer the types that would fit
-    // a pin, and check a wire, without keeping its own copy of the rule.
-    if let Some(f) = p.ty.family() {
-        j["family"] = f.into();
-    }
+    // Every type has a family. It is what lets an editor offer the types that would fit a pin,
+    // check a wire, and filter a palette, without keeping its own copy of the rule.
+    j["family"] = p.ty.family().into();
     if p.ty.is_family() {
         j["accepts_family"] = true.into();
     }
