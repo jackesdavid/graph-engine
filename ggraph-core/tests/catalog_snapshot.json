@@ -948,15 +948,25 @@
     {
       "category": "Report",
       "default_config": {
-        "align": "stretch",
-        "direction": "column",
         "format": "html",
-        "gap": 16,
-        "justify": "start",
-        "slots": 1,
         "title": "Report"
       },
-      "dynamic": true,
+      "fields": [
+        {
+          "key": "title",
+          "kind": "text",
+          "label": "Title"
+        },
+        {
+          "key": "format",
+          "kind": "choice",
+          "label": "Format",
+          "options": [
+            "html",
+            "json"
+          ]
+        }
+      ],
       "inputs": [
         {
           "family": "unique",
@@ -966,8 +976,8 @@
         },
         {
           "family": "unique",
-          "name": "slot_1",
-          "required": false,
+          "name": "block",
+          "required": true,
           "type": "block"
         },
         {

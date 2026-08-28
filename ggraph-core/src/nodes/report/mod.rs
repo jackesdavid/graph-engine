@@ -54,6 +54,12 @@ use crate::value::Value;
 /// make the engine grow with its consumers.
 pub const BLOCK: PortType = PortType::new_static("block");
 
+/// The slots a layout node declares, in order. Asked of the node rather than re-read from its
+/// config, because a preview that parsed it a second time would be a second answer to keep in step.
+pub fn slot_names(cfg: &serde_json::Value) -> Vec<String> {
+    layout::slots(cfg)
+}
+
 /// A block on a wire.
 ///
 /// Carried as JSON rather than an `Extern`: a value the editor can show and a run log can record is

@@ -8,6 +8,13 @@
 //! host decides where they land. A product writing to disk and one writing to an object store need
 //! no change on this side.
 //!
+//! # It writes; it does not arrange
+//!
+//! One `block` in. It used to carry slots and the same four layout properties as
+//! [`layout`](super::layout), which made it two nodes wearing one name — and any property added to
+//! a layout had to be added here too, or the two quietly disagreed. Stacking is what the layout
+//! node is for, and putting one in front costs a wire and says what it does.
+//!
 //! Two formats from one tree. `html` is self-contained — charts inlined as SVG, no script, nothing
 //! fetched — because a report is emailed, printed and archived. `json` emits the tree itself, for a
 //! viewer that wants to draw it interactively. Same blocks, two audiences, and neither is a second
@@ -17,7 +24,7 @@ use super::{from_value, BLOCK};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::port::{Port, PortType};
-use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
+use crate::spec::{Field, Fields, NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
 
@@ -26,25 +33,11 @@ static OUT: [Port; 2] = [
     Port::opt("bytes", PortType::NUM),
 ];
 
-fn slot_count(cfg: &Json) -> usize {
-    cfg.get("slots")
-        .and_then(|v| {
-            v.as_u64()
-                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
-        })
-        .unwrap_or(1)
-        .clamp(1, 24) as usize
-}
-
-/// Slots, plus the theme. Same mechanic as the layout node: the report IS a layout that also
-/// writes, which is what "a report is made of layouts" means when drawn.
-fn ports(cfg: &Json) -> Vec<Port> {
-    let mut p: Vec<Port> = (1..=slot_count(cfg))
-        .map(|i| Port::new(PortName::new(format!("slot_{i}")), BLOCK, false))
-        .collect();
-    p.push(Port::opt("theme", PortType::TEXT));
-    p
-}
+/// The document, and the theme it is drawn with.
+static IN: [Port; 2] = [
+    Port::req("block", BLOCK),
+    Port::opt("theme", PortType::TEXT),
+];
 
 struct Render;
 
@@ -56,13 +49,10 @@ impl<H: Host> NodeRun<H> for Render {
             ));
         }
 
-        let children: Vec<_> = (1..=slot_count(cx.config))
-            .filter_map(|i| cx.input(&format!("slot_{i}")))
-            .filter_map(from_value)
-            .collect();
-
-        let layout = crate::report::Layout::read(cx.config);
-        let root = crate::report::Block::stack(layout, children);
+        let root = cx
+            .input("block")
+            .and_then(from_value)
+            .ok_or_else(|| NodeError::new("nothing to render"))?;
         let title = cx.cfg_str("title").unwrap_or("Report");
 
         let (bytes, mime) = match cx.cfg_str("format").unwrap_or("html") {
@@ -102,19 +92,15 @@ impl<H: Host> NodeRun<H> for Render {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::effectful("report_render", "ReportRender", "Report")
-        .with_inputs(Ports::dynamic(ports))
+        .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| {
-            json!({
-                "title": "Report",
-                "format": "html",
-                "slots": 1,
-                "direction": "column",
-                "gap": 16,
-                "align": "stretch",
-                "justify": "start"
-            })
+            json!({ "title": "Report", "format": "html" })
         })
+        .with_fields(Fields::List(vec![
+            Field::text("title", "Title"),
+            Field::choice("format", "Format", ["html", "json"]),
+        ]))
         .with_timeout(Timeout::Secs(60))
         .running(Render)
 }
@@ -123,19 +109,18 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
 mod tests {
     use super::*;
 
+    /// One block in, and the layout properties are gone: they belonged to the layout node, and
+    /// carrying them here made any new one a thing to add in two places or quietly disagree about.
     #[test]
-    fn the_theme_port_sits_beside_the_slots() {
-        let names: Vec<String> = ports(&json!({ "slots": 2 }))
-            .iter()
-            .map(|p| p.name.as_str().to_string())
-            .collect();
-        assert_eq!(names, vec!["slot_1", "slot_2", "theme"]);
+    fn it_takes_a_document_and_a_theme() {
+        let names: Vec<&str> = IN.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["block", "theme"]);
     }
 
-    /// One slot by default: the common shape is a single root layout, and a report with two
-    /// unwired slots looks broken before anyone has done anything wrong.
+    /// Nothing to render is an error, not an empty document. A report nobody wired is a graph that
+    /// is not finished, and writing a blank page hides that.
     #[test]
-    fn one_slot_by_default() {
-        assert_eq!(slot_count(&json!({})), 1);
+    fn the_document_is_required() {
+        assert!(IN[0].required);
     }
 }
