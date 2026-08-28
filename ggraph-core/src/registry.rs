@@ -270,6 +270,11 @@ fn port_json(p: &Port) -> Json {
         "type": p.ty.as_str(),
         "required": p.required,
     });
+    // What the port is for, when somebody has said. This is the surface a model reads before it
+    // wires anything, and the tooltip a person reads before drawing the same wire.
+    if !p.about.is_empty() {
+        j["about"] = p.about.into();
+    }
     // Every type has a family. It is what lets an editor offer the types that would fit a pin,
     // check a wire, and filter a palette, without keeping its own copy of the rule.
     j["family"] = p.family().as_str().into();

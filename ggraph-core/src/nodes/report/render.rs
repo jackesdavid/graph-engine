@@ -28,15 +28,19 @@ use crate::spec::{Field, Fields, NodeCx, NodeError, NodeRun, NodeSpec, Ports, Ti
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
+/// `file` is the handle the store issued, not the bytes and not a path. Named for what it is: a
+/// port called `key` says a key to what, and left a reader to guess whether it was a filename, an
+/// id or a place on a disk.
 static OUT: [Port; 2] = [
-    Port::opt("key", PortType::TEXT),
-    Port::opt("bytes", PortType::NUM),
+    Port::opt("file", PortType::FILE_REF)
+        .about("A handle to the written document — not its bytes, and not a path on a disk. Give it to whatever should save, send or serve the file."),
+    Port::opt("bytes", PortType::NUM).about("How large the document turned out."),
 ];
 
 /// The document, and the theme it is drawn with.
 static IN: [Port; 2] = [
-    Port::req("block", BLOCK),
-    Port::opt("theme", PortType::TEXT),
+    Port::req("block", BLOCK).about("The document to draw. Stack several with a Layout first."),
+    Port::opt("theme", PortType::TEXT).about("CSS to use instead of the built-in stylesheet."),
 ];
 
 struct Render;
@@ -76,7 +80,7 @@ impl<H: Host> NodeRun<H> for Render {
             .map_err(|e| NodeError::new(e.to_string()))?;
 
         let mut out = PortValues::new();
-        out.insert(PortName::new("key"), Value::text(key));
+        out.insert(PortName::new("file"), Value::text(key));
         out.insert(PortName::new("bytes"), Value::int(n as i64));
         Ok(out)
     }

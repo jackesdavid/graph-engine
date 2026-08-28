@@ -51,6 +51,14 @@ impl PortType {
     pub const BOOL: PortType = PortType::new_static("bool");
     /// Opaque bytes with a mime type — a file, a document, an audio clip.
     pub const BYTES: PortType = PortType::new_static("file");
+    /// A handle to a file the host's store holds — what [`ValueIo::put`](crate::host::ValueIo)
+    /// hands back, and what reads it again.
+    ///
+    /// Its own type and not `text`, though it travels as one: a filesystem path is also text, and
+    /// the two are not interchangeable — one is a place on a disk, the other a name only the store
+    /// can resolve. While both were `text` the editor drew that wire happily and the run refused
+    /// it, which is the wrong end to find out.
+    pub const FILE_REF: PortType = PortType::new_static("file_ref");
     /// Image bytes. Distinct from [`BYTES`](Self::BYTES) so an image input cannot be wired from
     /// an arbitrary download by accident.
     pub const IMAGE: PortType = PortType::new_static("image");
@@ -135,6 +143,8 @@ impl PortType {
             "num" => is_num(v),
             "bool" => matches!(v, V::Bool(_)) || matches!(v, V::Json(Json::Bool(_))),
             "file" | "image" => matches!(v, V::Bytes(_)),
+            // Travels as text; means something only the store can resolve.
+            "file_ref" => is_text(v),
             "json" => matches!(v, V::Json(_)),
             "dictionary" => matches!(v, V::Map(_)) || matches!(v, V::Json(Json::Object(_))),
             "list" => matches!(v, V::List(_)),
@@ -379,9 +389,28 @@ pub struct Port {
     /// serialised: the catalogue publishes the resolved answer, so a reader has one thing to read.
     #[serde(skip)]
     pub element: Option<PortType>,
+    /// One sentence on what this port is for. Empty when nobody has written one — honest, and a
+    /// thing to fill in rather than a thing to invent.
+    ///
+    /// Never serialised with the port: the catalogue publishes it alongside the resolved family and
+    /// element, so a reader has one shape to read. A borrowed sentence cannot be deserialised into
+    /// a `'static` one anyway, and a `Port` is a declaration rather than a document.
+    #[serde(skip)]
+    pub about: &'static str,
 }
 
 impl Port {
+    /// What this port is for, in one sentence.
+    ///
+    /// **This is not documentation — it is prompt surface.** It is how a model decides to wire this
+    /// port and not another, and it is the tooltip a person reads before drawing the same wire. A
+    /// type says what may be connected; this says what it MEANS, and two ports of one type that
+    /// mean different things is exactly where both of them go wrong.
+    pub const fn about(mut self, what: &'static str) -> Self {
+        self.about = what;
+        self
+    }
+
     /// Declare what ONE element of this list is.
     ///
     /// A loop hands out items, and their type is not readable from the list's name: the engine
@@ -428,6 +457,7 @@ impl Port {
             columns: Vec::new(),
             family: None,
             element: None,
+            about: "",
         }
     }
 
@@ -490,6 +520,17 @@ mod tests {
         assert!(!compatible(&Port::opt("a", PortType::TABLE_ROW), &Port::opt("b", PortType::TABLE)));
         assert!(!compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::BYTES)));
         assert!(compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::IMAGE)));
+    }
+
+    /// A path on a disk and a handle to the store are both text, and are not interchangeable. While
+    /// both were `text` the editor drew the wire and the run refused it — which is the wrong end to
+    /// find out, and the failure this whole type system exists to move earlier.
+    #[test]
+    fn a_path_is_not_a_handle_to_the_store() {
+        let path = Port::opt("path", PortType::TEXT);
+        let attach = Port::opt("attach", PortType::FILE_REF);
+        assert!(!compatible(&path, &attach));
+        assert!(compatible(&Port::opt("key", PortType::FILE_REF), &attach));
     }
 
     /// A product's list says what one of its elements is, because the engine cannot read that off

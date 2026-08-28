@@ -1024,12 +1024,14 @@
           "type": "exec"
         },
         {
+          "about": "The document to draw. Stack several with a Layout first.",
           "family": "unique",
           "name": "block",
           "required": true,
           "type": "block"
         },
         {
+          "about": "CSS to use instead of the built-in stylesheet.",
           "family": "scalar",
           "name": "theme",
           "required": false,
@@ -1045,12 +1047,14 @@
           "type": "exec"
         },
         {
-          "family": "scalar",
-          "name": "key",
+          "about": "A handle to the written document — not its bytes, and not a path on a disk. Give it to whatever should save, send or serve the file.",
+          "family": "unique",
+          "name": "file",
           "required": false,
-          "type": "text"
+          "type": "file_ref"
         },
         {
+          "about": "How large the document turned out.",
           "family": "scalar",
           "name": "bytes",
           "required": false,
