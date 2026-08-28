@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Jackes David Lemos
 
-//! `pick_numbers` — one numeric field, down a column of records.
+//! `pick_numbers` — one numeric column of a table.
 
 use super::{at, column};
 use crate::host::Host;
@@ -71,12 +71,12 @@ mod tests {
     /// "We could not read this" is a different statement from "this measured zero".
     #[test]
     fn a_record_without_the_field_is_skipped() {
-        let records = [
+        let rows = [
             Value::Json(json!({ "score": 0.8 })),
             Value::Json(json!({ "other": 1 })),
             Value::Json(json!({ "score": 0.4 })),
         ];
-        let read: Vec<f64> = records
+        let read: Vec<f64> = rows
             .iter()
             .filter_map(|r| at(r, "score").and_then(|f| f.as_f64()))
             .collect();

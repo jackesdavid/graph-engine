@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Jackes David Lemos
 
-//! `pick_texts` — one field, down a column of records, as text.
+//! `pick_texts` — one column of a table, as text.
 
 use super::{at, column};
 use crate::host::Host;
@@ -63,11 +63,11 @@ mod tests {
     /// every bar after the gap.
     #[test]
     fn an_absent_field_keeps_its_place() {
-        let records = [
+        let rows = [
             Value::Json(json!({ "doc": "a.pdf" })),
             Value::Json(json!({})),
         ];
-        let read: Vec<String> = records
+        let read: Vec<String> = rows
             .iter()
             .map(|r| at(r, "doc").map(|f| f.as_text()).unwrap_or_default())
             .collect();
