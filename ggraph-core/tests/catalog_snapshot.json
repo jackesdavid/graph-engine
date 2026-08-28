@@ -824,22 +824,43 @@
     {
       "category": "Report",
       "default_config": {
-        "title": ""
+        "columns": [],
+        "labels": "",
+        "title": "",
+        "values": ""
       },
-      "inputs": [
+      "dynamic": true,
+      "fields": [
         {
-          "element": "num",
-          "family": "list",
-          "name": "values",
-          "required": true,
-          "type": "numbers"
+          "key": "title",
+          "kind": "text",
+          "label": "Title"
         },
         {
-          "element": "text",
-          "family": "list",
-          "name": "labels",
+          "key": "values",
+          "kind": "choice",
+          "label": "Values",
+          "options": []
+        },
+        {
+          "key": "labels",
+          "kind": "choice",
+          "label": "Labels",
+          "options": []
+        }
+      ],
+      "inputs": [
+        {
+          "family": "unique",
+          "name": "table",
+          "required": true,
+          "type": "table"
+        },
+        {
+          "family": "unique",
+          "name": "schema",
           "required": false,
-          "type": "texts"
+          "type": "schema"
         }
       ],
       "label": "ReportBarChart",

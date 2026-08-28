@@ -1,64 +1,98 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Jackes David Lemos
 
-//! `report_bar_chart` — one bar per label.
+//! `report_bar_chart` — one bar per row of a table.
+//!
+//! It takes the table whole and is told which column is which axis. Feeding it two loose lists —
+//! the numbers from one wire and the names from another — meant two nodes in front of it and one
+//! assumption nothing checked: that the two lists were still in the same order. They came from the
+//! same rows, so they were, until somebody sorted one of them.
+//!
+//! # The columns are chosen by name, and by type
+//!
+//! The schema comes in beside the table, so the inspector offers the NUMERIC columns for the values
+//! and the TEXT ones for the labels. Swapping a chart's values and names is the mistake that yields
+//! a chart which is wrong and looks entirely fine; here it is not a wire to refuse, it is a choice
+//! that was never offered.
 
 use super::{to_value, BLOCK};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::port::{Port, PortType};
-use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
-use crate::value::{PortValues, Value};
-use serde_json::json;
+use crate::spec::{Field, Fields, NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
+use crate::value::PortValues;
+use serde_json::{json, Value as Json};
 
-/// Two different types on purpose. Swapping a chart's values and names is the mistake that yields
-/// a chart which is wrong and looks entirely fine — so the editor refuses the wire.
 static IN: [Port; 2] = [
-    Port::req("values", PortType::NUMBERS),
-    Port::opt("labels", PortType::TEXTS),
+    Port::req("table", PortType::TABLE),
+    // A shape dependency: connecting a schema writes its columns here, and the choices are built
+    // from them. `Ports::dynamic` never sees an edge.
+    Port::opt("schema", PortType::SCHEMA),
 ];
 static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
 
-fn numbers(v: Option<&Value>) -> Vec<f64> {
-    match v {
-        Some(Value::List(items)) => items.iter().filter_map(|i| i.as_f64()).collect(),
-        Some(one) => one.as_f64().into_iter().collect(),
-        None => Vec::new(),
-    }
+/// The columns of one type, for the inspector to offer.
+fn of_type(cfg: &Json, ty: &PortType) -> Vec<String> {
+    crate::nodes::schema::declared(cfg)
+        .into_iter()
+        .filter(|c| &c.ty == ty)
+        .map(|c| c.name.as_str().to_string())
+        .collect()
 }
 
-fn strings(v: Option<&Value>) -> Vec<String> {
-    match v {
-        Some(Value::List(items)) => items
-            .iter()
-            .map(|i| i.as_text().unwrap_or_else(|| i.summary()))
-            .collect(),
-        Some(one) => vec![one.as_text().unwrap_or_else(|| one.summary())],
-        None => Vec::new(),
-    }
+fn fields(cfg: &Json) -> Vec<Field> {
+    vec![
+        Field::text("title", "Title"),
+        Field::choice("values", "Values", of_type(cfg, &PortType::NUM)),
+        Field::choice("labels", "Labels", of_type(cfg, &PortType::TEXT)),
+    ]
+}
+
+fn column(cfg: &Json, key: &str) -> Option<String> {
+    cfg.get(key)
+        .and_then(Json::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 struct BarChart;
 
 impl<H: Host> NodeRun<H> for BarChart {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let values = numbers(cx.input("values"));
-        let mut labels = strings(cx.input("labels"));
+        let value_col = column(cx.config, "values")
+            .ok_or_else(|| NodeError::new("no column for the values — connect a schema and pick one"))?;
 
-        // Labels and values are read in step. Padding rather than failing, because a chart with a
-        // missing name is still readable and a report that refuses to render over one is not.
-        while labels.len() < values.len() {
-            labels.push(format!("{}", labels.len() + 1));
+        let rows = crate::table::rows(cx.input("table"));
+        let label_col = column(cx.config, "labels");
+
+        // Read from the SAME row, in one pass. A bar and its name cannot fall out of step if they
+        // never travelled separately.
+        let mut values = Vec::new();
+        let mut labels = Vec::new();
+        for (i, row) in rows.iter().enumerate() {
+            // A row with no number there is SKIPPED, not read as zero: "we could not read this" and
+            // "this measured zero" are different statements, and a zero bar makes the second one.
+            let Some(v) = crate::table::cell(row, &value_col).and_then(|v| v.as_f64()) else {
+                continue;
+            };
+            values.push(v);
+            labels.push(
+                label_col
+                    .as_deref()
+                    .and_then(|c| crate::table::cell(row, c))
+                    .and_then(|v| v.as_text())
+                    // Numbered rather than blank: a chart with an unnamed bar is still readable,
+                    // and one with a gap where a name should be reads as a missing value.
+                    .unwrap_or_else(|| format!("{}", i + 1)),
+            );
         }
-        labels.truncate(values.len());
-
-        let title = cx.cfg_str("title").unwrap_or("").to_string();
 
         let mut out = PortValues::new();
         out.insert(
             PortName::new("block"),
             to_value(&crate::report::Block::BarChart {
-                title,
+                title: cx.cfg_str("title").unwrap_or("").to_string(),
                 labels,
                 values,
             }),
@@ -67,7 +101,10 @@ impl<H: Host> NodeRun<H> for BarChart {
     }
 
     fn summary(&self, cx: &NodeCx<'_, H>, _out: &PortValues) -> String {
-        format!("{} bar(s)", numbers(cx.input("values")).len())
+        match column(cx.config, "values") {
+            Some(c) => format!("{c} × {}", crate::table::rows(cx.input("table")).len()),
+            None => "no column".into(),
+        }
     }
 }
 
@@ -75,7 +112,8 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_bar_chart", "ReportBarChart", "Report")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
-        .with_config(|| json!({ "title": "" }))
+        .with_fields(Fields::dynamic(fields))
+        .with_config(|| json!({ "title": "", "values": "", "labels": "", "columns": [] }))
         .with_timeout(Timeout::Inline)
         .running(BarChart)
 }
@@ -83,28 +121,37 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::spec::FieldKind;
 
-    /// Fewer labels than values is a readable chart, not a failed report.
-    #[test]
-    fn missing_labels_are_filled_rather_than_refused() {
-        let values = Value::List(vec![
-            Value::float(1.0),
-            Value::float(2.0),
-            Value::float(3.0),
-        ]);
-        let labels = Value::List(vec![Value::text("a")]);
-        let vs = numbers(Some(&values));
-        let mut ls = strings(Some(&labels));
-        while ls.len() < vs.len() {
-            ls.push(format!("{}", ls.len() + 1));
-        }
-        assert_eq!(ls, vec!["a", "2", "3"]);
+    fn cfg() -> Json {
+        json!({ "columns": [
+            { "name": "documento", "type": "text" },
+            { "name": "pontuação", "type": "num" },
+            { "name": "página", "type": "num" }
+        ]})
     }
 
-    /// Scores from a search arrive as floats; counts arrive as ints. Both are bars.
+    fn options(f: &Field) -> Vec<String> {
+        match &f.kind {
+            FieldKind::Choice(o) => o.clone(),
+            _ => panic!("a column is chosen from a list"),
+        }
+    }
+
+    /// The mistake this prevents: values and names swapped yields a chart that is wrong and looks
+    /// entirely fine. Here it is not a wire to refuse — it is a choice never offered.
     #[test]
-    fn ints_and_floats_are_both_numbers() {
-        let v = Value::List(vec![Value::int(2), Value::float(0.5)]);
-        assert_eq!(numbers(Some(&v)), vec![2.0, 0.5]);
+    fn each_axis_is_offered_only_the_columns_it_can_take() {
+        let f = fields(&cfg());
+        assert_eq!(options(&f[1]), vec!["pontuação", "página"], "values: the numbers");
+        assert_eq!(options(&f[2]), vec!["documento"], "labels: the text");
+    }
+
+    /// With no schema there is nothing to choose from, which is visible — rather than a free text
+    /// field somebody types a column name into from memory.
+    #[test]
+    fn without_a_schema_there_is_nothing_to_pick() {
+        let f = fields(&json!({}));
+        assert!(options(&f[1]).is_empty());
     }
 }

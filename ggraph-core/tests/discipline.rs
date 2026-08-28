@@ -743,15 +743,20 @@ fn a_graph_assembles_a_nested_report() {
     g.node_mut(heading).unwrap().config["text"] = json!("Findings");
     g.node_mut(table).unwrap().config["columns"] = json!(["Document"]);
     g.node_mut(chart).unwrap().config["title"] = json!("Relevance");
+    // The chart is told which column is which axis, by name — the schema a wire would have baked.
+    g.node_mut(chart).unwrap().config["columns"] =
+        json!([{ "name": "document", "type": "text" }, { "name": "score", "type": "num" }]);
+    g.node_mut(chart).unwrap().config["values"] = json!("score");
+    g.node_mut(chart).unwrap().config["labels"] = json!("document");
     // The row: table beside chart. What a linear chain could never produce.
     g.node_mut(row).unwrap().config["direction"] = json!("row");
-    g.node_mut(row).unwrap().config["slots"] = json!(2);
-    g.node_mut(col).unwrap().config["slots"] = json!(2);
+    g.node_mut(row).unwrap().config["slots"] = json!([{ "name": "left" }, { "name": "right" }]);
+    g.node_mut(col).unwrap().config["slots"] = json!([{ "name": "top" }, { "name": "bottom" }]);
 
-    g.add_edge(&reg, table, "block", row, "slot_1").unwrap();
-    g.add_edge(&reg, chart, "block", row, "slot_2").unwrap();
-    g.add_edge(&reg, heading, "block", col, "slot_1").unwrap();
-    g.add_edge(&reg, row, "block", col, "slot_2").unwrap();
+    g.add_edge(&reg, table, "block", row, "left").unwrap();
+    g.add_edge(&reg, chart, "block", row, "right").unwrap();
+    g.add_edge(&reg, heading, "block", col, "top").unwrap();
+    g.add_edge(&reg, row, "block", col, "bottom").unwrap();
     g.add_edge(&reg, col, "block", sink, "message").unwrap();
 
     let host = TestHost::new();
