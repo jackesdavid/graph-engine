@@ -860,19 +860,76 @@
         "direction": "column",
         "gap": 16,
         "justify": "start",
-        "slots": 2
+        "slots": [
+          {
+            "name": "header"
+          },
+          {
+            "name": "body"
+          }
+        ]
       },
       "dynamic": true,
+      "fields": [
+        {
+          "fields": [
+            {
+              "key": "name",
+              "kind": "text",
+              "label": "Name"
+            }
+          ],
+          "key": "slots",
+          "kind": "rows",
+          "label": "Slots"
+        },
+        {
+          "key": "direction",
+          "kind": "choice",
+          "label": "Direction",
+          "options": [
+            "column",
+            "row"
+          ]
+        },
+        {
+          "key": "gap",
+          "kind": "num",
+          "label": "Gap"
+        },
+        {
+          "key": "align",
+          "kind": "choice",
+          "label": "Align",
+          "options": [
+            "stretch",
+            "start",
+            "center",
+            "end"
+          ]
+        },
+        {
+          "key": "justify",
+          "kind": "choice",
+          "label": "Justify",
+          "options": [
+            "start",
+            "center",
+            "end",
+            "between"
+          ]
+        }
+      ],
       "inputs": [
         {
           "family": "unique",
-          "name": "slot_1",
+          "name": "header",
           "required": false,
           "type": "block"
         },
         {
           "family": "unique",
-          "name": "slot_2",
+          "name": "body",
           "required": false,
           "type": "block"
         }
