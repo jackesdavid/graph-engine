@@ -17,11 +17,27 @@ use crate::spec::{NodeError, NodeSpec, NodeStep, Ports, Step, StepCx, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
 
-static IN: [Port; 1] = [Port::opt("items", PortType::ANY)];
-static OUT: [Port; 2] = [
-    Port::opt("item", PortType::ANY),
-    Port::opt("index", PortType::NUM),
-];
+static IN: [Port; 1] = [Port::opt("items", PortType::LIST)];
+
+/// The item is one element of whatever was wired in, and what that is cannot be read from here —
+/// [`Ports::dynamic`] sees the configuration and never an edge. So connecting a list writes its
+/// type onto this node, the same way connecting a schema writes its columns, and the item pin
+/// follows.
+///
+/// With nothing wired the loop splits a comma-separated field, so the default is text — which is
+/// what those items actually are, rather than a shrug.
+fn ports(cfg: &Json) -> Vec<Port> {
+    let list = cfg
+        .get("items_type")
+        .and_then(Json::as_str)
+        .filter(|s| !s.trim().is_empty())
+        .map(PortType::new)
+        .unwrap_or(PortType::TEXTS);
+    vec![
+        Port::new(PortName::new("item"), crate::port::element_of(&list), false),
+        Port::opt("index", PortType::NUM),
+    ]
+}
 static ARMS: [Port; 2] = [
     Port::opt("loop_body", PortType::EXEC),
     Port::opt("completed", PortType::EXEC),
@@ -31,25 +47,17 @@ static ARMS: [Port; 2] = [
 /// inspector field is the common case and making people wire a splitter node for it is friction
 /// with no payoff.
 ///
-/// A table iterates its ROWS. Its value is a map of columns and rows, so the plain map branch would
-/// have walked those two entries — a loop that runs twice over nothing anybody meant, drawable
-/// because this port takes anything.
+/// The port takes a `list`, which a `table` is not: a table is columns and rows, and a loop handed
+/// one would walk those two entries. Its rows are a wire away, and that wire is something somebody
+/// can see on the canvas.
 fn items(cx: &StepCx<'_, impl Host>) -> Vec<Value> {
     match cx.input("items") {
         Some(Value::List(v)) => v.clone(),
-        Some(v @ Value::Map(_)) if is_table(v) => crate::table::rows(Some(v)),
         Some(Value::Map(m)) => m.iter().map(|(_, v)| v.clone()).collect(),
         Some(Value::Text(s)) => split(s),
         Some(other) => vec![other.clone()],
         None => cx.cfg_str("items").map(split).unwrap_or_default(),
     }
-}
-
-/// A map that is a table: it has both of the keys one has, and nothing else claims that pair.
-fn is_table(v: &Value) -> bool {
-    let Value::Map(pairs) = v else { return false };
-    let has = |k: &str| pairs.iter().any(|(name, _)| name == k);
-    has("columns") && has("rows")
 }
 
 fn split(s: &str) -> Vec<Value> {
@@ -88,9 +96,9 @@ impl<H: Host> NodeStep<H> for ForEach {
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("for_each", "For Each", "Control")
         .with_inputs(Ports::Static(&IN))
-        .with_outputs(Ports::Static(&OUT))
+        .with_outputs(Ports::dynamic(ports))
         .with_exec_out(crate::spec::ExecOut::Static(&ARMS))
-        .with_config(|| json!({ "items": "" }))
+        .with_config(|| json!({ "items": "", "items_type": "" }))
         .with_timeout(Timeout::Inline)
         .stepping(ForEach)
 }
@@ -170,22 +178,6 @@ mod tests {
             Some(Value::List(vec![Value::int(1), Value::int(2)])),
         );
         assert_eq!(seen, vec!["1", "2"]);
-    }
-
-    /// A table iterates its rows. Its value is a map of columns and rows, so without this the loop
-    /// walked those two entries — twice round, over nothing anybody meant.
-    #[test]
-    fn a_table_iterates_its_rows() {
-        let row = |d: &str| Value::Map(vec![("document".into(), Value::text(d))]);
-        let cols = [crate::port::Column::new(
-            crate::id::PortName::new("document"),
-            crate::port::PortType::TEXT,
-        )];
-        let (seen, _) = drive(
-            json!({}),
-            Some(crate::table::make(&cols, vec![row("a.pdf"), row("b.pdf")])),
-        );
-        assert_eq!(seen.len(), 2, "two rows, not two entries of the table's map");
     }
 
     #[test]

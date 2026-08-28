@@ -34,7 +34,7 @@ fn inputs(cfg: &Json) -> Vec<Port> {
         rest = &after[close + 1..];
     }
     seen.into_iter()
-        .map(|n| Port::new(PortName::new(n), PortType::ANY, false))
+        .map(|n| Port::new(PortName::new(n), PortType::SCALAR, false))
         .collect()
 }
 

@@ -127,3 +127,37 @@ fn the_shipped_set_has_no_duplicate_slugs() {
     slugs.dedup();
     assert_eq!(slugs.len(), n);
 }
+
+/// No port in the standard set says `any`, except the one node whose job is to look at whatever is
+/// on a wire.
+///
+/// An `any` port is one the editor cannot refuse, and every refusal it cannot make is a wire
+/// somebody draws and a run that goes wrong somewhere else. This is the guard, because the way that
+/// port comes back is not a decision anybody takes — it is the shortest thing to type when a node
+/// accepts two types and there is no family for it yet.
+#[test]
+fn nothing_but_the_observer_accepts_anything() {
+    let reg = registry();
+    let mut offenders: Vec<String> = Vec::new();
+    for spec in reg.palette() {
+        if spec.id.as_str() == "print" {
+            continue;
+        }
+        let cfg = (spec.default_config)();
+        for (side, ports) in [
+            ("input", spec.inputs.resolve(&cfg)),
+            ("output", spec.outputs.resolve(&cfg)),
+        ] {
+            for p in ports {
+                if p.ty.as_str() == "any" {
+                    offenders.push(format!("{}.{} ({side})", spec.id.as_str(), p.name.as_str()));
+                }
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "these ports accept anything: {offenders:?}\n\
+         Give the port its type, or add it to a family in `port.rs` — never `any`."
+    );
+}

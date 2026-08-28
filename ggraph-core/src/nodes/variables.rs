@@ -25,13 +25,23 @@ fn name_of(cfg: &Json) -> String {
         .to_string()
 }
 
-/// The port is named after the variable, so a canvas reads `count` rather than `value`.
+/// The port is named after the variable, so a canvas reads `count` rather than `value` — and typed
+/// as the variable was declared, so a text variable cannot be handed a table.
+///
+/// The type is written onto the node when the variable is chosen, for the reason every dynamic port
+/// here reads its own configuration: [`Ports::dynamic`] never sees the graph around it.
 fn named_port(cfg: &Json) -> Vec<Port> {
     let n = name_of(cfg);
     if n.is_empty() {
         return Vec::new();
     }
-    vec![Port::new(PortName::new(n), PortType::ANY, false)]
+    let ty = cfg
+        .get("type")
+        .and_then(Json::as_str)
+        .filter(|s| !s.trim().is_empty())
+        .map(PortType::new)
+        .unwrap_or(PortType::TEXT);
+    vec![Port::new(PortName::new(n), ty, false)]
 }
 
 struct SetVariable;
@@ -82,7 +92,7 @@ impl<H: Host> NodeRun<H> for GetVariable {
 pub fn set_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("set_variable", "Set Variable", "Variables")
         .with_inputs(Ports::dynamic(named_port))
-        .with_config(|| json!({ "variable": "" }))
+        .with_config(|| json!({ "variable": "", "type": "text" }))
         .with_timeout(Timeout::Inline)
         .running(SetVariable)
 }
@@ -90,7 +100,7 @@ pub fn set_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSp
 pub fn get_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
         .with_outputs(Ports::dynamic(named_port))
-        .with_config(|| json!({ "variable": "" }))
+        .with_config(|| json!({ "variable": "", "type": "text" }))
         // Re-read every time it is asked: a variable set inside a loop must be visible to a
         // reader later in the same loop, not frozen at the value it had on the first pass.
         .with_purity(Purity::PURE_SOURCE)

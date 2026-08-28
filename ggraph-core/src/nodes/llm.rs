@@ -30,7 +30,7 @@ use serde_json::{json, Value as Json};
 
 static ASK_IN: [Port; 2] = [
     Port::opt("prompt", PortType::TEXT),
-    Port::opt("attachment", PortType::ANY),
+    Port::opt("attachment", PortType::BYTES),
 ];
 static ASK_OUT: [Port; 1] = [Port::opt("answer", PortType::TEXT)];
 
@@ -129,7 +129,7 @@ impl<H: Host> NodeRoute<H> for Decide {
 pub fn decide_spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     static IN: [Port; 2] = [
         Port::opt("question", PortType::TEXT),
-        Port::opt("attachment", PortType::ANY),
+        Port::opt("attachment", PortType::BYTES),
     ];
     NodeSpec::effectful("llm_decide", "Ask a Model to Decide", "AI")
         .with_aliases(&["ai_switch"])
@@ -222,7 +222,7 @@ pub fn extract_spec<H: Host>(services: &crate::nodes::services::Services) -> Nod
         .with_inputs(Ports::dynamic(|cfg: &Json| {
             let mut p = vec![
                 Port::opt("text", PortType::TEXT),
-                Port::opt("attachment", PortType::ANY),
+                Port::opt("attachment", PortType::BYTES),
             ];
             p.extend(extract_ports(cfg));
             p

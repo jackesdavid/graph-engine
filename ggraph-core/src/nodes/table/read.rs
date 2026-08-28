@@ -18,7 +18,7 @@ use serde_json::json;
 /// downstream that reads one by name assumes exactly that — an assumption the port should state
 /// rather than leave to hope.
 static OUT: [Port; 2] = [
-    Port::opt("rows", PortType::TABLE),
+    Port::opt("table", PortType::TABLE),
     Port::opt("count", PortType::NUM),
 ];
 
@@ -43,7 +43,7 @@ impl<H: Host> NodeRun<H> for Read {
             .collect();
         let values: Vec<Value> = rows.iter().map(|r| row_value(r)).collect();
         out.insert(
-            PortName::new("rows"),
+            PortName::new("table"),
             crate::table::make(&cols, values),
         );
         Ok(out)

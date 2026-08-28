@@ -12,7 +12,7 @@ use serde_json::json;
 
 static IN: [Port; 2] = [
     Port::req("row", PortType::NUM),
-    Port::opt("value", PortType::ANY),
+    Port::opt("value", PortType::SCALAR),
 ];
 
 struct SetCell {

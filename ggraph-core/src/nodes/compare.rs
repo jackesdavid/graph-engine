@@ -22,7 +22,10 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports};
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
-static IN: [Port; 2] = [Port::opt("a", PortType::ANY), Port::opt("b", PortType::ANY)];
+static IN: [Port; 2] = [
+    Port::opt("a", PortType::SCALAR),
+    Port::opt("b", PortType::SCALAR),
+];
 static OUT: [Port; 1] = [Port::opt("result", PortType::BOOL)];
 
 struct Compare;

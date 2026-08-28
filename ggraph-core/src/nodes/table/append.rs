@@ -15,7 +15,7 @@ use serde_json::{json, Value as Json};
 fn ports(cfg: &Json) -> Vec<Port> {
     columns(cfg)
         .into_iter()
-        .map(|c| Port::new(PortName::new(c), PortType::ANY, false))
+        .map(|c| Port::new(PortName::new(c), PortType::SCALAR, false))
         .collect()
 }
 

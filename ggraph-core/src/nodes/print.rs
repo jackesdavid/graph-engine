@@ -12,6 +12,12 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
+/// The one port in the standard set that still takes anything, and it is not a hole.
+///
+/// Every other `any` was a node making a promise it could not keep. This one promises nothing: it
+/// looks at what is on a wire and writes down what it saw. Refusing a table here would mean the
+/// node that exists to show you what went wrong is the one node you cannot point at the thing that
+/// went wrong.
 static IN: [Port; 1] = [Port::opt("message", PortType::ANY)];
 
 struct Print;

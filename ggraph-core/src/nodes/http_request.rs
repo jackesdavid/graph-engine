@@ -22,7 +22,7 @@ use serde_json::{json, Value as Json};
 static IN: [Port; 3] = [
     Port::req("url", PortType::TEXT),
     Port::opt("headers", PortType::MAP),
-    Port::opt("body", PortType::ANY),
+    Port::opt("body", PortType::TEXT),
 ];
 static OUT: [Port; 4] = [
     Port::opt("status", PortType::NUM),

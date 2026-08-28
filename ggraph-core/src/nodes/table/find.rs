@@ -16,9 +16,9 @@ use crate::spec::{ExecOut, NodeCx, NodeError, NodeRoute, NodeRun, NodeSpec, Port
 use crate::value::{PortValues, Value};
 use serde_json::json;
 
-static IN: [Port; 1] = [Port::opt("value", PortType::ANY)];
+static IN: [Port; 1] = [Port::opt("value", PortType::SCALAR)];
 static OUT: [Port; 2] = [
-    Port::opt("row", PortType::MAP),
+    Port::opt("row", PortType::TABLE_ROW),
     Port::opt("index", PortType::NUM),
 ];
 static ARMS: [Port; 2] = [

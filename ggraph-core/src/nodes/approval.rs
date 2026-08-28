@@ -29,7 +29,7 @@ use crate::value::{PortValues, Value};
 use serde_json::json;
 
 static IN: [Port; 2] = [
-    Port::opt("audience", PortType::ANY),
+    Port::opt("audience", PortType::TEXT),
     Port::opt("prompt", PortType::TEXT),
 ];
 static OUT: [Port; 1] = [Port::opt("answered_by", PortType::TEXT)];

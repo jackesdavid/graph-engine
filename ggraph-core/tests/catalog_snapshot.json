@@ -14,11 +14,13 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "audience",
           "required": false,
-          "type": "any"
+          "type": "text"
         },
         {
+          "family": "scalar",
           "name": "prompt",
           "required": false,
           "type": "text"
@@ -42,6 +44,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "answered_by",
           "required": false,
           "type": "text"
@@ -62,6 +65,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "condition",
           "required": true,
           "type": "bool"
@@ -134,6 +138,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "held_secs",
           "required": false,
           "type": "num"
@@ -150,19 +155,22 @@
       },
       "inputs": [
         {
+          "accepts_family": true,
           "name": "a",
           "required": false,
-          "type": "any"
+          "type": "scalar"
         },
         {
+          "accepts_family": true,
           "name": "b",
           "required": false,
-          "type": "any"
+          "type": "scalar"
         }
       ],
       "label": "Compare",
       "outputs": [
         {
+          "family": "scalar",
           "name": "result",
           "required": false,
           "type": "bool"
@@ -173,8 +181,10 @@
     {
       "category": "Control",
       "default_config": {
-        "items": ""
+        "items": "",
+        "items_type": ""
       },
+      "dynamic": true,
       "inputs": [
         {
           "name": "exec_in",
@@ -182,9 +192,11 @@
           "type": "exec"
         },
         {
+          "accepts_family": true,
+          "family": "list",
           "name": "items",
           "required": false,
-          "type": "any"
+          "type": "list"
         }
       ],
       "label": "For Each",
@@ -200,11 +212,13 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "item",
           "required": false,
-          "type": "any"
+          "type": "text"
         },
         {
+          "family": "scalar",
           "name": "index",
           "required": false,
           "type": "num"
@@ -227,6 +241,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "url",
           "required": true,
           "type": "text"
@@ -237,9 +252,10 @@
           "type": "dictionary"
         },
         {
+          "family": "scalar",
           "name": "body",
           "required": false,
-          "type": "any"
+          "type": "text"
         }
       ],
       "label": "HTTP Request",
@@ -250,16 +266,19 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "status",
           "required": false,
           "type": "num"
         },
         {
+          "family": "scalar",
           "name": "ok",
           "required": false,
           "type": "bool"
         },
         {
+          "family": "scalar",
           "name": "text",
           "required": false,
           "type": "text"
@@ -285,14 +304,16 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "prompt",
           "required": false,
           "type": "text"
         },
         {
+          "accepts_family": true,
           "name": "attachment",
           "required": false,
-          "type": "any"
+          "type": "file"
         }
       ],
       "label": "Ask a Model",
@@ -303,6 +324,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "answer",
           "required": false,
           "type": "text"
@@ -323,14 +345,16 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "question",
           "required": false,
           "type": "text"
         },
         {
+          "accepts_family": true,
           "name": "attachment",
           "required": false,
-          "type": "any"
+          "type": "file"
         }
       ],
       "label": "Ask a Model to Decide",
@@ -351,6 +375,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "answer",
           "required": false,
           "type": "bool"
@@ -374,14 +399,16 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "text",
           "required": false,
           "type": "text"
         },
         {
+          "accepts_family": true,
           "name": "attachment",
           "required": false,
-          "type": "any"
+          "type": "file"
         }
       ],
       "label": "Extract Fields",
@@ -409,6 +436,7 @@
       "label": "Format",
       "outputs": [
         {
+          "family": "scalar",
           "name": "text",
           "required": false,
           "type": "text"
@@ -451,6 +479,7 @@
       },
       "inputs": [
         {
+          "family": "scalar",
           "name": "value",
           "required": true,
           "type": "num"
@@ -459,6 +488,7 @@
       "label": "Round",
       "outputs": [
         {
+          "family": "scalar",
           "name": "value",
           "required": false,
           "type": "num"
@@ -473,6 +503,7 @@
       },
       "inputs": [
         {
+          "family": "list",
           "name": "values",
           "required": true,
           "type": "numbers"
@@ -481,6 +512,7 @@
       "label": "Round each",
       "outputs": [
         {
+          "family": "list",
           "name": "values",
           "required": false,
           "type": "numbers"
@@ -503,6 +535,7 @@
       "label": "Pick numbers",
       "outputs": [
         {
+          "family": "list",
           "name": "values",
           "required": false,
           "type": "numbers"
@@ -525,6 +558,7 @@
       "label": "Pick texts",
       "outputs": [
         {
+          "family": "list",
           "name": "values",
           "required": false,
           "type": "texts"
@@ -545,6 +579,7 @@
       "label": "Table rows",
       "outputs": [
         {
+          "family": "list",
           "name": "rows",
           "required": false,
           "type": "table_rows"
@@ -652,6 +687,7 @@
       },
       "inputs": [
         {
+          "family": "scalar",
           "name": "text",
           "required": false,
           "type": "text"
@@ -674,11 +710,13 @@
       },
       "inputs": [
         {
+          "family": "scalar",
           "name": "text",
           "required": false,
           "type": "text"
         },
         {
+          "family": "scalar",
           "name": "source",
           "required": false,
           "type": "text"
@@ -721,11 +759,13 @@
       },
       "inputs": [
         {
+          "family": "list",
           "name": "values",
           "required": true,
           "type": "numbers"
         },
         {
+          "family": "list",
           "name": "labels",
           "required": false,
           "type": "texts"
@@ -797,6 +837,7 @@
           "type": "block"
         },
         {
+          "family": "scalar",
           "name": "theme",
           "required": false,
           "type": "text"
@@ -810,11 +851,13 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "key",
           "required": false,
           "type": "text"
         },
         {
+          "family": "scalar",
           "name": "bytes",
           "required": false,
           "type": "num"
@@ -877,6 +920,7 @@
       "label": "Count Rows",
       "outputs": [
         {
+          "family": "scalar",
           "name": "count",
           "required": false,
           "type": "num"
@@ -898,9 +942,10 @@
           "type": "exec"
         },
         {
+          "accepts_family": true,
           "name": "value",
           "required": false,
-          "type": "any"
+          "type": "scalar"
         }
       ],
       "label": "Find a Row",
@@ -918,9 +963,10 @@
         {
           "name": "row",
           "required": false,
-          "type": "dictionary"
+          "type": "table_row"
         },
         {
+          "family": "scalar",
           "name": "index",
           "required": false,
           "type": "num"
@@ -948,11 +994,12 @@
           "type": "exec"
         },
         {
-          "name": "rows",
+          "name": "table",
           "required": false,
           "type": "table"
         },
         {
+          "family": "scalar",
           "name": "count",
           "required": false,
           "type": "num"
@@ -975,14 +1022,16 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "row",
           "required": true,
           "type": "num"
         },
         {
+          "accepts_family": true,
           "name": "value",
           "required": false,
-          "type": "any"
+          "type": "scalar"
         }
       ],
       "label": "Change a Cell",
@@ -998,6 +1047,7 @@
     {
       "category": "Variables",
       "default_config": {
+        "type": "text",
         "variable": ""
       },
       "dynamic": true,
@@ -1009,6 +1059,7 @@
     {
       "category": "Variables",
       "default_config": {
+        "type": "text",
         "variable": ""
       },
       "dynamic": true,
@@ -1041,6 +1092,7 @@
           "type": "exec"
         },
         {
+          "family": "scalar",
           "name": "seconds",
           "required": false,
           "type": "num"

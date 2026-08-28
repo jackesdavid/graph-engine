@@ -95,7 +95,14 @@ impl PortType {
     pub const TABLE_CELL: PortType = PortType::new_static("table_cell");
     /// Control flow, not data. Exec ports carry no value — they say *when*, not *what*.
     pub const EXEC: PortType = PortType::new_static("exec");
+    /// One value a person could read: text, a number, or a boolean. Never a table, a list or a
+    /// file — those become one of these through a node, which is a step somebody can see.
+    pub const SCALAR: PortType = PortType::new_static("scalar");
     /// Wildcard: compatible with everything, in both directions.
+    ///
+    /// Left for a product that genuinely needs it. Nothing in the standard set does any more: an
+    /// `any` port is one the editor cannot refuse, and every refusal it cannot make is a wire
+    /// somebody draws and a run that goes wrong somewhere else.
     pub const ANY: PortType = PortType::new_static("any");
 
     /// Does this value satisfy this type?
@@ -140,6 +147,7 @@ impl PortType {
             }
             "table_rows" => matches!(v, V::List(items) if every(items, &is_record)),
             "table_row" | "table_column" => is_record(v),
+            "scalar" => is_text(v) || is_num(v) || matches!(v, V::Bool(_) | V::Json(Json::Bool(_))),
             // A schema is the column list itself — named shapes, no rows.
             "schema" => matches!(v, V::List(items) if every(items, &is_record)),
             // A product's own vocabulary. Not the engine's to judge.
@@ -202,14 +210,76 @@ impl fmt::Display for PortType {
     }
 }
 
+/// The types that ARE a list of something: what a loop may walk.
+///
+/// A `table` is deliberately not one. It is columns and rows, and a loop handed one would either
+/// walk those two entries or have to know to reach inside — so it takes the rows instead, which is
+/// a wire somebody can see.
+pub const LIST_TYPES: [&str; 4] = ["list", "table_rows", "numbers", "texts"];
+
+/// The types that are ONE value a person could read: what a comparison compares, what a template
+/// interpolates, what a cell holds.
+///
+/// Not a table, not a list, not a file. Those need a node to become one of these, and a node is a
+/// step somebody can see.
+pub const SCALAR_TYPES: [&str; 3] = ["text", "num", "bool"];
+
+impl PortType {
+    /// The family this type belongs to, or `None` when it is only itself.
+    ///
+    /// A family is a real attribute rather than a note in a comment: it is what makes a port able
+    /// to say "a list of something" without saying "anything", and what lets a palette offer the
+    /// types that would fit a pin instead of all of them.
+    ///
+    /// A port typed with a family NAME accepts every member — that is the whole of the rule in
+    /// [`compatible`], and there is no other widening anywhere.
+    pub fn family(&self) -> Option<&'static str> {
+        let t = self.as_str();
+        if SCALAR_TYPES.contains(&t) {
+            Some("scalar")
+        } else if LIST_TYPES.contains(&t) {
+            Some("list")
+        } else if t == "image" {
+            Some("file")
+        } else {
+            None
+        }
+    }
+
+    /// Is this type the name of a family rather than a concrete type?
+    pub fn is_family(&self) -> bool {
+        matches!(self.as_str(), "scalar" | "list" | "file")
+    }
+}
+
+/// The element type of a list type, for a node that has to say what it hands out one at a time.
+pub fn element_of(list: &PortType) -> PortType {
+    match list.as_str() {
+        "numbers" => PortType::NUM,
+        "texts" => PortType::TEXT,
+        "table_rows" => PortType::TABLE_ROW,
+        _ => PortType::ANY,
+    }
+}
+
 /// May a value of type `from` be delivered to a port of type `to`?
 ///
-/// Deliberately not a lattice, not a coercion table, not a subtype relation: equality plus a
-/// wildcard. Every richer rule anybody wants here ("num should flow into text") is a
-/// *conversion*, and a conversion that happens invisibly inside the wiring is a conversion
-/// nobody can see in the editor. Those get a node.
+/// Equality, a wildcard, and one family: anything that IS a list satisfies a port asking for a
+/// list. Still not a lattice, not a coercion table, not a subtype relation — every richer rule
+/// anybody wants here ("num should flow into text") is a *conversion*, and a conversion that
+/// happens invisibly inside the wiring is one nobody can see in the editor. Those get a node.
+///
+/// The family exists because the alternative was `any` on every loop, and `any` is the port that
+/// let a table be wired into one.
 pub fn compatible(from: &PortType, to: &PortType) -> bool {
-    from == to || from.is_any() || to.is_any()
+    let (f, t) = (from.as_str(), to.as_str());
+    from == to
+        || from.is_any()
+        || to.is_any()
+        // The two families, and one directed fact: an image is a file.
+        || (t == "list" && LIST_TYPES.contains(&f))
+        || (t == "scalar" && SCALAR_TYPES.contains(&f))
+        || (t == "file" && f == "image")
 }
 
 /// One column of a `table`.
