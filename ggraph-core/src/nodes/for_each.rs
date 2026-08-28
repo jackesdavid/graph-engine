@@ -27,14 +27,17 @@ static IN: [Port; 1] = [Port::opt("items", PortType::LIST)];
 /// With nothing wired the loop splits a comma-separated field, so the default is text — which is
 /// what those items actually are, rather than a shrug.
 fn ports(cfg: &Json) -> Vec<Port> {
-    let list = cfg
+    // What the wire wrote down: the ELEMENT type, taken from the port that fed this one. Deriving
+    // it from the list's name would only ever work for the engine's own lists — a product's
+    // `chunk_results` is a name nothing here can read.
+    let item = cfg
         .get("items_type")
         .and_then(Json::as_str)
         .filter(|s| !s.trim().is_empty())
         .map(PortType::new)
-        .unwrap_or(PortType::TEXTS);
+        .unwrap_or(PortType::TEXT);
     vec![
-        Port::new(PortName::new("item"), crate::port::element_of(&list), false),
+        Port::new(PortName::new("item"), item, false),
         Port::opt("index", PortType::NUM),
     ]
 }

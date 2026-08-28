@@ -537,6 +537,7 @@
       },
       "inputs": [
         {
+          "element": "num",
           "family": "list",
           "name": "values",
           "required": true,
@@ -546,6 +547,7 @@
       "label": "Round each",
       "outputs": [
         {
+          "element": "num",
           "family": "list",
           "name": "values",
           "required": false,
@@ -570,6 +572,7 @@
       "label": "Pick numbers",
       "outputs": [
         {
+          "element": "num",
           "family": "list",
           "name": "values",
           "required": false,
@@ -594,6 +597,7 @@
       "label": "Pick texts",
       "outputs": [
         {
+          "element": "text",
           "family": "list",
           "name": "values",
           "required": false,
@@ -616,6 +620,7 @@
       "label": "Table rows",
       "outputs": [
         {
+          "element": "table_row",
           "family": "list",
           "name": "rows",
           "required": false,
@@ -678,6 +683,30 @@
       "label": "Cell value",
       "outputs": [],
       "slug": "cell"
+    },
+    {
+      "category": "Data",
+      "default_config": {
+        "columns": []
+      },
+      "dynamic": true,
+      "inputs": [
+        {
+          "family": "unique",
+          "name": "row",
+          "required": true,
+          "type": "table_row"
+        },
+        {
+          "family": "unique",
+          "name": "schema",
+          "required": false,
+          "type": "schema"
+        }
+      ],
+      "label": "Break row",
+      "outputs": [],
+      "slug": "break_row"
     },
     {
       "category": "Data",
@@ -805,12 +834,14 @@
       },
       "inputs": [
         {
+          "element": "num",
           "family": "list",
           "name": "values",
           "required": true,
           "type": "numbers"
         },
         {
+          "element": "text",
           "family": "list",
           "name": "labels",
           "required": false,

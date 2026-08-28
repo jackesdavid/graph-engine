@@ -25,6 +25,7 @@
 //! cannot check. So the cell node is given the schema, and its output port carries the type THAT
 //! column was declared as — chosen from a list of the column names rather than typed from memory.
 
+mod break_row;
 mod cell;
 mod first;
 mod rows;
@@ -36,4 +37,5 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(rows::spec());
     reg.register(first::spec());
     reg.register(cell::spec());
+    reg.register(break_row::spec());
 }

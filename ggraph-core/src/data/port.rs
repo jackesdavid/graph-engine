@@ -375,9 +375,29 @@ pub struct Port {
     /// what the catalogue publishes is the resolved answer, so a reader has one thing to read.
     #[serde(skip)]
     pub family: Option<Family>,
+    /// Declared for a product's own list type; `None` means the type's own element. Never
+    /// serialised: the catalogue publishes the resolved answer, so a reader has one thing to read.
+    #[serde(skip)]
+    pub element: Option<PortType>,
 }
 
 impl Port {
+    /// Declare what ONE element of this list is.
+    ///
+    /// A loop hands out items, and their type is not readable from the list's name: the engine
+    /// knows that `numbers` holds `num`, and has never heard of `chunk_results`. Declared here for
+    /// the same reason the family is — so a product's list is walked on the same terms as the
+    /// engine's, and the item arrives typed instead of as `any`.
+    pub fn of(mut self, element: PortType) -> Self {
+        self.element = Some(element);
+        self
+    }
+
+    /// One element of this port's list: what it declared, or what its type implies.
+    pub fn element(&self) -> PortType {
+        self.element.clone().unwrap_or_else(|| element_of(&self.ty))
+    }
+
     /// Declare this port's family — what its type can stand in for.
     ///
     /// Needed by a product declaring its own type: the engine has never heard of `chunk_results`,
@@ -407,6 +427,7 @@ impl Port {
             // `Vec::new()` is const, which is what keeps every `static [Port; N]` working.
             columns: Vec::new(),
             family: None,
+            element: None,
         }
     }
 
@@ -469,6 +490,25 @@ mod tests {
         assert!(!compatible(&Port::opt("a", PortType::TABLE_ROW), &Port::opt("b", PortType::TABLE)));
         assert!(!compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::BYTES)));
         assert!(compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::IMAGE)));
+    }
+
+    /// A product's list says what one of its elements is, because the engine cannot read that off
+    /// a name it has never seen. Without it a loop hands out `any`, and the chain stops being
+    /// checkable exactly where the product's own data enters it.
+    #[test]
+    fn a_products_list_declares_its_element() {
+        let results = Port::opt("results", PortType::new("chunk_results"))
+            .in_family(Family::List)
+            .of(PortType::new("chunk_result"));
+        assert_eq!(results.element().as_str(), "chunk_result");
+
+        // The engine's own lists still answer for themselves, undeclared.
+        assert_eq!(Port::opt("v", PortType::NUMBERS).element(), PortType::NUM);
+        assert_eq!(Port::opt("v", PortType::TEXTS).element(), PortType::TEXT);
+        assert_eq!(
+            Port::opt("v", PortType::TABLE_ROWS).element(),
+            PortType::TABLE_ROW
+        );
     }
 
     /// The point of declaring it: a product's own type takes part on the same terms as the

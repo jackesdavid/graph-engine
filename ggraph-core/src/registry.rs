@@ -276,6 +276,12 @@ fn port_json(p: &Port) -> Json {
     if p.ty.is_family() {
         j["accepts_family"] = true.into();
     }
+    // What one element of a list is, so a loop can say what it hands out. Not for a port that asks
+    // for the family itself: it receives lists rather than producing one, and `any` there would be
+    // a claim about something it never holds.
+    if p.family() == crate::port::Family::List && !p.ty.is_family() {
+        j["element"] = p.element().as_str().to_string().into();
+    }
     // Only when there are any. A `columns: []` on every text port would be noise in a catalogue a
     // person reads and a model parses.
     if !p.columns.is_empty() {
