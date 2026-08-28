@@ -72,7 +72,7 @@ impl<H: Host> NodeRun<H> for BarChart {
 }
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
-    NodeSpec::pure("report_bar_chart", "Bar chart", "Report")
+    NodeSpec::pure("report_bar_chart", "ReportBarChart", "Report")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "title": "" }))

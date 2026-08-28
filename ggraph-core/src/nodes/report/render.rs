@@ -101,7 +101,7 @@ impl<H: Host> NodeRun<H> for Render {
 }
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
-    NodeSpec::effectful("report_render", "Render report", "Report")
+    NodeSpec::effectful("report_render", "ReportRender", "Report")
         .with_inputs(Ports::dynamic(ports))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| {

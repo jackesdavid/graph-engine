@@ -104,7 +104,7 @@ impl<H: Host> NodeRun<H> for Table {
 }
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
-    NodeSpec::pure("report_table", "Table", "Report")
+    NodeSpec::pure("report_table", "ReportTable", "Report")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({}))

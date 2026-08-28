@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 Jackes David Lemos
 
-//! `report_paragraph` — prose, with where it came from.
+//! `report_paragraph` — prose.
 //!
-//! `source` is a port and not just a config field because the interesting case is a claim built
-//! from something the graph found: the text comes from one wire and its citation from another, and
-//! they arrive together or the paragraph is not worth printing.
+//! Text in, a block out, and nothing else. It carried a second port for a citation, which made it
+//! two things: a paragraph, and a paragraph-with-a-source. A citation belongs inside the text that
+//! makes the claim — that is where it is written, and where it is checked.
 
 use super::{to_value, BLOCK};
 use crate::host::Host;
@@ -15,10 +15,7 @@ use crate::spec::{NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::PortValues;
 use serde_json::json;
 
-static IN: [Port; 2] = [
-    Port::opt("text", PortType::TEXT),
-    Port::opt("source", PortType::TEXT),
-];
+static IN: [Port; 1] = [Port::opt("text", PortType::TEXT)];
 static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
 
 struct Paragraph;
@@ -31,18 +28,11 @@ impl<H: Host> NodeRun<H> for Paragraph {
             .or_else(|| cx.cfg_str("text").map(str::to_string))
             .unwrap_or_default();
 
-        let source = cx
-            .input("source")
-            .and_then(|v| v.as_text())
-            .filter(|s| !s.trim().is_empty());
-
-        let block = match source {
-            Some(s) => crate::report::Block::cited(text, s),
-            None => crate::report::Block::paragraph(text),
-        };
-
         let mut out = PortValues::new();
-        out.insert(PortName::new("block"), to_value(&block));
+        out.insert(
+            PortName::new("block"),
+            to_value(&crate::report::Block::paragraph(text)),
+        );
         Ok(out)
     }
 
@@ -52,7 +42,7 @@ impl<H: Host> NodeRun<H> for Paragraph {
 }
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
-    NodeSpec::pure("report_paragraph", "Paragraph", "Report")
+    NodeSpec::pure("report_paragraph", "ReportParagraph", "Report")
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "text": "" }))

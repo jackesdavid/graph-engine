@@ -24,13 +24,10 @@ pub fn sample(block: &Block) -> Block {
             level: *level,
         },
 
-        Block::Paragraph { text, source } if text.trim().is_empty() => Block::Paragraph {
-            text: LOREM.into(),
-            // A citation placeholder shaped like a real one, because its width is what decides
-            // whether the line wraps.
-            source: source
-                .clone()
-                .or_else(|| Some("[c7f9-s4-0000 | document.pdf | p.2]".into())),
+        Block::Paragraph { text } if text.trim().is_empty() => Block::Paragraph {
+            // Ending in a citation, because that is how a real one ends and its width is what
+            // decides whether the line wraps.
+            text: format!("{LOREM} [c7f9-s4-0000]"),
         },
 
         Block::Table { columns, rows } if rows.is_empty() => Block::Table {

@@ -764,7 +764,7 @@
           "type": "text"
         }
       ],
-      "label": "Heading",
+      "label": "ReportHeading",
       "outputs": [
         {
           "family": "unique",
@@ -786,15 +786,9 @@
           "name": "text",
           "required": false,
           "type": "text"
-        },
-        {
-          "family": "scalar",
-          "name": "source",
-          "required": false,
-          "type": "text"
         }
       ],
-      "label": "Paragraph",
+      "label": "ReportParagraph",
       "outputs": [
         {
           "family": "unique",
@@ -816,7 +810,7 @@
           "type": "table"
         }
       ],
-      "label": "Table",
+      "label": "ReportTable",
       "outputs": [
         {
           "family": "unique",
@@ -848,7 +842,7 @@
           "type": "texts"
         }
       ],
-      "label": "Bar chart",
+      "label": "ReportBarChart",
       "outputs": [
         {
           "family": "unique",
@@ -883,7 +877,7 @@
           "type": "block"
         }
       ],
-      "label": "Layout",
+      "label": "ReportLayout",
       "outputs": [
         {
           "family": "unique",
@@ -926,7 +920,7 @@
           "type": "text"
         }
       ],
-      "label": "Render report",
+      "label": "ReportRender",
       "outputs": [
         {
           "family": "unique",

@@ -21,7 +21,6 @@ h1{font-size:1.8rem;margin:0 0 2rem}
 h2{font-size:1.2rem;margin:2rem 0 .5rem}
 h3{font-size:1rem;margin:1.5rem 0 .5rem}
 p{margin:0 0 .75rem}
-.source{font:12px/1.5 ui-monospace,monospace;color:#666;margin:-.4rem 0 1rem}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{border-bottom:1px solid #e4e4e4;padding:.45rem .6rem;text-align:left}
 th{font-weight:600;color:#444}
@@ -48,16 +47,8 @@ fn block(b: &Block) -> String {
             format!("<h{l}>{}</h{l}>\n", escape(text))
         }
 
-        Block::Paragraph { text, source } => {
-            let cite = source
-                .as_deref()
-                .filter(|s| !s.trim().is_empty())
-                // Next to the claim, never in a footnote: a claim separated from its source reads
-                // as unsourced, which is the failure a corpus-backed report exists to avoid.
-                .map(|s| format!("<p class=\"source\">{}</p>\n", escape(s)))
-                .unwrap_or_default();
-            format!("<p>{}</p>\n{cite}", escape(text))
-        }
+        Block::Paragraph { text } => format!("<p>{}</p>
+", escape(text)),
 
         Block::Table { columns, rows } => {
             let head = if columns.is_empty() {
@@ -171,14 +162,13 @@ mod tests {
         assert!(!html.contains("<urgent>"));
     }
 
-    /// The source follows the claim it supports.
+    /// A citation rides inside the claim it supports, because that is where it is written and
+    /// where it is checked. The paragraph carried it in a field of its own for a while; nothing
+    /// ever filled it, and a claim separated from its source reads as unsourced.
     #[test]
     fn the_citation_travels_with_the_claim() {
         let html = render_html(
-            &Block::cited(
-                "The term is 30 days.",
-                "[c7f9-s4-0000 | contract.pdf | p.2]",
-            ),
+            &Block::paragraph("The term is 30 days [c7f9-s4-0000]."),
             "T",
             None,
         );

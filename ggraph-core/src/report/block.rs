@@ -27,13 +27,6 @@ pub enum Block {
     },
     Paragraph {
         text: String,
-        /// Where the claim came from.
-        ///
-        /// Optional, and rendered next to the text rather than in a footnote: a claim separated
-        /// from its source reads as unsourced, which is the failure a corpus-backed report exists
-        /// to avoid.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        source: Option<String>,
     },
     Table {
         #[serde(default)]
@@ -73,16 +66,9 @@ impl Block {
     pub fn paragraph(text: impl Into<String>) -> Self {
         Block::Paragraph {
             text: text.into(),
-            source: None,
         }
     }
 
-    pub fn cited(text: impl Into<String>, source: impl Into<String>) -> Self {
-        Block::Paragraph {
-            text: text.into(),
-            source: Some(source.into()),
-        }
-    }
 
     pub fn stack(layout: Layout, children: Vec<Block>) -> Self {
         Block::Layout { layout, children }
