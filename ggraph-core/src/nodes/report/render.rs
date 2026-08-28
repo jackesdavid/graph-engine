@@ -26,7 +26,7 @@ use crate::id::PortName;
 use crate::port::{Port, PortType};
 use crate::spec::{Field, Fields, NodeCx, NodeError, NodeRun, NodeSpec, Ports, Timeout};
 use crate::value::{PortValues, Value};
-use serde_json::{json, Value as Json};
+use serde_json::json;
 
 static OUT: [Port; 2] = [
     Port::opt("key", PortType::TEXT),
