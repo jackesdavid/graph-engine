@@ -824,8 +824,12 @@
     {
       "category": "Report",
       "default_config": {
+        "bars": "vertical",
         "columns": [],
+        "gap": 20,
         "labels": "",
+        "show_axes": true,
+        "show_labels": true,
         "title": "",
         "values": ""
       },
@@ -847,6 +851,30 @@
           "kind": "choice",
           "label": "Labels",
           "options": []
+        },
+        {
+          "key": "bars",
+          "kind": "choice",
+          "label": "Bars",
+          "options": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        {
+          "key": "gap",
+          "kind": "num",
+          "label": "Gap between bars (%)"
+        },
+        {
+          "key": "show_axes",
+          "kind": "bool",
+          "label": "Show axes"
+        },
+        {
+          "key": "show_labels",
+          "kind": "bool",
+          "label": "Show labels"
         }
       ],
       "inputs": [

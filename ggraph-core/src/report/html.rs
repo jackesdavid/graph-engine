@@ -77,9 +77,10 @@ fn block(b: &Block) -> String {
             title,
             labels,
             values,
+            style,
         } => format!(
             "<figure>{}</figure>\n",
-            chart::bar_chart(title, labels, values)
+            chart::bar_chart(title, labels, values, style)
         ),
 
         // The recursive case, and the only one there is. A layout renders its children the same way
@@ -126,6 +127,7 @@ mod tests {
                     rows: vec![],
                 },
                 Block::BarChart {
+                    style: Default::default(),
                     title: String::new(),
                     labels: vec!["x".into()],
                     values: vec![1.0],
@@ -196,6 +198,7 @@ mod tests {
                             rows: vec![vec!["a.pdf".into()]],
                         },
                         Block::BarChart {
+                            style: Default::default(),
                             title: "scores".into(),
                             labels: vec!["a.pdf".into()],
                             values: vec![0.9],
@@ -222,6 +225,7 @@ mod tests {
         let tree = Block::stack(
             Layout::column(),
             vec![Block::BarChart {
+                style: Default::default(),
                 title: "t".into(),
                 labels: vec!["a".into()],
                 values: vec![1.0],

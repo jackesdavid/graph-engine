@@ -71,10 +71,13 @@ fn of<M: GraphMeta>(graph: &Graph<M>, node: u32, depth: usize) -> Block {
             columns: Vec::new(),
             rows: Vec::new(),
         },
+        // The style comes from the config, so gap, orientation and axes are visible in a preview
+        // — which is when somebody is deciding them.
         "report_bar_chart" => Block::BarChart {
             title: cfg(&n.config, "title"),
             labels: Vec::new(),
             values: Vec::new(),
+            style: super::ChartStyle::read(&n.config),
         },
 
         // Something that is not a report component wired into one. Named rather than skipped: a

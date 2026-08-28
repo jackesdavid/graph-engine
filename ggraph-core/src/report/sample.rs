@@ -50,6 +50,7 @@ pub fn sample(block: &Block) -> Block {
             title,
             labels,
             values,
+            style,
         } if values.is_empty() => Block::BarChart {
             title: if title.trim().is_empty() {
                 "Chart title".into()
@@ -64,6 +65,8 @@ pub fn sample(block: &Block) -> Block {
             // Uneven on purpose: four equal bars would hide a scaling bug and make the chart look
             // right when it is not.
             values: vec![0.82, 0.41, 0.63, 0.28],
+            // Kept: the style is exactly what somebody is judging in a preview.
+            style: *style,
         },
 
         Block::Layout { layout, children } => Block::Layout {
@@ -102,6 +105,7 @@ mod tests {
                     rows: vec![],
                 },
                 Block::BarChart {
+                    style: Default::default(),
                     title: String::new(),
                     labels: vec![],
                     values: vec![],
@@ -145,6 +149,7 @@ mod tests {
     #[test]
     fn the_sample_chart_has_uneven_bars() {
         let s = sample(&Block::BarChart {
+            style: Default::default(),
             title: String::new(),
             labels: vec![],
             values: vec![],

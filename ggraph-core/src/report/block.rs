@@ -41,6 +41,10 @@ pub enum Block {
         labels: Vec<String>,
         #[serde(default)]
         values: Vec<f64>,
+        /// How it is drawn, as distinct from what it shows. Flattened, so a block written before
+        /// these existed still loads and takes the documented defaults.
+        #[serde(default, flatten)]
+        style: super::ChartStyle,
     },
     /// A container, and itself a block. Layouts nest because of this and nothing else.
     Layout {
@@ -96,6 +100,7 @@ mod tests {
                             rows: vec![vec!["1".into()]],
                         },
                         Block::BarChart {
+                            style: Default::default(),
                             title: "t".into(),
                             labels: vec!["x".into()],
                             values: vec![1.0],

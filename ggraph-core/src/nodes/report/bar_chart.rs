@@ -45,6 +45,11 @@ fn fields(cfg: &Json) -> Vec<Field> {
         Field::text("title", "Title"),
         Field::choice("values", "Values", of_type(cfg, &PortType::NUM)),
         Field::choice("labels", "Labels", of_type(cfg, &PortType::TEXT)),
+        // How it is drawn, as distinct from what it shows.
+        Field::choice("bars", "Bars", ["vertical", "horizontal"]),
+        Field::num("gap", "Gap between bars (%)"),
+        Field::bool("show_axes", "Show axes"),
+        Field::bool("show_labels", "Show labels"),
     ]
 }
 
@@ -95,6 +100,7 @@ impl<H: Host> NodeRun<H> for BarChart {
                 title: cx.cfg_str("title").unwrap_or("").to_string(),
                 labels,
                 values,
+                style: crate::report::ChartStyle::read(cx.config),
             }),
         );
         Ok(out)
@@ -113,7 +119,12 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_fields(Fields::dynamic(fields))
-        .with_config(|| json!({ "title": "", "values": "", "labels": "", "columns": [] }))
+        .with_config(|| {
+            json!({
+                "title": "", "values": "", "labels": "", "columns": [],
+                "bars": "vertical", "gap": 20, "show_axes": true, "show_labels": true
+            })
+        })
         .with_timeout(Timeout::Inline)
         .running(BarChart)
 }
