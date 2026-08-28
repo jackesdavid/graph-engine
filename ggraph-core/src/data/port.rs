@@ -238,17 +238,8 @@ impl PortType {
     /// Only `scalar` and `list` are also usable AS a port type, and a port typed with one accepts
     /// every member. `unique` names the absence of that: it is what a type says about itself, not
     /// something a port can ask for.
-    pub fn family(&self) -> &'static str {
-        let t = self.as_str();
-        // A family's own name reports that family. `list` is already one of its members and
-        // `scalar` is not, and having the two answer differently was a difference with no meaning.
-        if t == "scalar" || SCALAR_TYPES.contains(&t) {
-            "scalar"
-        } else if LIST_TYPES.contains(&t) {
-            "list"
-        } else {
-            "unique"
-        }
+    pub fn family(&self) -> Family {
+        Family::of(self)
     }
 
     /// Is this type the name of a family rather than a concrete type?
@@ -256,6 +247,52 @@ impl PortType {
         matches!(self.as_str(), "scalar" | "list")
     }
 }
+
+/// What a port's type can stand in for.
+///
+/// - `Scalar` — one value a person could read: text, a number, a boolean.
+/// - `List` — a sequence of something.
+/// - `Unique` — everything else. An image goes where an image goes, and nowhere else.
+///
+/// **Every port declares one**, and that is the point: a product's own type is a family member the
+/// engine has never heard of, and a `chunk_results` that could not say it is a list would be a list
+/// no loop could walk. Declaring it on the port means nothing downstream — the wire check, the
+/// catalogue, the editor — has to know whether a node came from the engine or from a product.
+///
+/// [`Family::of`] is the default for the types the engine defines, so its own nodes say nothing
+/// and get the right answer. A product says it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Family {
+    Scalar,
+    List,
+    Unique,
+}
+
+impl Family {
+    /// The family of a type the engine defines. Anything else is its own.
+    pub fn of(ty: &PortType) -> Family {
+        let t = ty.as_str();
+        // A family's own name reports that family. `list` is already one of its members and
+        // `scalar` is not, and having the two answer differently was a difference with no meaning.
+        if t == "scalar" || SCALAR_TYPES.contains(&t) {
+            Family::Scalar
+        } else if LIST_TYPES.contains(&t) {
+            Family::List
+        } else {
+            Family::Unique
+        }
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Family::Scalar => "scalar",
+            Family::List => "list",
+            Family::Unique => "unique",
+        }
+    }
+}
+
 
 /// The element type of a list type, for a node that has to say what it hands out one at a time.
 pub fn element_of(list: &PortType) -> PortType {
@@ -276,12 +313,14 @@ pub fn element_of(list: &PortType) -> PortType {
 ///
 /// The family exists because the alternative was `any` on every loop, and `any` is the port that
 /// let a table be wired into one.
-pub fn compatible(from: &PortType, to: &PortType) -> bool {
-    from == to
-        || from.is_any()
-        || to.is_any()
-        // A port asking for a family takes any member of it. That is the whole widening.
-        || (to.is_family() && from.family() == to.as_str())
+pub fn compatible(from: &Port, to: &Port) -> bool {
+    from.ty == to.ty
+        || from.ty.is_any()
+        || to.ty.is_any()
+        // A port asking for a family takes any member of it. That is the whole widening, and it
+        // reads the DECLARED family, so a product's own type takes part on the same terms as the
+        // engine's — which is why nothing here has to know where a node came from.
+        || (to.ty.is_family() && from.family().as_str() == to.ty.as_str())
 }
 
 /// One column of a `table`.
@@ -332,9 +371,28 @@ pub struct Port {
     /// constructors below still work inside a `static`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub columns: Vec<Column>,
+    /// Declared for a product's own type; `None` means the type's own family. Never serialised:
+    /// what the catalogue publishes is the resolved answer, so a reader has one thing to read.
+    #[serde(skip)]
+    pub family: Option<Family>,
 }
 
 impl Port {
+    /// Declare this port's family — what its type can stand in for.
+    ///
+    /// Needed by a product declaring its own type: the engine has never heard of `chunk_results`,
+    /// and one that could not say it is a list would be a list no loop could walk. The engine's own
+    /// types default correctly, so its nodes say nothing.
+    pub fn in_family(mut self, f: Family) -> Self {
+        self.family = Some(f);
+        self
+    }
+
+    /// This port's family: what it declared, or what its type is.
+    pub fn family(&self) -> Family {
+        self.family.unwrap_or_else(|| Family::of(&self.ty))
+    }
+
     /// The columns this port carries. Only meaningful for a `table`.
     pub fn with_columns(mut self, columns: Vec<Column>) -> Self {
         self.columns = columns;
@@ -348,6 +406,7 @@ impl Port {
             required,
             // `Vec::new()` is const, which is what keeps every `static [Port; N]` working.
             columns: Vec::new(),
+            family: None,
         }
     }
 
@@ -375,49 +434,74 @@ mod tests {
     /// Three families, and every type is in exactly one.
     #[test]
     fn every_type_belongs_to_one_family() {
-        assert_eq!(PortType::TEXT.family(), "scalar");
-        assert_eq!(PortType::NUM.family(), "scalar");
-        assert_eq!(PortType::BOOL.family(), "scalar");
-        assert_eq!(PortType::NUMBERS.family(), "list");
-        assert_eq!(PortType::TEXTS.family(), "list");
-        assert_eq!(PortType::TABLE_ROWS.family(), "list");
-        assert_eq!(PortType::LIST.family(), "list");
+        assert_eq!(PortType::TEXT.family(), Family::Scalar);
+        assert_eq!(PortType::NUM.family(), Family::Scalar);
+        assert_eq!(PortType::BOOL.family(), Family::Scalar);
+        assert_eq!(PortType::NUMBERS.family(), Family::List);
+        assert_eq!(PortType::TEXTS.family(), Family::List);
+        assert_eq!(PortType::TABLE_ROWS.family(), Family::List);
+        assert_eq!(PortType::LIST.family(), Family::List);
         // A family's own name reports that family, whichever one it is.
-        assert_eq!(PortType::SCALAR.family(), "scalar");
+        assert_eq!(PortType::SCALAR.family(), Family::Scalar);
         // An image goes where an image goes, and nowhere else.
-        assert_eq!(PortType::IMAGE.family(), "unique");
-        assert_eq!(PortType::TABLE.family(), "unique");
-        assert_eq!(PortType::TABLE_ROW.family(), "unique");
-        assert_eq!(PortType::SCHEMA.family(), "unique");
+        assert_eq!(PortType::IMAGE.family(), Family::Unique);
+        assert_eq!(PortType::TABLE.family(), Family::Unique);
+        assert_eq!(PortType::TABLE_ROW.family(), Family::Unique);
+        assert_eq!(PortType::SCHEMA.family(), Family::Unique);
     }
 
     /// A port asking for a family takes any member of it.
     #[test]
     fn a_family_port_takes_its_members() {
-        assert!(compatible(&PortType::NUM, &PortType::SCALAR));
-        assert!(compatible(&PortType::TEXT, &PortType::SCALAR));
-        assert!(compatible(&PortType::BOOL, &PortType::SCALAR));
-        assert!(compatible(&PortType::NUMBERS, &PortType::LIST));
-        assert!(compatible(&PortType::TABLE_ROWS, &PortType::LIST));
+        assert!(compatible(&Port::opt("a", PortType::NUM), &Port::opt("b", PortType::SCALAR)));
+        assert!(compatible(&Port::opt("a", PortType::TEXT), &Port::opt("b", PortType::SCALAR)));
+        assert!(compatible(&Port::opt("a", PortType::BOOL), &Port::opt("b", PortType::SCALAR)));
+        assert!(compatible(&Port::opt("a", PortType::NUMBERS), &Port::opt("b", PortType::LIST)));
+        assert!(compatible(&Port::opt("a", PortType::TABLE_ROWS), &Port::opt("b", PortType::LIST)));
     }
 
     /// And nothing else. A table is columns and rows, so a loop handed one would walk those two
     /// entries; its rows are a wire away, and that wire is something somebody can see.
     #[test]
     fn a_unique_type_only_goes_where_it_belongs() {
-        assert!(!compatible(&PortType::TABLE, &PortType::LIST));
-        assert!(!compatible(&PortType::TABLE, &PortType::SCALAR));
-        assert!(!compatible(&PortType::TABLE_ROW, &PortType::TABLE));
-        assert!(!compatible(&PortType::IMAGE, &PortType::BYTES));
-        assert!(compatible(&PortType::IMAGE, &PortType::IMAGE));
+        assert!(!compatible(&Port::opt("a", PortType::TABLE), &Port::opt("b", PortType::LIST)));
+        assert!(!compatible(&Port::opt("a", PortType::TABLE), &Port::opt("b", PortType::SCALAR)));
+        assert!(!compatible(&Port::opt("a", PortType::TABLE_ROW), &Port::opt("b", PortType::TABLE)));
+        assert!(!compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::BYTES)));
+        assert!(compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::IMAGE)));
+    }
+
+    /// The point of declaring it: a product's own type takes part on the same terms as the
+    /// engine's. `chunk_results` is a name the engine has never heard, and a list no loop could
+    /// walk would be a list in name only.
+    #[test]
+    fn a_products_own_type_joins_a_family_by_saying_so() {
+        let chunks = PortType::new("chunk_results");
+        let declared = Port::opt("results", chunks.clone()).in_family(Family::List);
+        let undeclared = Port::opt("results", chunks);
+        let loop_items = Port::opt("items", PortType::LIST);
+
+        assert_eq!(declared.family(), Family::List);
+        assert!(compatible(&declared, &loop_items));
+
+        assert_eq!(undeclared.family(), Family::Unique, "silence is not a family");
+        assert!(!compatible(&undeclared, &loop_items));
+    }
+
+    /// And a declaration does not widen anything else: it says which family, not that anything goes.
+    #[test]
+    fn declaring_a_family_is_not_a_wildcard() {
+        let chunks = Port::opt("results", PortType::new("chunk_results")).in_family(Family::List);
+        assert!(!compatible(&chunks, &Port::opt("v", PortType::NUMBERS)));
+        assert!(!compatible(&chunks, &Port::opt("v", PortType::SCALAR)));
     }
 
     /// The widening goes one way. A port that produces "a list of something" cannot be plugged
     /// into one that needs numbers, because the something might be documents.
     #[test]
     fn a_family_does_not_flow_back_into_a_member() {
-        assert!(!compatible(&PortType::LIST, &PortType::NUMBERS));
-        assert!(!compatible(&PortType::SCALAR, &PortType::NUM));
+        assert!(!compatible(&Port::opt("a", PortType::LIST), &Port::opt("b", PortType::NUMBERS)));
+        assert!(!compatible(&Port::opt("a", PortType::SCALAR), &Port::opt("b", PortType::NUM)));
     }
     use super::*;
 
@@ -438,21 +522,21 @@ mod tests {
         // vocabulary and does not exempt tests — an exemption is where the words come back in.
         let sprocket = PortType::new_static("sprocket");
         assert_eq!(serde_json::to_string(&sprocket).unwrap(), "\"sprocket\"");
-        assert!(compatible(&sprocket, &sprocket));
-        assert!(!compatible(&sprocket, &PortType::TEXT));
+        assert!(compatible(&Port::opt("a", sprocket.clone()), &Port::opt("b", sprocket.clone())));
+        assert!(!compatible(&Port::opt("a", sprocket.clone()), &Port::opt("b", PortType::TEXT)));
     }
 
     #[test]
     fn any_is_compatible_in_both_directions() {
-        assert!(compatible(&PortType::ANY, &PortType::IMAGE));
-        assert!(compatible(&PortType::IMAGE, &PortType::ANY));
+        assert!(compatible(&Port::opt("a", PortType::ANY), &Port::opt("b", PortType::IMAGE)));
+        assert!(compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::ANY)));
     }
 
     #[test]
     fn unrelated_types_do_not_connect() {
-        assert!(!compatible(&PortType::TEXT, &PortType::NUM));
+        assert!(!compatible(&Port::opt("a", PortType::TEXT), &Port::opt("b", PortType::NUM)));
         assert!(
-            !compatible(&PortType::EXEC, &PortType::ANY) || PortType::ANY.is_any(),
+            !compatible(&Port::opt("a", PortType::EXEC), &Port::opt("b", PortType::ANY)) || PortType::ANY.is_any(),
             "exec is a wire kind, not a value; ANY still absorbs it and that is deliberate"
         );
     }

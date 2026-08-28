@@ -222,7 +222,7 @@ impl<M: GraphMeta> Graph<M> {
         let out = self.resolve_out(reg, from, &from_port)?;
         let inp = self.resolve_in(reg, to, &to_port)?;
 
-        if !compatible(&out.ty, &inp.ty) {
+        if !compatible(&out, &inp) {
             return Err(WireError::TypeMismatch {
                 from: out.ty.to_string(),
                 to: inp.ty.to_string(),

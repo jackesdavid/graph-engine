@@ -188,7 +188,7 @@ pub fn validate<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) 
             continue;
         };
 
-        if !crate::port::compatible(&out.ty, &inp.ty) {
+        if !crate::port::compatible(&out, &inp) {
             found.push(Problem::TypeMismatch {
                 from: e.from,
                 from_port: e.from_port.clone(),
