@@ -30,14 +30,26 @@ static ARMS: [Port; 2] = [
 /// What to iterate. A list is a list; text is split on commas, because a list typed into an
 /// inspector field is the common case and making people wire a splitter node for it is friction
 /// with no payoff.
+///
+/// A table iterates its ROWS. Its value is a map of columns and rows, so the plain map branch would
+/// have walked those two entries — a loop that runs twice over nothing anybody meant, drawable
+/// because this port takes anything.
 fn items(cx: &StepCx<'_, impl Host>) -> Vec<Value> {
     match cx.input("items") {
         Some(Value::List(v)) => v.clone(),
+        Some(v @ Value::Map(_)) if is_table(v) => crate::table::rows(Some(v)),
         Some(Value::Map(m)) => m.iter().map(|(_, v)| v.clone()).collect(),
         Some(Value::Text(s)) => split(s),
         Some(other) => vec![other.clone()],
         None => cx.cfg_str("items").map(split).unwrap_or_default(),
     }
+}
+
+/// A map that is a table: it has both of the keys one has, and nothing else claims that pair.
+fn is_table(v: &Value) -> bool {
+    let Value::Map(pairs) = v else { return false };
+    let has = |k: &str| pairs.iter().any(|(name, _)| name == k);
+    has("columns") && has("rows")
 }
 
 fn split(s: &str) -> Vec<Value> {
@@ -158,6 +170,22 @@ mod tests {
             Some(Value::List(vec![Value::int(1), Value::int(2)])),
         );
         assert_eq!(seen, vec!["1", "2"]);
+    }
+
+    /// A table iterates its rows. Its value is a map of columns and rows, so without this the loop
+    /// walked those two entries — twice round, over nothing anybody meant.
+    #[test]
+    fn a_table_iterates_its_rows() {
+        let row = |d: &str| Value::Map(vec![("document".into(), Value::text(d))]);
+        let cols = [crate::port::Column::new(
+            crate::id::PortName::new("document"),
+            crate::port::PortType::TEXT,
+        )];
+        let (seen, _) = drive(
+            json!({}),
+            Some(crate::table::make(&cols, vec![row("a.pdf"), row("b.pdf")])),
+        );
+        assert_eq!(seen.len(), 2, "two rows, not two entries of the table's map");
     }
 
     #[test]

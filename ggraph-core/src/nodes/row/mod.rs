@@ -26,7 +26,6 @@
 //! column was declared as — chosen from a list of the column names rather than typed from memory.
 
 mod cell;
-mod each;
 mod first;
 mod rows;
 
@@ -37,5 +36,4 @@ pub fn register_all<H: Host>(reg: &mut NodeRegistry<H>) {
     reg.register(rows::spec());
     reg.register(first::spec());
     reg.register(cell::spec());
-    reg.register(each::spec());
 }

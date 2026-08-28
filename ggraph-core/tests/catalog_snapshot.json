@@ -605,46 +605,6 @@
     },
     {
       "category": "Data",
-      "default_config": {},
-      "inputs": [
-        {
-          "name": "exec_in",
-          "required": false,
-          "type": "exec"
-        },
-        {
-          "name": "table",
-          "required": true,
-          "type": "table"
-        }
-      ],
-      "label": "For each row",
-      "outputs": [
-        {
-          "name": "loop_body",
-          "required": false,
-          "type": "exec"
-        },
-        {
-          "name": "completed",
-          "required": false,
-          "type": "exec"
-        },
-        {
-          "name": "row",
-          "required": false,
-          "type": "table_row"
-        },
-        {
-          "name": "index",
-          "required": false,
-          "type": "num"
-        }
-      ],
-      "slug": "for_each_row"
-    },
-    {
-      "category": "Data",
       "default_config": {
         "columns": []
       },
