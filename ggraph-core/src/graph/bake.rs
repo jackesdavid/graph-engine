@@ -43,6 +43,15 @@ const PASSES: usize = 8;
 pub struct Wired(Vec<(PortName, Port)>);
 
 impl Wired {
+    /// What is arriving, as a list of (input port name, the source port feeding it).
+    ///
+    /// Public because baking is not only for a document that exists: a SEARCH over which kinds may
+    /// follow which has to ask what a kind would give once something reached it, and there is no
+    /// graph at that point to read the answer off.
+    pub fn from(pairs: Vec<(PortName, Port)>) -> Self {
+        Wired(pairs)
+    }
+
     /// The source port feeding this input, if anything is.
     pub fn on(&self, input: &str) -> Option<&Port> {
         self.0

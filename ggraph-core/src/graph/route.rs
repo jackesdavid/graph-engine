@@ -42,6 +42,41 @@ pub fn connects<H: Host>(reg: &NodeRegistry<H>, from: &NodeId, to: &NodeId) -> b
     strength(reg, from, to).is_some()
 }
 
+/// What a kind gives, once what is ARRIVING has been taken into account.
+///
+/// A node whose ports depend on its settings does not know them yet: `For Each` publishes an `item`
+/// of `text` until something tells it what the list holds. Asked at its default, the router saw a
+/// loop that emits text and could not tell that looping over passages emits a passage — so
+/// `chunk_search → for_each → break_chunk_result`, the obvious chain, was reported as impossible.
+///
+/// The answer is the same [`bake`](super::bake) a saved document gets, applied to a search: put the
+/// arriving port in front of the kind, let it work out its own configuration, then ask.
+pub fn gives<H: Host>(
+    reg: &NodeRegistry<H>,
+    kind: &NodeId,
+    arriving: Option<(&crate::id::PortName, &crate::port::Port)>,
+) -> Vec<crate::port::Port> {
+    let Some(spec) = reg.get(kind) else {
+        return Vec::new();
+    };
+    let mut cfg = (spec.default_config)();
+    if let (Some(bake), Some((on, port))) = (spec.bake.as_ref(), arriving) {
+        let wired = super::bake::Wired::from(vec![(on.clone(), port.clone())]);
+        if let Some(next) = bake(&cfg, &wired) {
+            cfg = next;
+        }
+    }
+    spec.outputs.resolve(&cfg)
+}
+
+/// What a kind takes, at its default. Inputs do not depend on what is arriving — the port that
+/// accepts a value is the one that has to exist before anything can arrive on it.
+pub fn takes<H: Host>(reg: &NodeRegistry<H>, kind: &NodeId) -> Vec<crate::port::Port> {
+    reg.get(kind)
+        .map(|s| s.inputs.resolve(&(s.default_config)()))
+        .unwrap_or_default()
+}
+
 /// How MUCH two kinds connect, or `None` if they do not.
 ///
 /// Connectivity alone turned out to be nearly meaningless. Half a catalogue has a `text` port, so
@@ -120,61 +155,79 @@ pub fn route<H: Host>(
     if from == to {
         return vec![vec![from.clone()]];
     }
-
-    // The relation, computed once with its scores. Recomputing it inside the walk turns a search
-    // over fifty kinds into fifty times the port resolution it needed.
     let kinds: Vec<NodeId> = reg.palette().map(|s| s.id.clone()).collect();
-    let mut edges: HashMap<&NodeId, Vec<(&NodeId, u32)>> = HashMap::new();
-    for a in &kinds {
-        for b in &kinds {
-            if a == b {
-                continue;
-            }
-            if let Some(w) = strength(reg, a, b) {
-                edges.entry(a).or_default().push((b, w));
-            }
-        }
+
+    /// A path, and what reached its last node — which is what that node needs in order to say
+    /// what it gives. Edges cannot be computed once and reused: `For Each` following a table is a
+    /// different node from `For Each` following a search.
+    struct Step {
+        path: Vec<NodeId>,
+        arriving: Option<(crate::id::PortName, crate::port::Port)>,
     }
 
-    // BEST-first, not breadth-first. Breadth returns the shortest routes, and the shortest are the
-    // ones held together by the vaguest types: `chunk_search → send_email` in one hop, through an
-    // error message reaching an address. Expanding by weakest-link instead means the first answers
-    // out are the most meaningful, and the long specific chain is found before the budget is spent
-    // on dozens of short empty ones.
-    //
-    // Ordered by (weakest link, then FEWER nodes) — `Reverse` on the length so the heap's max is
-    // the shortest of equals.
-    let mut heap: std::collections::BinaryHeap<(u32, std::cmp::Reverse<usize>, Vec<&NodeId>)> =
+    // BEST-first on the weakest link, not breadth-first. Breadth returns the shortest routes, and
+    // the shortest are the ones held together by the vaguest types: `chunk_search → send_email` in
+    // one hop, through an error message reaching an address. Expanding by weakest link means the
+    // first answers out are the most meaningful.
+    let mut heap: std::collections::BinaryHeap<(u32, std::cmp::Reverse<usize>, usize)> =
         std::collections::BinaryHeap::new();
-    heap.push((u32::MAX, std::cmp::Reverse(1), vec![from]));
+    let mut steps: Vec<Step> = vec![Step {
+        path: vec![from.clone()],
+        arriving: None,
+    }];
+    heap.push((u32::MAX, std::cmp::Reverse(1), 0));
 
     let mut found: Vec<Vec<NodeId>> = Vec::new();
-    while let Some((worst, _, path)) = heap.pop() {
-        let last = *path.last().expect("a path has a head");
+    while let Some((worst, _, at)) = heap.pop() {
+        let last = steps[at].path.last().expect("a path has a head").clone();
 
-        // A completed route is RECORDED when it is popped, not when it is reached. Recording on
-        // arrival puts them in the order the walk stumbled over them, which is not the order of
-        // their weakest link — and the whole ranking then did nothing.
-        if last == to {
-            found.push(path.iter().map(|k| (*k).clone()).collect());
+        // Recorded when POPPED, not when reached. Recording on arrival puts routes in the order
+        // the walk stumbled over them, which is not the order of their weakest link — and the
+        // ranking then does nothing.
+        if last == *to {
+            found.push(steps[at].path.clone());
             if found.len() >= limit {
                 break;
             }
             continue;
         }
-        if path.len() > LONGEST {
+        if steps[at].path.len() > LONGEST {
             continue;
         }
 
-        for (nxt, w) in edges.get(last).into_iter().flatten() {
+        let arriving = steps[at].arriving.as_ref().map(|(n, p)| (n, p));
+        let outs = gives(reg, &last, arriving);
+        for b in &kinds {
             // A kind appears once. A chain that visits one twice is a longer way to say the same
             // thing, and it is how a search runs forever on a set that loops.
-            if path.contains(nxt) {
+            if steps[at].path.contains(b) {
                 continue;
             }
-            let mut on = path.clone();
-            on.push(nxt);
-            heap.push((worst.min(*w), std::cmp::Reverse(on.len()), on));
+            let ins = takes(reg, b);
+            let mut best: Option<(u32, crate::id::PortName, crate::port::Port)> = None;
+            for o in outs.iter().filter(|p| p.ty != PortType::EXEC) {
+                for i in ins.iter().filter(|p| p.ty != PortType::EXEC) {
+                    if !compatible(o, i) {
+                        continue;
+                    }
+                    let sc = specificity(reg, &o.ty);
+                    if best.as_ref().is_none_or(|(b, _, _)| sc > *b) {
+                        best = Some((sc, i.name.clone(), o.clone()));
+                    }
+                }
+            }
+            let Some((sc, on, port)) = best else { continue };
+            let mut path = steps[at].path.clone();
+            path.push(b.clone());
+            steps.push(Step {
+                path,
+                arriving: Some((on, port)),
+            });
+            heap.push((
+                worst.min(sc),
+                std::cmp::Reverse(steps.len()),
+                steps.len() - 1,
+            ));
         }
     }
     found
@@ -349,6 +402,35 @@ mod tests {
             check(&r, &unknown),
             Err(Broken::NoSuchKind { at: 1, .. })
         ));
+    }
+
+    /// The case that made the search carry what is arriving. `For Each` publishes an `item` of
+    /// `text` until something tells it what the list holds, so asked at its default the router saw
+    /// a loop that emits text — and the most obvious chain in the product was reported impossible.
+    #[test]
+    fn a_loop_gives_what_it_was_given() {
+        let r = reg();
+        let plain = gives(&r, &id("for_each"), None);
+        let item = |ps: &[crate::port::Port]| {
+            ps.iter()
+                .find(|p| p.name.as_str() == "item")
+                .unwrap()
+                .ty
+                .clone()
+        };
+        assert_eq!(item(&plain), PortType::TEXT, "nothing has told it yet");
+
+        let rows = crate::port::Port::opt("rows", PortType::TABLE_ROWS);
+        let told = gives(
+            &r,
+            &id("for_each"),
+            Some((&crate::id::PortName::new("items"), &rows)),
+        );
+        assert_eq!(
+            item(&told),
+            PortType::TABLE_ROW,
+            "a row, because rows arrived"
+        );
     }
 
     /// Where a graph begins: the kinds nothing has to come before.
