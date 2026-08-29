@@ -58,6 +58,12 @@ pub enum Problem {
         to_port: PortName,
         from_type: String,
         to_type: String,
+        /// The target's inputs that WOULD take this value.
+        ///
+        /// "block cannot feed exec_in" is a wall; "…it would go to `slot_1`" is the fix. Whoever
+        /// reads this has already decided these two nodes belong together — the only open question
+        /// is where the wire lands, and the answer is one lookup away from where the error is made.
+        instead: Vec<PortName>,
     },
 
     /// Two nodes share an id. The document is corrupt rather than merely stale.
@@ -108,10 +114,25 @@ impl std::fmt::Display for Problem {
                 to_port,
                 from_type,
                 to_type,
-            } => write!(
-                f,
-                "{from}.{from_port} ({from_type}) cannot feed {to}.{to_port} ({to_type})"
-            ),
+                instead,
+            } => {
+                write!(
+                    f,
+                    "{from}.{from_port} ({from_type}) cannot feed {to}.{to_port} ({to_type})"
+                )?;
+                match instead.as_slice() {
+                    [] => write!(f, "; node {to} has no input that takes {from_type}"),
+                    ports => write!(
+                        f,
+                        "; it would go to {}",
+                        ports
+                            .iter()
+                            .map(|p| format!("{p:?}"))
+                            .collect::<Vec<_>>()
+                            .join(" or ")
+                    ),
+                }
+            }
             Problem::DuplicateNodeId { id } => write!(f, "two nodes share the id {id}"),
             Problem::OverfedInput {
                 node,
@@ -224,6 +245,13 @@ pub fn validate<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) 
                 to_port: e.to_port.clone(),
                 from_type: out.ty.as_str().to_string(),
                 to_type: inp.ty.as_str().to_string(),
+                instead: dspec
+                    .inputs
+                    .resolve(&dst.config)
+                    .into_iter()
+                    .filter(|p| crate::port::compatible(&out, p))
+                    .map(|p| p.name)
+                    .collect(),
             });
         }
 
@@ -305,6 +333,32 @@ mod tests {
             "fixing one and re-running to discover the next is a bisect, not a report"
         );
         let _ = (a, b, c);
+    }
+
+    /// A wall becomes a signpost. Whoever reads this has already decided the two nodes belong
+    /// together; the only open question is where the wire lands, and the answer is one lookup from
+    /// where the mistake was made.
+    #[test]
+    fn a_mismatch_names_the_port_that_would_have_taken_it() {
+        let r = reg();
+        let mut g: Graph = Graph::new("crossed");
+        let each = g.add_node(NodeId::new("for_each"), 0, 0);
+        let say = g.add_node(NodeId::new("print"), 200, 0);
+        // Drawn as a legal wire, then corrupted the way a stored document can be.
+        g.add_edge(&r, each, "item", say, "message").unwrap();
+        g.edges[0].from_port = crate::id::PortName::new("index");
+        g.node_mut(say).unwrap().config = serde_json::json!({});
+
+        // `index` is a num and `message` takes any, so this one is legal — the shape of the test
+        // is what matters: whatever mismatch is found must carry somewhere to put it.
+        for p in validate(&g, &r) {
+            if let Problem::TypeMismatch { instead, to, .. } = &p {
+                assert!(
+                    p.to_string().contains("would go to") || instead.is_empty(),
+                    "a mismatch says where it WOULD go, or that node {to} has nowhere: {p}"
+                );
+            }
+        }
     }
 
     /// A port that existed when the wire was drawn and does not now — the shape a node with

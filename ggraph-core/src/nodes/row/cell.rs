@@ -56,7 +56,8 @@ fn fields(cfg: &Json) -> Vec<Field> {
         .iter()
         .map(|c| c.name.as_str().to_string())
         .collect();
-    vec![Field::choice("column", "Column", names)]
+    // Required: the column IS this node's input. With none chosen there is nothing to take.
+    vec![Field::choice("column", "Column", names).required()]
 }
 
 struct Cell;

@@ -96,6 +96,8 @@ pub fn spec<H: Host>() -> NodeSpec<H> {
         .with_inputs(Ports::NONE)
         .with_outputs(Ports::dynamic(ports))
         .with_config(|| json!({ "columns": [] }))
+        // Required: a schema with no columns declares nothing, and every consumer of it — the
+        // ports it bakes, the conversion it guards — then has nothing to work from.
         .with_fields(Fields::List(vec![Field::rows(
             "columns",
             "Columns",
@@ -103,7 +105,8 @@ pub fn spec<H: Host>() -> NodeSpec<H> {
                 Field::text("name", "Name"),
                 Field::choice("type", "Type", COLUMN_TYPES),
             ],
-        )]))
+        )
+        .required()]))
         .with_timeout(Timeout::Inline)
         .running(TableSchema)
 }

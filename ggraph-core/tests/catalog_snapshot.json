@@ -663,7 +663,8 @@
           "key": "column",
           "kind": "choice",
           "label": "Column",
-          "options": []
+          "options": [],
+          "required": true
         }
       ],
       "inputs": [
@@ -720,7 +721,8 @@
             {
               "key": "name",
               "kind": "text",
-              "label": "Name"
+              "label": "Name",
+              "required": false
             },
             {
               "key": "type",
@@ -730,12 +732,14 @@
                 "text",
                 "num",
                 "bool"
-              ]
+              ],
+              "required": false
             }
           ],
           "key": "columns",
           "kind": "rows",
-          "label": "Columns"
+          "label": "Columns",
+          "required": true
         }
       ],
       "inputs": [],
@@ -838,19 +842,22 @@
         {
           "key": "title",
           "kind": "text",
-          "label": "Title"
+          "label": "Title",
+          "required": false
         },
         {
           "key": "values",
           "kind": "choice",
           "label": "Values",
-          "options": []
+          "options": [],
+          "required": true
         },
         {
           "key": "labels",
           "kind": "choice",
           "label": "Labels",
-          "options": []
+          "options": [],
+          "required": false
         },
         {
           "key": "bars",
@@ -859,22 +866,26 @@
           "options": [
             "vertical",
             "horizontal"
-          ]
+          ],
+          "required": false
         },
         {
           "key": "gap",
           "kind": "num",
-          "label": "Gap between bars (%)"
+          "label": "Gap between bars (%)",
+          "required": false
         },
         {
           "key": "show_axes",
           "kind": "bool",
-          "label": "Show axes"
+          "label": "Show axes",
+          "required": false
         },
         {
           "key": "show_labels",
           "kind": "bool",
-          "label": "Show labels"
+          "label": "Show labels",
+          "required": false
         }
       ],
       "inputs": [
@@ -925,12 +936,14 @@
             {
               "key": "name",
               "kind": "text",
-              "label": "Name"
+              "label": "Name",
+              "required": false
             }
           ],
           "key": "slots",
           "kind": "rows",
-          "label": "Slots"
+          "label": "Slots",
+          "required": false
         },
         {
           "key": "direction",
@@ -939,12 +952,14 @@
           "options": [
             "column",
             "row"
-          ]
+          ],
+          "required": false
         },
         {
           "key": "gap",
           "kind": "num",
-          "label": "Gap"
+          "label": "Gap",
+          "required": false
         },
         {
           "key": "align",
@@ -955,7 +970,8 @@
             "start",
             "center",
             "end"
-          ]
+          ],
+          "required": false
         },
         {
           "key": "justify",
@@ -966,7 +982,8 @@
             "center",
             "end",
             "between"
-          ]
+          ],
+          "required": false
         }
       ],
       "inputs": [
@@ -1004,7 +1021,8 @@
         {
           "key": "title",
           "kind": "text",
-          "label": "Title"
+          "label": "Title",
+          "required": false
         },
         {
           "key": "format",
@@ -1013,7 +1031,8 @@
           "options": [
             "html",
             "json"
-          ]
+          ],
+          "required": false
         }
       ],
       "inputs": [

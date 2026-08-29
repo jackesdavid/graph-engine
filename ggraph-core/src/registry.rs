@@ -22,7 +22,8 @@
 
 use crate::graph::PortLookup;
 use crate::host::{Host, ValueIo};
-use crate::id::NodeId;
+use crate::id::{NodeId, PortName};
+use crate::port::PortType;
 use crate::port::Port;
 use crate::spec::{ExecOut, Field, FieldKind, Fields, NodeSpec, Ports};
 use crate::value::Value;
@@ -157,6 +158,57 @@ impl<H: Host> NodeRegistry<H> {
     /// a manter uma segunda lista à parte, e duas listas da mesma coisa divergem.
     ///
     /// A ordem é estável: por identificador, para um catálogo servido duas vezes sair igual.
+    /// Every output port that could feed a port of this type, as `(kind, port)`.
+    ///
+    /// The question anyone building a graph asks, over and over, and the only way to answer it was
+    /// to read every kind and compare types by hand. The registry has held the answer all along.
+    ///
+    /// Ports are resolved against each kind's DEFAULT config, so a node whose ports depend on its
+    /// settings is listed as it arrives from the palette — which is the state it is in when
+    /// somebody is deciding whether to place it.
+    pub fn producers(&self, ty: &PortType) -> Vec<(NodeId, PortName)> {
+        self.matching(ty, false)
+    }
+
+    /// And every input port that could take one, as `(kind, port)`.
+    pub fn consumers(&self, ty: &PortType) -> Vec<(NodeId, PortName)> {
+        self.matching(ty, true)
+    }
+
+    /// Both sides of the same question. `exec` is left out: control is not data, every node that
+    /// takes control has the same port for it, and listing it would bury the answer.
+    fn matching(&self, ty: &PortType, want_input: bool) -> Vec<(NodeId, PortName)> {
+        if ty.as_str() == PortType::EXEC.as_str() {
+            return Vec::new();
+        }
+        let probe = Port::opt("", ty.clone());
+        let mut out = Vec::new();
+        for spec in self.iter() {
+            let cfg = (spec.default_config)();
+            let ports = if want_input {
+                spec.inputs.resolve(&cfg)
+            } else {
+                spec.outputs.resolve(&cfg)
+            };
+            for p in ports {
+                if p.ty == PortType::EXEC {
+                    continue;
+                }
+                // Direction matters: a wire runs producer → consumer, and the family rules are not
+                // symmetric. `text` feeds a `scalar` input; a `scalar` output does not feed `text`.
+                let ok = if want_input {
+                    crate::port::compatible(&probe, &p)
+                } else {
+                    crate::port::compatible(&p, &probe)
+                };
+                if ok {
+                    out.push((spec.id.clone(), p.name.clone()));
+                }
+            }
+        }
+        out
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &Arc<NodeSpec<H>>> {
         let mut v: Vec<_> = self.specs.values().collect();
         v.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
@@ -246,7 +298,9 @@ fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
 }
 
 fn field_json(f: &Field) -> Json {
-    let mut j = json!({ "key": f.key.as_str(), "label": f.label });
+    // `required` travels the same way a port's does, so an editor can mark a setting nobody filled
+    // with the badge it already draws — and so a model reading the catalogue can see it at all.
+    let mut j = json!({ "key": f.key.as_str(), "label": f.label, "required": f.required });
     match &f.kind {
         FieldKind::Text => j["kind"] = "text".into(),
         FieldKind::LongText => j["kind"] = "long_text".into(),
@@ -336,6 +390,47 @@ impl<H: Host> PortLookup for NodeRegistry<H> {
 
 #[cfg(test)]
 mod tests {
+
+    /// The question anyone building a graph asks, answered by the thing that has always held the
+    /// answer. Before this it took reading every kind and comparing types by hand.
+    #[test]
+    fn the_registry_says_what_can_feed_a_port() {
+        let mut r: NodeRegistry<crate::host::testkit::TestHost> = NodeRegistry::new();
+        crate::nodes::register_all(&mut r, &crate::nodes::services::Services::none());
+
+        let makes_text = r.producers(&PortType::TEXT);
+        assert!(
+            makes_text.iter().any(|(k, p)| k.as_str() == "format" && p.as_str() == "text"),
+            "Format produces text: {makes_text:?}"
+        );
+        let takes_text = r.consumers(&PortType::TEXT);
+        assert!(!takes_text.is_empty(), "something takes text");
+    }
+
+    /// Control is not data. Every node that takes control has the same port for it, so listing
+    /// them would be the whole catalogue and would bury whatever was asked about.
+    #[test]
+    fn exec_is_not_a_connection_worth_listing() {
+        let mut r: NodeRegistry<crate::host::testkit::TestHost> = NodeRegistry::new();
+        crate::nodes::register_all(&mut r, &crate::nodes::services::Services::none());
+        assert!(r.producers(&PortType::EXEC).is_empty());
+        assert!(r.consumers(&PortType::EXEC).is_empty());
+    }
+
+    /// A wire runs one way and the family rules are not symmetric: `text` satisfies a `scalar`
+    /// input, while a `scalar` output does not satisfy a `text` input. Asking both sides with one
+    /// comparison would answer one of them wrongly.
+    #[test]
+    fn direction_is_not_symmetric() {
+        let mut r: NodeRegistry<crate::host::testkit::TestHost> = NodeRegistry::new();
+        crate::nodes::register_all(&mut r, &crate::nodes::services::Services::none());
+        let scalar_takers = r.consumers(&PortType::TEXT);
+        let text_makers = r.producers(&PortType::SCALAR);
+        assert!(
+            scalar_takers.len() != text_makers.len() || scalar_takers.is_empty(),
+            "the two directions are answered separately"
+        );
+    }
     use super::*;
     use crate::host::testkit::TestHost;
     use crate::port::PortType;

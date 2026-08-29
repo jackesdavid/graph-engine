@@ -230,6 +230,16 @@ pub struct Field {
     pub key: PortName,
     pub label: String,
     pub kind: FieldKind,
+    /// The node does nothing useful until this is set.
+    ///
+    /// A port has said this since the beginning and a setting could not, which left half of every
+    /// node unchecked: a table reader with no table named, a mailer with no address, saved and
+    /// called ready by the editor's badge, the list's summary and every builder that asked. The
+    /// setting IS the input on nodes that take one — `Read a Table` has no data port at all.
+    ///
+    /// Default false, and set with `.required()`: most settings genuinely have a working default,
+    /// and marking those would put a warning on nearly every graph.
+    pub required: bool,
 }
 
 impl Field {
@@ -238,7 +248,14 @@ impl Field {
             key: PortName::new(key),
             label: label.to_string(),
             kind,
+            required: false,
         }
+    }
+
+    /// Nothing works until somebody fills this in.
+    pub fn required(mut self) -> Self {
+        self.required = true;
+        self
     }
 
     pub fn text(key: &str, label: &str) -> Self {

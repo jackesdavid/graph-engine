@@ -43,7 +43,9 @@ fn of_type(cfg: &Json, ty: &PortType) -> Vec<String> {
 fn fields(cfg: &Json) -> Vec<Field> {
     vec![
         Field::text("title", "Title"),
-        Field::choice("values", "Values", of_type(cfg, &PortType::NUM)),
+        // Required: a chart with no column to measure has nothing to draw. The labels are not —
+        // a bar chart of unnamed bars is still a chart.
+        Field::choice("values", "Values", of_type(cfg, &PortType::NUM)).required(),
         Field::choice("labels", "Labels", of_type(cfg, &PortType::TEXT)),
         // How it is drawn, as distinct from what it shows.
         Field::choice("bars", "Bars", ["vertical", "horizontal"]),

@@ -28,17 +28,28 @@ use crate::port::PortType;
 use crate::registry::NodeRegistry;
 use crate::spec::config_literal;
 
-/// A required input with neither a wire nor a value in the inspector.
+/// Something required that nothing fills.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Missing {
     pub node: u32,
     pub kind: String,
     pub port: PortName,
+    /// A setting rather than a port. Worth distinguishing because the remedies differ: a port can
+    /// be wired OR typed into, a setting can only be typed into.
+    pub is_setting: bool,
 }
 
 impl std::fmt::Display for Missing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "node {} ({}) needs {:?}", self.node, self.kind, self.port)
+        if self.is_setting {
+            write!(
+                f,
+                "node {} ({}) has no {:?} set",
+                self.node, self.kind, self.port
+            )
+        } else {
+            write!(f, "node {} ({}) needs {:?}", self.node, self.kind, self.port)
+        }
     }
 }
 
@@ -85,10 +96,74 @@ pub fn unfilled_with<M: GraphMeta, H: Host>(
                 node: n.id,
                 kind: n.kind.as_str().to_string(),
                 port: port.name.clone(),
+                is_setting: false,
+            });
+        }
+
+        // And the settings. On a node whose input IS a setting — a table reader naming its table,
+        // a mailer naming its address — this is the only check there is; it has no data port to
+        // leave empty.
+        for field in spec.fields.resolve(&n.config) {
+            if !field.required || config_literal(&n.config, field.key.as_str()).is_some() {
+                continue;
+            }
+            out.push(Missing {
+                node: n.id,
+                kind: n.kind.as_str().to_string(),
+                port: field.key.clone(),
+                is_setting: true,
             });
         }
     }
     out
+}
+
+/// Everything wrong with a document, in one answer.
+///
+/// The two questions were always asked together and never in one place, so each caller reached for
+/// whichever it remembered — and a graph could pass `validate` and still be unrunnable, which is
+/// exactly what happened to a flow saved with one node and no wires.
+///
+/// The point of collecting them is a DRY RUN: a document can now be judged without being stored.
+/// Before this the only way to find out a graph was wrong was to save it, which left the debris of
+/// every attempt behind in a list somebody has to read.
+pub struct Report {
+    /// Is the document coherent — kinds that exist, wires whose ends and types agree.
+    pub problems: Vec<crate::validate::Problem>,
+    /// Required ports and settings with nothing on them.
+    pub missing: Vec<Missing>,
+    /// Does anything connect to anything? With no edges every node is an orphan.
+    pub wired: bool,
+}
+
+impl Report {
+    /// Nothing wrong, and something to run.
+    pub fn is_ready(&self) -> bool {
+        self.problems.is_empty() && self.missing.is_empty() && self.wired
+    }
+
+    /// One line per thing wrong, in the order somebody should fix them: a document that does not
+    /// hold together first, because the rest is read against a shape that may not survive.
+    pub fn lines(&self) -> Vec<String> {
+        let mut out: Vec<String> = self.problems.iter().map(|p| p.to_string()).collect();
+        if !self.wired {
+            out.push(
+                "nothing is wired, so nothing would run — a flow is a chain, and every node in                  this one is an orphan"
+                    .to_string(),
+            );
+        }
+        out.extend(self.missing.iter().map(|m| m.to_string()));
+        out
+    }
+}
+
+/// Judge a document without storing it.
+pub fn inspect<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) -> Report {
+    Report {
+        problems: crate::validate::validate(graph, reg),
+        missing: unfilled(graph, reg),
+        wired: wired(graph),
+    }
 }
 
 /// Does this document describe anything to run?
@@ -126,6 +201,7 @@ mod tests {
                 node: id,
                 kind: "http_request".into(),
                 port: PortName::new("url"),
+                is_setting: false,
             }]
         );
     }
@@ -176,6 +252,60 @@ mod tests {
         let mut g: Graph = Graph::new("stale");
         g.add_node(NodeId::new("a_node_from_a_newer_deploy"), 0, 0);
         assert_eq!(unfilled(&g, &reg()), Vec::new());
+    }
+
+    /// The gap that let a table reader with no table named be called ready by everyone who asked.
+    /// On a node whose input IS a setting there is no port to leave empty, so a check that only
+    /// looked at ports saw nothing wrong.
+    #[test]
+    fn a_required_setting_with_nothing_in_it_is_missing() {
+        let mut g: Graph = Graph::new("unset");
+        let id = g.add_node(NodeId::new("table_schema"), 0, 0);
+        let m = unfilled(&g, &reg());
+        assert_eq!(m.len(), 1, "{m:?}");
+        assert!(m[0].is_setting, "a setting, not a port — the remedies differ");
+        assert_eq!(m[0].port, PortName::new("columns"));
+
+        g.node_mut(id).unwrap().config = json!({ "columns": [{ "name": "n", "type": "text" }] });
+        assert_eq!(unfilled(&g, &reg()), Vec::new());
+    }
+
+    /// A setting with a working default is not news. Marking those would put a warning on nearly
+    /// every graph, which is the same as marking none.
+    #[test]
+    fn a_setting_that_has_a_default_is_not_required() {
+        let mut g: Graph = Graph::new("defaults");
+        g.add_node(NodeId::new("report_render"), 0, 0);
+        assert!(
+            unfilled(&g, &reg()).iter().all(|m| !m.is_setting),
+            "title and format both have defaults"
+        );
+    }
+
+    /// One answer, because the two questions were always asked together: a graph could pass
+    /// `validate` and still be unrunnable, and each caller reached for whichever it remembered.
+    #[test]
+    fn one_report_carries_everything_wrong() {
+        let r = reg();
+        let mut g: Graph = Graph::new("bad");
+        g.add_node(NodeId::new("http_request"), 0, 0);
+        let rep = inspect(&g, &r);
+        assert!(!rep.wired, "no edges");
+        assert_eq!(rep.missing.len(), 1, "the url");
+        assert!(!rep.is_ready());
+        assert_eq!(rep.lines().len(), 2, "both, in one list: {:?}", rep.lines());
+    }
+
+    /// A graph that will run says so, and says it once.
+    #[test]
+    fn a_finished_document_reports_nothing() {
+        let r = reg();
+        let mut g: Graph = Graph::new("fine");
+        let each = g.add_node(NodeId::new("for_each"), 0, 0);
+        g.node_mut(each).unwrap().config = json!({ "items": "a,b" });
+        let say = g.add_node(NodeId::new("print"), 200, 0);
+        g.add_edge(&r, each, "loop_body", say, "exec_in").unwrap();
+        assert!(inspect(&g, &r).is_ready());
     }
 
     /// No edges means every node is an orphan, and a run does nothing.
