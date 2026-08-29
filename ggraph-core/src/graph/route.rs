@@ -105,6 +105,25 @@ pub fn strength<H: Host>(reg: &NodeRegistry<H>, from: &NodeId, to: &NodeId) -> O
     best
 }
 
+/// Every type, scored once. Walking the palette per edge considered turned a search into a scan of
+/// the whole registry a few thousand times over, and the search stopped finishing.
+fn scores<H: Host>(reg: &NodeRegistry<H>) -> HashMap<PortType, u32> {
+    let mut makers: HashMap<PortType, u32> = HashMap::new();
+    for s in reg.palette() {
+        let mut seen: Vec<PortType> = Vec::new();
+        for p in s.outputs.resolve(&(s.default_config)()) {
+            if !seen.contains(&p.ty) {
+                seen.push(p.ty.clone());
+                *makers.entry(p.ty).or_insert(0) += 1;
+            }
+        }
+    }
+    makers
+        .into_iter()
+        .map(|(ty, n)| (ty, u32::MAX - n))
+        .collect()
+}
+
 /// How much a type narrows things down: the fewer kinds produce one, the more a wire carrying it
 /// says. Inverted into a score so that bigger is better and the arithmetic reads the right way.
 fn specificity<H: Host>(reg: &NodeRegistry<H>, ty: &PortType) -> u32 {
@@ -177,9 +196,33 @@ pub fn route<H: Host>(
     }];
     heap.push((u32::MAX, std::cmp::Reverse(1), 0));
 
+    let score = scores(reg);
+
+    // How many times a STATE — a kind, plus the type that reached it — may be expanded. A pure
+    // visited-set would find one route and no alternatives; unbounded revisiting is what made the
+    // search stop finishing once paths began carrying what arrived, because the same kind reached
+    // by a dozen routes became a dozen states with the same answer.
+    const REVISITS: usize = 2;
+    let mut seen: HashMap<(NodeId, PortType), usize> = HashMap::new();
+
     let mut found: Vec<Vec<NodeId>> = Vec::new();
     while let Some((worst, _, at)) = heap.pop() {
         let last = steps[at].path.last().expect("a path has a head").clone();
+        if last != *to {
+            let state = (
+                last.clone(),
+                steps[at]
+                    .arriving
+                    .as_ref()
+                    .map(|(_, p)| p.ty.clone())
+                    .unwrap_or(PortType::EXEC),
+            );
+            let visits = seen.entry(state).or_insert(0);
+            if *visits >= REVISITS {
+                continue;
+            }
+            *visits += 1;
+        }
 
         // Recorded when POPPED, not when reached. Recording on arrival puts routes in the order
         // the walk stumbled over them, which is not the order of their weakest link — and the
@@ -210,7 +253,7 @@ pub fn route<H: Host>(
                     if !compatible(o, i) {
                         continue;
                     }
-                    let sc = specificity(reg, &o.ty);
+                    let sc = score.get(&o.ty).copied().unwrap_or(0);
                     if best.as_ref().is_none_or(|(b, _, _)| sc > *b) {
                         best = Some((sc, i.name.clone(), o.clone()));
                     }
