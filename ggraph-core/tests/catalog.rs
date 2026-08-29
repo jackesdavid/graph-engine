@@ -161,3 +161,33 @@ fn nothing_but_the_observer_accepts_anything() {
          Give the port its type, or add it to a family in `port.rs` — never `any`."
     );
 }
+
+/// Every kind in the palette says what it is for, with an example.
+///
+/// `label` and `category` name a thing; they do not say when to reach for it. Asked to report on
+/// hardware models, a model picked the node that reads an existing table over the one that searches
+/// the corpus, because nothing in the catalogue told them apart. The description is what a person
+/// reads in the palette and what a builder reads before choosing — the same text, because they are
+/// the same question.
+///
+/// The example is not decoration: what a reader wants to know is what feeds this and what it feeds,
+/// and a chain answers that in one line.
+#[test]
+fn every_kind_says_what_it_is_for() {
+    let reg = registry();
+    let mut silent: Vec<&str> = Vec::new();
+    let mut exampleless: Vec<&str> = Vec::new();
+    for spec in reg.palette() {
+        if spec.about.trim().is_empty() {
+            silent.push(spec.id.as_str());
+        } else if !spec.about.contains("```") {
+            exampleless.push(spec.id.as_str());
+        }
+    }
+    assert!(silent.is_empty(), "these kinds describe themselves to nobody: {silent:?}");
+    assert!(
+        exampleless.is_empty(),
+        "these kinds have no example chain: {exampleless:?}\n\
+         Show what feeds it and what it feeds, in a ``` block."
+    );
+}

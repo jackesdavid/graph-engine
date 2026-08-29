@@ -166,6 +166,16 @@ pub fn inspect<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) -
     }
 }
 
+/// Does this graph give anything back?
+///
+/// Separate from [`wired`] and from [`Report`] on purpose: a graph whose work IS the effect — a
+/// schedule that sends the mail, a trigger that writes the file — is complete without one, and
+/// every graph written before `output` existed is such a graph. It is a REQUIREMENT only where
+/// somebody is calling the graph to get an answer, and that caller is the one who should say so.
+pub fn answers<M: GraphMeta>(graph: &Graph<M>) -> bool {
+    graph.nodes.iter().any(|n| n.kind.as_str() == "output")
+}
+
 /// Does this document describe anything to run?
 ///
 /// One wired node is the bar. With no edges every node is an orphan, and whether orphans run is a
@@ -306,6 +316,24 @@ mod tests {
         let say = g.add_node(NodeId::new("print"), 200, 0);
         g.add_edge(&r, each, "loop_body", say, "exec_in").unwrap();
         assert!(inspect(&g, &r).is_ready());
+    }
+
+    /// A graph that gives something back is one somebody can call. Not required of every graph —
+    /// one whose work is the effect is complete without it — so this is asked, never assumed.
+    #[test]
+    fn a_graph_says_whether_it_answers() {
+        let r = reg();
+        let mut g: Graph = Graph::new("effect only");
+        let make = g.add_node(NodeId::new("format"), 0, 0);
+        let say = g.add_node(NodeId::new("print"), 200, 0);
+        g.add_edge(&r, make, "text", say, "message").unwrap();
+        assert!(!answers(&g), "printing is an effect, not an answer");
+
+        let end = g.add_node(NodeId::new("output"), 400, 0);
+        g.node_mut(end).unwrap().config =
+            json!({ "values": [{ "name": "greeting", "type": "text" }] });
+        g.add_edge(&r, make, "text", end, "greeting").unwrap();
+        assert!(answers(&g));
     }
 
     /// No edges means every node is an orphan, and a run does nothing.

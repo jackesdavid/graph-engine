@@ -91,6 +91,14 @@ impl<H: Host> NodeRun<H> for GetVariable {
 
 pub fn set_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("set_variable", "Set Variable", "Variables")
+        .about(r#"Stores a value under a name, for another part of the graph to read.
+
+Use it when a value is needed somewhere a wire cannot reach — across a loop's body, or in a branch
+that runs later. A wire is clearer whenever one will do.
+
+```
+HTTP Request --json--> Set Variable "payload"   …later…   Get Variable "payload" --> Format
+```"#)
         .with_inputs(Ports::dynamic(named_port))
         .with_config(|| json!({ "variable": "", "type": "text" }))
         .with_timeout(Timeout::Inline)
@@ -99,6 +107,14 @@ pub fn set_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSp
 
 pub fn get_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
+        .about(r#"Reads a value stored earlier by **Set Variable**.
+
+Read on demand, wherever it is wired, so it works from inside a loop body or a branch that a wire
+could not have reached.
+
+```
+Get Variable "payload" --> Format --text--> Print
+```"#)
         .with_outputs(Ports::dynamic(named_port))
         .with_config(|| json!({ "variable": "", "type": "text" }))
         // Re-read every time it is asked: a variable set inside a loop must be visible to a

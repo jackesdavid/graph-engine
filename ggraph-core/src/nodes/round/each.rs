@@ -52,6 +52,11 @@ impl<H: Host> NodeRun<H> for RoundEach {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("round_each", "Round each", "Math")
+        .about(r#"Rounds every number in a list.
+
+```
+Pick numbers --values--> Round each --values--> ReportBarChart
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "decimals": 2 }))

@@ -118,6 +118,15 @@ impl<H: Host> NodeRun<H> for BarChart {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_bar_chart", "ReportBarChart", "Report")
+        .about(r#"Draws a bar chart in a report.
+
+Takes the table and its schema, then you choose which column is which axis BY NAME in the inspector.
+How it is drawn — bar direction, gap, whether the axes show — is separate from what it shows.
+
+```
+Ask --result--> ReportBarChart --block--> ReportLayout
+Schema ------schema-------------^
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_fields(Fields::dynamic(fields))

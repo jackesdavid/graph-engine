@@ -46,6 +46,13 @@ impl<H: Host> NodeRun<H> for PickNumbers {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("pick_numbers", "Pick numbers", "Data")
+        .about(r#"Takes one column out of a table as a plain list of numbers.
+
+For feeding something that wants values rather than rows — a chart, a round, a sum.
+
+```
+Read a Table --table--> Pick numbers (column: price) --values--> Round each
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "column": "" }))

@@ -106,6 +106,15 @@ impl<H: Host> NodeRun<H> for LayoutNode {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_layout", "ReportLayout", "Report")
+        .about(r#"Puts blocks beside or below each other.
+
+It takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.
+Add a slot with `+`, name it, and it becomes a port.
+
+```
+ReportHeading --block--> ReportLayout.header
+ReportTable ---block--> ReportLayout.body --block--> ReportRender
+```"#)
         .with_inputs(Ports::dynamic(ports))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| {

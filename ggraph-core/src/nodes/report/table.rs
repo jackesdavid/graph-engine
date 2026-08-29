@@ -105,6 +105,13 @@ impl<H: Host> NodeRun<H> for Table {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_table", "ReportTable", "Report")
+        .about(r#"Draws a table in a report.
+
+Takes the table itself — the columns and their names come with it.
+
+```
+Ask --result--> ReportTable --block--> ReportRender
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({}))

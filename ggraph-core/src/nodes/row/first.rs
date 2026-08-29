@@ -40,6 +40,14 @@ impl<H: Host> NodeRun<H> for FirstRow {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("first_row", "First row", "Data")
+        .about(r#"Takes the first row of a table.
+
+For the answer that is one row — a total, a name, a single match. Use **Cell value** or **Break row**
+next to get at the columns.
+
+```
+Ask --result--> First row --row--> Cell value (column: total)
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({}))

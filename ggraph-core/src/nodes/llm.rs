@@ -79,6 +79,14 @@ impl<H: Host> NodeRun<H> for Ask {
 
 pub fn ask_spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("ask_llm", "Ask a Model", "AI")
+        .about(r#"Asks a language model a question and returns its answer as text.
+
+For questions that need no documents. Anything about what the INDEXED documents say goes through
+**Chunk Search** and **Ask**, whose answers are checked against their sources.
+
+```
+Format --text--> Ask a Model --answer--> Output.answer
+```"#)
         .with_aliases(&["ask_ai"])
         .with_inputs(Ports::Static(&ASK_IN))
         .with_outputs(Ports::Static(&ASK_OUT))
@@ -132,6 +140,14 @@ pub fn decide_spec<H: Host>(services: &crate::nodes::services::Services) -> Node
         Port::opt("attachment", PortType::BYTES),
     ];
     NodeSpec::effectful("llm_decide", "Ask a Model to Decide", "AI")
+        .about(r#"Asks a language model a yes/no question and returns a **bool**.
+
+The point is the type: the answer comes back as something **Branch** can take, rather than as prose
+somebody has to parse.
+
+```
+Ask a Model to Decide --answer--> Branch --true--> Send email
+```"#)
         .with_aliases(&["ai_switch"])
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&DECIDE_OUT))
@@ -218,6 +234,14 @@ impl<H: Host> NodeRun<H> for Extract {
 
 pub fn extract_spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("llm_extract", "Extract Fields", "AI")
+        .about(r#"Pulls named fields out of a piece of text, using a language model.
+
+Give it the text and it returns a dictionary of the fields you asked for. Where the shape matters,
+prefer **Ask** with a **Schema** — that one is typed and its columns are checked.
+
+```
+Extract text --document--> Extract Fields --fields--> Print
+```"#)
         .with_aliases(&["ai_extract"])
         .with_inputs(Ports::dynamic(|cfg: &Json| {
             let mut p = vec![

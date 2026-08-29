@@ -93,6 +93,15 @@ impl<H: Host> NodeRun<H> for TableSchema {
 
 pub fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("table_schema", "Schema", "Data")
+        .about(r#"Declares the columns a table should have: a name and a type for each.
+
+Nothing reads a table without one. Wire it into whatever produces or consumes the table, and the
+columns become that node's ports and its choices — an **Ask** answering in this shape, a chart
+picking its axes by column name.
+
+```
+Schema (model:text, price:num) --schema--> Ask --result--> ReportTable
+```"#)
         .with_inputs(Ports::NONE)
         .with_outputs(Ports::dynamic(ports))
         .with_config(|| json!({ "columns": [] }))

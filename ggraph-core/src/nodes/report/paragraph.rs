@@ -43,6 +43,11 @@ impl<H: Host> NodeRun<H> for Paragraph {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_paragraph", "ReportParagraph", "Report")
+        .about(r#"A paragraph of text in a report.
+
+```
+Ask --answer--> ReportParagraph --block--> ReportLayout.body
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "text": "" }))

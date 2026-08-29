@@ -79,6 +79,15 @@ impl<H: Host> NodeRoute<H> for Find {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_find", "Find a Row", "Tables")
+        .about(r#"Finds the first row of a stored table whose chosen column matches a value.
+
+`index` is where it was found; the `missing` arm fires when nothing matched, so a graph can say so
+rather than carrying on with an empty row.
+
+```
+Format --text--> Find a Row --found--> Break row
+                            --missing--> Print
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_exec_out(ExecOut::Static(&ARMS))

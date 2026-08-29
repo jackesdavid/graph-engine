@@ -127,6 +127,15 @@ impl<H: Host> NodeRun<H> for Request {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("http_request", "HTTP Request", "Network")
+        .about(r#"Calls an HTTP endpoint and returns what came back.
+
+`json` is parsed when the response is JSON; `text` is always the raw body; `ok` and `status` say
+whether it worked, so a graph can branch on failure instead of carrying on regardless.
+
+```
+Format --text--> HTTP Request --ok--> Branch --false--> Print
+                              --json--> Extract Fields
+```"#)
         .with_aliases(&["http_post"])
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))

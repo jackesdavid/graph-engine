@@ -50,6 +50,13 @@ impl<H: Host> NodeRun<H> for Append {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_append", "Add a Row", "Tables")
+        .about(r#"Adds one row to a stored table.
+
+The columns come from the table, so each becomes a port to wire.
+
+```
+Break passage --document--> Add a Row (documents)
+```"#)
         .with_inputs(Ports::dynamic(ports))
         .with_config(|| json!({ "table": "", "columns": [] }))
         .with_timeout(Timeout::Secs(30))

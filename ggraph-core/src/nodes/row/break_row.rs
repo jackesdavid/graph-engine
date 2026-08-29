@@ -76,6 +76,15 @@ impl<H: Host> NodeRun<H> for BreakRow {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("break_row", "Break row", "Data")
+        .about(r#"Opens a row into one port per column.
+
+The same job as **Cell value**, done once instead of once per column. The ports come from the schema
+you wire in, each with its column's type.
+
+```
+First row --row--> Break row --model--> Format
+                              --price--> Round
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::dynamic(ports))
         .with_config(|| json!({ "columns": [] }))

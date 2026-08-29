@@ -47,6 +47,11 @@ impl<H: Host> NodeRun<H> for Heading {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_heading", "ReportHeading", "Report")
+        .about(r#"A heading in a report.
+
+```
+Format --text--> ReportHeading --block--> ReportLayout.header
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "text": "", "level": "1" }))

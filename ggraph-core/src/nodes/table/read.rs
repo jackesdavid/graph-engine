@@ -59,6 +59,14 @@ impl<H: Host> NodeRun<H> for Read {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_read", "Read a Table", "Tables")
+        .about(r#"Reads a stored table, whole.
+
+The table is one that ALREADY EXISTS, chosen by name in the inspector. To get data out of the
+indexed documents instead, use **Chunk Search**.
+
+```
+Read a Table (prices) --table--> ReportTable --block--> ReportRender
+```"#)
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "table": "" }))
         .with_timeout(Timeout::Secs(60))

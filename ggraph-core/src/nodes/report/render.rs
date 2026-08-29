@@ -96,6 +96,14 @@ impl<H: Host> NodeRun<H> for Render {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::effectful("report_render", "ReportRender", "Report")
+        .about(r#"Turns a report into a finished document and writes it.
+
+Give it ONE block — stack several with a **ReportLayout** first. `file` is a handle to what was
+written, which is what **Send email** and **Save to disk** take.
+
+```
+ReportLayout --block--> ReportRender --file--> Send email.attach
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| {

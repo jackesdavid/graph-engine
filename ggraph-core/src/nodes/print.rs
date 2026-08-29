@@ -64,6 +64,14 @@ impl<H: Host> NodeRun<H> for Print {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("print", "Print", "Debug")
+        .about(r#"Writes whatever is on `message` into the run log.
+
+The node to reach for when a graph did not do what you expected: put it on a wire and see what is
+actually travelling. A table is drawn as a table.
+
+```
+Chunk Search --results--> Print
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_config(|| json!({ "message": "", "label": "" }))
         .with_timeout(Timeout::Inline)

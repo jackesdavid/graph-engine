@@ -1,6 +1,7 @@
 {
   "kinds": [
     {
+      "about": "Stops and asks a person, and continues only when they answer.\n\nThe run waits. `answered_by` says who replied, so a graph can record who authorised what.\n\n```\nFormat --text--> Ask a Person --approved--> Send email\n```",
       "category": "Approval",
       "default_config": {
         "audience": "",
@@ -57,6 +58,7 @@
       "slug": "approval"
     },
     {
+      "about": "Sends control down `true` or `false` depending on a condition.\n\nThere is a third arm, `unknown`, for when the condition never arrived — an upstream node that did\nnot run leaves nothing on the wire, and treating that as `false` is how a silent failure looks like\na decision.\n\n```\nCompare (score >= 0.8) --result--> Branch --true--> Send email\n                                          --false--> Print\n```",
       "category": "Control",
       "default_config": {
         "unknown_arm": false
@@ -94,6 +96,7 @@
       "slug": "if"
     },
     {
+      "about": "Lets control through, then blocks it for a set time.\n\nFor anything that would otherwise fire repeatedly on a busy trigger — one alert an hour rather than\none a second. It is a gate on control, not on data.\n\n```\nChunk Search --found--> Cooldown --> Send email\n```",
       "category": "Control",
       "default_config": {
         "window_secs": "60"
@@ -124,6 +127,7 @@
       "slug": "cooldown"
     },
     {
+      "about": "Turns a burst of repeated triggers into one start and one stop.\n\nControl goes out `started` when the first arrives and `stopped` once they have gone quiet for the\nset time; `held_secs` says how long it lasted. For anything that fires continuously while a\ncondition holds — presence, motion, a stream of events — where what you want is the episode, not\neach tick.\n\n```\nOn schedule --> Start and Stop --started--> Send email\n                                --stopped--> Add a Row\n```",
       "category": "Control",
       "default_config": {
         "window_secs": "30"
@@ -160,6 +164,7 @@
       "slug": "debounce"
     },
     {
+      "about": "Compares two values and returns a **bool**.\n\nBoth sides are scalars — text, number or bool — and the operator is chosen in the inspector. Wire\nthe result into **Branch**.\n\n```\nCell value (score) --> Compare (>= 0.8) --result--> Branch\n```",
       "category": "Logic",
       "default_config": {
         "a": "",
@@ -194,6 +199,7 @@
       "slug": "compare"
     },
     {
+      "about": "Runs the nodes on `loop_body` once per item, then continues on `completed`.\n\nTakes a **list**, never a table — put a table through **Table rows** first. The current item and its\nposition come out of `item` and `index`.\n\n```\nRead a Table --table--> Table rows --rows--> For Each --item--> Print\n                                              For Each --completed--> Send email\n```",
       "category": "Control",
       "default_config": {
         "items": "",
@@ -245,6 +251,7 @@
       "slug": "for_each"
     },
     {
+      "about": "Calls an HTTP endpoint and returns what came back.\n\n`json` is parsed when the response is JSON; `text` is always the raw body; `ok` and `status` say\nwhether it worked, so a graph can branch on failure instead of carrying on regardless.\n\n```\nFormat --text--> HTTP Request --ok--> Branch --false--> Print\n                              --json--> Extract Fields\n```",
       "category": "Network",
       "default_config": {
         "headers": {},
@@ -314,6 +321,7 @@
       "slug": "http_request"
     },
     {
+      "about": "Asks a language model a question and returns its answer as text.\n\nFor questions that need no documents. Anything about what the INDEXED documents say goes through\n**Chunk Search** and **Ask**, whose answers are checked against their sources.\n\n```\nFormat --text--> Ask a Model --answer--> Output.answer\n```",
       "category": "AI",
       "default_config": {
         "prompt": "",
@@ -357,6 +365,7 @@
       "slug": "ask_llm"
     },
     {
+      "about": "Asks a language model a yes/no question and returns a **bool**.\n\nThe point is the type: the answer comes back as something **Branch** can take, rather than as prose\nsomebody has to parse.\n\n```\nAsk a Model to Decide --answer--> Branch --true--> Send email\n```",
       "category": "AI",
       "default_config": {
         "question": "",
@@ -412,6 +421,7 @@
       "slug": "llm_decide"
     },
     {
+      "about": "Pulls named fields out of a piece of text, using a language model.\n\nGive it the text and it returns a dictionary of the fields you asked for. Where the shape matters,\nprefer **Ask** with a **Schema** — that one is typed and its columns are checked.\n\n```\nExtract text --document--> Extract Fields --fields--> Print\n```",
       "category": "AI",
       "default_config": {
         "fields": [],
@@ -458,6 +468,7 @@
       "slug": "llm_extract"
     },
     {
+      "about": "Builds a piece of text from a template.\n\nEvery `{name}` in the template becomes an input port of that name — so the template decides the\nnode's shape. This is how values become a sentence.\n\n```\nCell value (model) --> Format (\"Model: {model}\") --text--> ReportParagraph\n```",
       "category": "Text",
       "default_config": {
         "template": ""
@@ -476,6 +487,7 @@
       "slug": "format"
     },
     {
+      "about": "Writes whatever is on `message` into the run log.\n\nThe node to reach for when a graph did not do what you expected: put it on a wire and see what is\nactually travelling. A table is drawn as a table.\n\n```\nChunk Search --results--> Print\n```",
       "category": "Debug",
       "default_config": {
         "label": "",
@@ -581,6 +593,7 @@
       "slug": "output"
     },
     {
+      "about": "Rounds one number to a set number of decimal places.\n\n```\nCell value (price) --> Round (2) --value--> Format\n```",
       "category": "Math",
       "default_config": {
         "decimals": 2
@@ -605,6 +618,7 @@
       "slug": "round"
     },
     {
+      "about": "Rounds every number in a list.\n\n```\nPick numbers --values--> Round each --values--> ReportBarChart\n```",
       "category": "Math",
       "default_config": {
         "decimals": 2
@@ -631,6 +645,7 @@
       "slug": "round_each"
     },
     {
+      "about": "Takes one column out of a table as a plain list of numbers.\n\nFor feeding something that wants values rather than rows — a chart, a round, a sum.\n\n```\nRead a Table --table--> Pick numbers (column: price) --values--> Round each\n```",
       "category": "Data",
       "default_config": {
         "column": ""
@@ -656,6 +671,7 @@
       "slug": "pick_numbers"
     },
     {
+      "about": "Takes one column out of a table as a plain list of text.\n\n```\nAsk --result--> Pick texts (column: model) --values--> For Each\n```",
       "category": "Data",
       "default_config": {
         "column": ""
@@ -681,6 +697,7 @@
       "slug": "pick_texts"
     },
     {
+      "about": "Turns a table into a **list** of rows, which is what a loop can take.\n\n**For Each** never takes a table. This is the node between them.\n\n```\nRead a Table --table--> Table rows --rows--> For Each --item--> Break row\n```",
       "category": "Data",
       "default_config": {},
       "inputs": [
@@ -704,6 +721,7 @@
       "slug": "get_table_rows"
     },
     {
+      "about": "Takes the first row of a table.\n\nFor the answer that is one row — a total, a name, a single match. Use **Cell value** or **Break row**\nnext to get at the columns.\n\n```\nAsk --result--> First row --row--> Cell value (column: total)\n```",
       "category": "Data",
       "default_config": {},
       "inputs": [
@@ -726,6 +744,7 @@
       "slug": "first_row"
     },
     {
+      "about": "Takes ONE named column out of a row.\n\nThe column is chosen in the inspector, from the schema you wire in — so the port comes out with\nthat column's type: a `num` column gives a number, not text somebody has to convert.\n\n```\nRead a Table --table--> First row --row--> Cell value (column: price) --> Round\n```",
       "category": "Data",
       "default_config": {
         "column": "",
@@ -760,6 +779,7 @@
       "slug": "cell"
     },
     {
+      "about": "Opens a row into one port per column.\n\nThe same job as **Cell value**, done once instead of once per column. The ports come from the schema\nyou wire in, each with its column's type.\n\n```\nFirst row --row--> Break row --model--> Format\n                              --price--> Round\n```",
       "category": "Data",
       "default_config": {
         "columns": []
@@ -784,6 +804,7 @@
       "slug": "break_row"
     },
     {
+      "about": "Declares the columns a table should have: a name and a type for each.\n\nNothing reads a table without one. Wire it into whatever produces or consumes the table, and the\ncolumns become that node's ports and its choices — an **Ask** answering in this shape, a chart\npicking its axes by column name.\n\n```\nSchema (model:text, price:num) --schema--> Ask --result--> ReportTable\n```",
       "category": "Data",
       "default_config": {
         "columns": []
@@ -829,6 +850,7 @@
       "slug": "table_schema"
     },
     {
+      "about": "A heading in a report.\n\n```\nFormat --text--> ReportHeading --block--> ReportLayout.header\n```",
       "category": "Report",
       "default_config": {
         "level": "1",
@@ -854,6 +876,7 @@
       "slug": "report_heading"
     },
     {
+      "about": "A paragraph of text in a report.\n\n```\nAsk --answer--> ReportParagraph --block--> ReportLayout.body\n```",
       "category": "Report",
       "default_config": {
         "text": ""
@@ -878,6 +901,7 @@
       "slug": "report_paragraph"
     },
     {
+      "about": "Draws a table in a report.\n\nTakes the table itself — the columns and their names come with it.\n\n```\nAsk --result--> ReportTable --block--> ReportRender\n```",
       "category": "Report",
       "default_config": {},
       "inputs": [
@@ -900,6 +924,7 @@
       "slug": "report_table"
     },
     {
+      "about": "Draws a bar chart in a report.\n\nTakes the table and its schema, then you choose which column is which axis BY NAME in the inspector.\nHow it is drawn — bar direction, gap, whether the axes show — is separate from what it shows.\n\n```\nAsk --result--> ReportBarChart --block--> ReportLayout\nSchema ------schema-------------^\n```",
       "category": "Report",
       "default_config": {
         "bars": "vertical",
@@ -988,6 +1013,7 @@
       "slug": "report_bar_chart"
     },
     {
+      "about": "Puts blocks beside or below each other.\n\nIt takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.\nAdd a slot with `+`, name it, and it becomes a port.\n\n```\nReportHeading --block--> ReportLayout.header\nReportTable ---block--> ReportLayout.body --block--> ReportRender\n```",
       "category": "Report",
       "default_config": {
         "align": "stretch",
@@ -1086,6 +1112,7 @@
       "slug": "report_layout"
     },
     {
+      "about": "Turns a report into a finished document and writes it.\n\nGive it ONE block — stack several with a **ReportLayout** first. `file` is a handle to what was\nwritten, which is what **Send email** and **Save to disk** take.\n\n```\nReportLayout --block--> ReportRender --file--> Send email.attach\n```",
       "category": "Report",
       "default_config": {
         "format": "html",
@@ -1157,6 +1184,7 @@
       "slug": "report_render"
     },
     {
+      "about": "Adds one row to a stored table.\n\nThe columns come from the table, so each becomes a port to wire.\n\n```\nBreak passage --document--> Add a Row (documents)\n```",
       "category": "Tables",
       "default_config": {
         "columns": [],
@@ -1183,6 +1211,7 @@
       "slug": "table_append"
     },
     {
+      "about": "Empties a stored table, keeping its columns.\n\nFor a table that is rebuilt each run rather than added to.\n\n```\nOn schedule --> Empty a Table (results) --> For Each --item--> Add a Row\n```",
       "category": "Tables",
       "default_config": {
         "table": ""
@@ -1207,6 +1236,7 @@
       "slug": "table_clear"
     },
     {
+      "about": "How many rows a stored table has.\n\n```\nCount Rows (documents) --count--> Compare (> 0) --result--> Branch\n```",
       "category": "Tables",
       "default_config": {
         "table": ""
@@ -1224,6 +1254,7 @@
       "slug": "table_count"
     },
     {
+      "about": "Finds the first row of a stored table whose chosen column matches a value.\n\n`index` is where it was found; the `missing` arm fires when nothing matched, so a graph can say so\nrather than carrying on with an empty row.\n\n```\nFormat --text--> Find a Row --found--> Break row\n                            --missing--> Print\n```",
       "category": "Tables",
       "default_config": {
         "column": "",
@@ -1275,6 +1306,7 @@
       "slug": "table_find"
     },
     {
+      "about": "Reads a stored table, whole.\n\nThe table is one that ALREADY EXISTS, chosen by name in the inspector. To get data out of the\nindexed documents instead, use **Chunk Search**.\n\n```\nRead a Table (prices) --table--> ReportTable --block--> ReportRender\n```",
       "category": "Tables",
       "default_config": {
         "table": ""
@@ -1311,6 +1343,7 @@
       "slug": "table_read"
     },
     {
+      "about": "Changes one cell of a stored table, by row number and column.\n\n```\nFind a Row --index--> Change a Cell (status) --> Print\n```",
       "category": "Tables",
       "default_config": {
         "column": "",
@@ -1351,6 +1384,7 @@
       "slug": "table_set_cell"
     },
     {
+      "about": "Reads a value stored earlier by **Set Variable**.\n\nRead on demand, wherever it is wired, so it works from inside a loop body or a branch that a wire\ncould not have reached.\n\n```\nGet Variable \"payload\" --> Format --text--> Print\n```",
       "category": "Variables",
       "default_config": {
         "type": "text",
@@ -1363,6 +1397,7 @@
       "slug": "get_variable"
     },
     {
+      "about": "Stores a value under a name, for another part of the graph to read.\n\nUse it when a value is needed somewhere a wire cannot reach — across a loop's body, or in a branch\nthat runs later. A wire is clearer whenever one will do.\n\n```\nHTTP Request --json--> Set Variable \"payload\"   …later…   Get Variable \"payload\" --> Format\n```",
       "category": "Variables",
       "default_config": {
         "type": "text",
@@ -1389,6 +1424,7 @@
       "slug": "set_variable"
     },
     {
+      "about": "Pauses the graph for a number of seconds, then carries on.\n\nFor pacing something that will not be hurried — an API that rate-limits, a device that needs a\nmoment. It holds the run, so a long wait is a long run.\n\n```\nHTTP Request --> Wait (30) --> HTTP Request\n```",
       "category": "Control",
       "default_config": {
         "seconds": "1"

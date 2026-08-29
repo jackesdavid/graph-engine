@@ -95,6 +95,14 @@ impl<H: Host> NodeRun<H> for Cell {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("cell", "Cell value", "Data")
+        .about(r#"Takes ONE named column out of a row.
+
+The column is chosen in the inspector, from the schema you wire in — so the port comes out with
+that column's type: a `num` column gives a number, not text somebody has to convert.
+
+```
+Read a Table --table--> First row --row--> Cell value (column: price) --> Round
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::dynamic(ports))
         .with_fields(Fields::dynamic(fields))

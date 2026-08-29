@@ -91,6 +91,16 @@ impl<H: Host> NodeRoute<H> for Branch {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("if", "Branch", "Control")
+        .about(r#"Sends control down `true` or `false` depending on a condition.
+
+There is a third arm, `unknown`, for when the condition never arrived — an upstream node that did
+not run leaves nothing on the wire, and treating that as `false` is how a silent failure looks like
+a decision.
+
+```
+Compare (score >= 0.8) --result--> Branch --true--> Send email
+                                          --false--> Print
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_exec_out(ExecOut::dynamic(arms))
         .with_config(|| json!({ "unknown_arm": false }))

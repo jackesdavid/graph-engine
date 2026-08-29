@@ -44,6 +44,11 @@ impl<H: Host> NodeRun<H> for PickTexts {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("pick_texts", "Pick texts", "Data")
+        .about(r#"Takes one column out of a table as a plain list of text.
+
+```
+Ask --result--> Pick texts (column: model) --values--> For Each
+```"#)
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "column": "" }))
