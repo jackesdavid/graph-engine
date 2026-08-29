@@ -405,20 +405,7 @@ pub fn wire<H: Host>(reg: &NodeRegistry<H>, chain: &[NodeId]) -> Result<Vec<Wire
 /// and a model offered `output` as a place to begin duly began there.
 pub fn sources<H: Host>(reg: &NodeRegistry<H>) -> Vec<NodeId> {
     reg.palette()
-        .filter(|s| {
-            let cfg = (s.default_config)();
-            let takeable = s
-                .inputs
-                .resolve(&cfg)
-                .iter()
-                .all(|p| p.ty == PortType::EXEC || !p.required || !p.wired_only);
-            let gives_something = s
-                .outputs
-                .resolve(&cfg)
-                .iter()
-                .any(|p| p.ty != PortType::EXEC);
-            takeable && gives_something
-        })
+        .filter(|s| crate::registry::starts(s, &(s.default_config)()))
         .map(|s| s.id.clone())
         .collect()
 }

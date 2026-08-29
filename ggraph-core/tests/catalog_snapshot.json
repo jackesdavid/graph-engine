@@ -2,6 +2,7 @@
   "kinds": [
     {
       "about": "Stops and asks a person, and continues only when they answer.\n\nThe run waits. `answered_by` says who replied, so a graph can record who authorised what.\n\n```\nFormat --text--> Ask a Person --approved--> Send email\n```",
+      "can_start": true,
       "category": "Approval",
       "default_config": {
         "audience": "",
@@ -128,6 +129,7 @@
     },
     {
       "about": "Turns a burst of repeated triggers into one start and one stop.\n\nControl goes out `started` when the first arrives and `stopped` once they have gone quiet for the\nset time; `held_secs` says how long it lasted. For anything that fires continuously while a\ncondition holds — presence, motion, a stream of events — where what you want is the episode, not\neach tick.\n\n```\nOn schedule --> Start and Stop --started--> Send email\n                                --stopped--> Add a Row\n```",
+      "can_start": true,
       "category": "Control",
       "default_config": {
         "window_secs": "30"
@@ -165,6 +167,7 @@
     },
     {
       "about": "Compares two values and returns a **bool**.\n\nBoth sides are scalars — text, number or bool — and the operator is chosen in the inspector. Wire\nthe result into **Branch**.\n\n```\nCell value (score) --> Compare (>= 0.8) --result--> Branch\n```",
+      "can_start": true,
       "category": "Logic",
       "default_config": {
         "a": "",
@@ -200,6 +203,7 @@
     },
     {
       "about": "Runs the nodes on `loop_body` once per item, then continues on `completed`.\n\n**Only when the next node takes ONE.** If it takes the list itself, wire the list straight to it —\na loop in front of a node that wanted the whole thing is a longer graph doing the same work, and\nusually a broken one. Look at the types: `chunk_results` into a port that takes `chunk_results` is\none wire. `chunk_results` into a port that takes `chunk_result` is what this node is for.\n\nTakes a **list**, never a table — put a table through **Table rows** first. The current item and its\nposition come out of `item` and `index`.\n\n```\nChunk Search --results--> For Each --item--> Break passage      … one at a time\nChunk Search --results--> Ask.passages                          … all of them, no loop\n```",
+      "can_start": true,
       "category": "Control",
       "default_config": {
         "items": "",
@@ -252,6 +256,7 @@
     },
     {
       "about": "Calls an HTTP endpoint and returns what came back.\n\n`json` is parsed when the response is JSON; `text` is always the raw body; `ok` and `status` say\nwhether it worked, so a graph can branch on failure instead of carrying on regardless.\n\n```\nFormat --text--> HTTP Request --ok--> Branch --false--> Print\n                              --json--> Extract Fields\n```",
+      "can_start": true,
       "category": "Network",
       "default_config": {
         "headers": {},
@@ -322,6 +327,7 @@
     },
     {
       "about": "Asks a language model a question and returns its answer as text.\n\nFor questions that need no documents. Anything about what the INDEXED documents say goes through\n**Chunk Search** and **Ask**, whose answers are checked against their sources.\n\n```\nFormat --text--> Ask a Model --answer--> Output.answer\n```",
+      "can_start": true,
       "category": "AI",
       "default_config": {
         "prompt": "",
@@ -366,6 +372,7 @@
     },
     {
       "about": "Asks a language model a yes/no question and returns a **bool**.\n\nThe point is the type: the answer comes back as something **Branch** can take, rather than as prose\nsomebody has to parse.\n\n```\nAsk a Model to Decide --answer--> Branch --true--> Send email\n```",
+      "can_start": true,
       "category": "AI",
       "default_config": {
         "question": "",
@@ -422,6 +429,7 @@
     },
     {
       "about": "Pulls named fields out of a piece of text, using a language model.\n\nGive it the text and it returns a dictionary of the fields you asked for. Where the shape matters,\nprefer **Ask** with a **Schema** — that one is typed and its columns are checked.\n\n```\nExtract text --document--> Extract Fields --fields--> Print\n```",
+      "can_start": true,
       "category": "AI",
       "default_config": {
         "fields": [],
@@ -469,6 +477,7 @@
     },
     {
       "about": "Builds a piece of text from a template.\n\nEvery `{name}` in the template becomes an input port of that name — so the template decides the\nnode's shape. This is how values become a sentence.\n\n```\nCell value (model) --> Format (\"Model: {model}\") --text--> ReportParagraph\n```",
+      "can_start": true,
       "category": "Text",
       "default_config": {
         "template": ""
@@ -520,6 +529,7 @@
     },
     {
       "about": "Ends a graph by naming what it gives back.\n\nAdd a value in the inspector, give it a name and a type, and a port of that name appears. Whatever\nyou wire to it is what a caller receives when the graph finishes — so this is how a graph stops\nbeing a thing that *happens* and becomes a thing you can *ask*.\n\nEverything a caller gets comes from here. A graph with no Output ran, and returned nothing.\n\n```\nChunk Search --results--> Ask --answer--> Output.answer\n```\n",
+      "can_start": true,
       "category": "Output",
       "default_config": {
         "values": [
@@ -594,6 +604,7 @@
     },
     {
       "about": "Rounds one number to a set number of decimal places.\n\n```\nCell value (price) --> Round (2) --value--> Format\n```",
+      "can_start": true,
       "category": "Math",
       "default_config": {
         "decimals": 2
@@ -619,6 +630,7 @@
     },
     {
       "about": "Rounds every number in a list.\n\n```\nPick numbers --values--> Round each --values--> ReportBarChart\n```",
+      "can_start": true,
       "category": "Math",
       "default_config": {
         "decimals": 2
@@ -646,6 +658,7 @@
     },
     {
       "about": "Takes one column out of a table as a plain list of numbers.\n\nFor feeding something that wants values rather than rows — a chart, a round, a sum.\n\n```\nRead a Table --table--> Pick numbers (column: price) --values--> Round each\n```",
+      "can_start": true,
       "category": "Data",
       "default_config": {
         "column": ""
@@ -672,6 +685,7 @@
     },
     {
       "about": "Takes one column out of a table as a plain list of text.\n\n```\nAsk --result--> Pick texts (column: model) --values--> For Each\n```",
+      "can_start": true,
       "category": "Data",
       "default_config": {
         "column": ""
@@ -698,6 +712,7 @@
     },
     {
       "about": "Turns a table into a **list** of rows, which is what a loop can take.\n\n**For Each** never takes a table. This is the node between them.\n\n```\nRead a Table --table--> Table rows --rows--> For Each --item--> Break row\n```",
+      "can_start": true,
       "category": "Data",
       "default_config": {},
       "inputs": [
@@ -722,6 +737,7 @@
     },
     {
       "about": "Takes the first row of a table.\n\nFor the answer that is one row — a total, a name, a single match. Use **Cell value** or **Break row**\nnext to get at the columns.\n\n```\nAsk --result--> First row --row--> Cell value (column: total)\n```",
+      "can_start": true,
       "category": "Data",
       "default_config": {},
       "inputs": [
@@ -807,6 +823,7 @@
     },
     {
       "about": "Declares the columns a table should have: a name and a type for each.\n\nNothing reads a table without one. Wire it into whatever produces or consumes the table, and the\ncolumns become that node's ports and its choices — an **Ask** answering in this shape, a chart\npicking its axes by column name.\n\n```\nSchema (model:text, price:num) --schema--> Ask --result--> ReportTable\n```",
+      "can_start": true,
       "category": "Data",
       "default_config": {
         "columns": []
@@ -853,6 +870,7 @@
     },
     {
       "about": "A heading in a report.\n\n```\nFormat --text--> ReportHeading --block--> ReportLayout.header\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {
         "level": "1",
@@ -879,6 +897,7 @@
     },
     {
       "about": "A paragraph of text in a report.\n\n```\nAsk --answer--> ReportParagraph --block--> ReportLayout.body\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {
         "text": ""
@@ -904,6 +923,7 @@
     },
     {
       "about": "Draws a table in a report.\n\nTakes the table itself — the columns and their names come with it.\n\n```\nAsk --result--> ReportTable --block--> ReportRender\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {},
       "inputs": [
@@ -927,6 +947,7 @@
     },
     {
       "about": "Draws a bar chart in a report.\n\nTakes the table and its schema, then you choose which column is which axis BY NAME in the inspector.\nHow it is drawn — bar direction, gap, whether the axes show — is separate from what it shows.\n\n```\nAsk --result--> ReportBarChart --block--> ReportLayout\nSchema ------schema-------------^\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {
         "bars": "vertical",
@@ -1016,6 +1037,7 @@
     },
     {
       "about": "Puts blocks beside or below each other.\n\nIt takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.\nAdd a slot with `+`, name it, and it becomes a port.\n\n```\nReportHeading --block--> ReportLayout.header\nReportTable ---block--> ReportLayout.body --block--> ReportRender\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {
         "align": "stretch",
@@ -1115,6 +1137,7 @@
     },
     {
       "about": "Turns a report into a finished document and writes it.\n\nGive it ONE block — stack several with a **ReportLayout** first. `file` is a handle to what was\nwritten, which is what **Send email** and **Save to disk** take.\n\n```\nReportLayout --block--> ReportRender --file--> Send email.attach\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {
         "format": "html",
@@ -1239,6 +1262,7 @@
     },
     {
       "about": "How many rows a stored table has.\n\n```\nCount Rows (documents) --count--> Compare (> 0) --result--> Branch\n```",
+      "can_start": true,
       "category": "Tables",
       "default_config": {
         "table": ""
@@ -1257,6 +1281,7 @@
     },
     {
       "about": "Finds the first row of a stored table whose chosen column matches a value.\n\n`index` is where it was found; the `missing` arm fires when nothing matched, so a graph can say so\nrather than carrying on with an empty row.\n\n```\nFormat --text--> Find a Row --found--> Break row\n                            --missing--> Print\n```",
+      "can_start": true,
       "category": "Tables",
       "default_config": {
         "column": "",
@@ -1309,6 +1334,7 @@
     },
     {
       "about": "Reads a stored table, whole.\n\nThe table is one that ALREADY EXISTS, chosen by name in the inspector. To get data out of the\nindexed documents instead, use **Chunk Search**.\n\n```\nRead a Table (prices) --table--> ReportTable --block--> ReportRender\n```",
+      "can_start": true,
       "category": "Tables",
       "default_config": {
         "table": ""

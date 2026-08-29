@@ -292,6 +292,13 @@ fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
     }
     // Only when declared. A node that says nothing leaves the editor guessing from the default
     // value, which is what every node did before fields existed.
+    // Can a chain BEGIN here — nothing must come before it, and something comes out. Published
+    // rather than left to each reader to work out: a harness that recomputed the rule in another
+    // language drifted from it immediately, and offered a sink as a place to start.
+    if starts(s, cfg) {
+        j["can_start"] = Json::Bool(true);
+    }
+
     // What the kind is FOR. Two readers, one text: the palette shows it to a person and the
     // catalogue hands it to whatever is choosing nodes. Absent when nobody has written one, so the
     // reader can tell "no description" from "described as nothing".
@@ -304,6 +311,24 @@ fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
         j["fields"] = Json::Array(fields.iter().map(field_json).collect());
     }
     j
+}
+
+/// The rule [`sources`](crate::graph::route::sources) applies, for one spec.
+///
+/// Here rather than only there because the catalogue has to publish it, and a rule stated twice is
+/// a rule that disagrees with itself.
+pub(crate) fn starts<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> bool {
+    let takeable = s
+        .inputs
+        .resolve(cfg)
+        .iter()
+        .all(|p| p.ty == PortType::EXEC || !p.required || !p.wired_only);
+    let gives = s
+        .outputs
+        .resolve(cfg)
+        .iter()
+        .any(|p| p.ty != PortType::EXEC);
+    takeable && gives
 }
 
 fn field_json(f: &Field) -> Json {
