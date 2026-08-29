@@ -22,7 +22,7 @@
 
 use crate::host::Host;
 use crate::id::NodeId;
-use crate::port::{compatible, PortType};
+use crate::port::{compatible, Family, PortType};
 use crate::registry::NodeRegistry;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -118,9 +118,17 @@ fn scores<H: Host>(reg: &NodeRegistry<H>) -> HashMap<PortType, u32> {
             }
         }
     }
+    // Rarity decides, and what the type KEEPS breaks the ties. A list of rows and a list of texts
+    // can have the same number of producers and are not the same answer: one carries every column
+    // and the other carries one. So the low bit says "this holds something composite", and a
+    // rarity that ties is settled by the chain that throws less away.
     makers
         .into_iter()
-        .map(|(ty, n)| (ty, u32::MAX - n))
+        .map(|(ty, n)| {
+            let keeps = Family::of(&crate::port::element_of(&ty)) != Family::Scalar
+                || (Family::of(&ty) == Family::Unique && ty != PortType::TEXT);
+            (ty, ((u32::MAX >> 1) - n) << 1 | u32::from(keeps))
+        })
         .collect()
 }
 
