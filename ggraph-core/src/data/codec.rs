@@ -75,6 +75,55 @@ pub fn encode(v: &Value, io: &dyn ValueIo) -> Option<Json> {
     })
 }
 
+/// The same value, in the shape a CALLER reads.
+///
+/// [`encode`] tags everything as `{"t": …, "v": …}` because a stored value has to be decodable
+/// back into the type it was. A caller asking a graph a question wants none of that: they want
+/// `{"answer": "…"}`, not `{"answer": {"t": "text", "v": "…"}}`, and the type they were promised is
+/// the one they declared on the Output node before it ran.
+///
+/// Bytes become a reference either way — the caller gets a handle, not four megabytes — and a
+/// product type answers with its own JSON. `None` for the same reason as `encode`: a value that
+/// cannot be represented is absent, which every reader already knows how to take.
+pub fn plain(v: &Value, io: &dyn ValueIo) -> Option<Json> {
+    Some(match v {
+        Value::Text(s) => Json::from(s.as_str()),
+        Value::Num(Num::Int(i)) => Json::from(*i),
+        Value::Num(Num::Float(f)) => Json::from(*f),
+        Value::Bool(b) => Json::from(*b),
+        Value::Json(j) => j.clone(),
+        Value::Bytes(b) => {
+            if !io.enabled() {
+                return None;
+            }
+            json!({ "key": io.put(&b.data, &b.mime).ok()?, "mime": b.mime, "name": b.name })
+        }
+        Value::List(items) => {
+            let all: Option<Vec<Json>> = items.iter().map(|i| plain(i, io)).collect();
+            Json::Array(all?)
+        }
+        Value::Map(pairs) => {
+            let mut m = Map::new();
+            for (k, v) in pairs {
+                m.insert(k.clone(), plain(v, io)?);
+            }
+            Json::Object(m)
+        }
+        Value::Extern(e) => e.to_json(io)?,
+    })
+}
+
+/// A whole set of ports in that shape — what a finished run hands back.
+pub fn plain_ports(values: &PortValues, io: &dyn ValueIo) -> Json {
+    let mut m = Map::new();
+    for (name, v) in values {
+        if let Some(j) = plain(v, io) {
+            m.insert(name.as_str().to_string(), j);
+        }
+    }
+    Json::Object(m)
+}
+
 /// Read a value back, or `None` if it cannot be reconstructed.
 pub fn decode(
     j: &Json,
