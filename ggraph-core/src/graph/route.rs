@@ -300,6 +300,99 @@ pub fn route<H: Host>(
     found
 }
 
+/// One wire between two nodes of a chain, by their POSITION in it.
+///
+/// Positions, not ids, because a chain is not a document yet: whoever turns this into one assigns
+/// the ids, and a wiring that guessed them would be a wiring only that assignment could use.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Wire {
+    pub from: usize,
+    pub from_port: crate::id::PortName,
+    pub to: usize,
+    pub to_port: crate::id::PortName,
+}
+
+/// The wires a chain of kinds implies.
+///
+/// Given two adjacent kinds and the type that joins them, the ports are already decided — the
+/// router computes that pair to score a link and then throws it away. Every wiring failure worth
+/// chasing was a guess at something computable: a port used backwards, a list into a port that
+/// takes one, a name declared in a config and a different one wired.
+///
+/// The strongest shared type wins, for the reason it does in [`strength`]: two kinds joined by both
+/// a `table` and a `text` are joined by the table.
+pub fn wire<H: Host>(reg: &NodeRegistry<H>, chain: &[NodeId]) -> Result<Vec<Wire>, Broken> {
+    for (i, k) in chain.iter().enumerate() {
+        if reg.get(k).is_none() {
+            return Err(Broken::NoSuchKind {
+                at: i,
+                kind: k.clone(),
+            });
+        }
+    }
+
+    // What reached the node being wired FROM. A loop learns what it holds from what arrived, so
+    // the walk bakes as it goes — the same reason the search had to. Asked at its default, `For
+    // Each` hands out a `text` and the chain breaks at the node that wanted a row.
+    let mut arriving: Option<(crate::id::PortName, crate::port::Port)> = None;
+    let mut wires = Vec::new();
+    for (i, pair) in chain.windows(2).enumerate() {
+        let outs = gives(reg, &pair[0], arriving.as_ref().map(|(n, p)| (n, p)));
+        let ins = takes(reg, &pair[1]);
+        let mut best: Option<(u32, &crate::port::Port, &crate::port::Port)> = None;
+        for o in outs.iter().filter(|p| p.ty != PortType::EXEC) {
+            for j in ins.iter().filter(|p| p.ty != PortType::EXEC) {
+                if !compatible(o, j) {
+                    continue;
+                }
+                let sc = specificity(reg, &o.ty);
+                if best.as_ref().is_none_or(|(b, _, _)| sc > *b) {
+                    best = Some((sc, o, j));
+                }
+            }
+        }
+        // `check` already refused a pair that cannot meet, so this is unreachable — said rather
+        // than unwrapped, because an unreachable that is wrong is a panic in front of somebody.
+        let Some((_, o, j)) = best else {
+            return Err(Broken::CannotFollow {
+                at: i,
+                from: pair[0].clone(),
+                to: pair[1].clone(),
+            });
+        };
+        wires.push(Wire {
+            from: i,
+            from_port: o.name.clone(),
+            to: i + 1,
+            to_port: j.name.clone(),
+        });
+        arriving = Some((j.name.clone(), o.clone()));
+
+        // And control, when both ends have somewhere to put it. Which ARM is a decision, not a
+        // computation: `found` is the happy path and "tell me when nothing matched" is
+        // `not_found`. The first is a default said plainly, and whoever knows better overrides it.
+        let (Some(a), Some(b)) = (reg.get(&pair[0]), reg.get(&pair[1])) else {
+            continue;
+        };
+        let arm = a
+            .exec_out
+            .resolve(&(a.default_config)())
+            .into_iter()
+            .find(|p| p.ty == PortType::EXEC);
+        if let Some(arm) = arm {
+            if b.purity.has_exec() {
+                wires.push(Wire {
+                    from: i,
+                    from_port: arm.name,
+                    to: i + 1,
+                    to_port: crate::port::EXEC_IN.name.clone(),
+                });
+            }
+        }
+    }
+    Ok(wires)
+}
+
 /// The kinds that start a chain: they take no data, so nothing needs to come before them.
 ///
 /// Where a graph BEGINS, which is the one end a search cannot work backwards from.
@@ -317,39 +410,11 @@ pub fn sources<H: Host>(reg: &NodeRegistry<H>) -> Vec<NodeId> {
 
 /// Is this list of kinds a chain — does each one connect to the next?
 ///
-/// Returns the index of the first pair that does not, so the answer names WHERE it breaks rather
-/// than only that it does.
+/// Answered by wiring it, so the two can never disagree: a plan somebody is told is broken and
+/// which builds perfectly is worse than either answer alone. Returns the index of the first pair
+/// that does not connect, so it names WHERE it breaks rather than only that it does.
 pub fn check<H: Host>(reg: &NodeRegistry<H>, plan: &[NodeId]) -> Result<(), Broken> {
-    for (i, pair) in plan.windows(2).enumerate() {
-        if reg.get(&pair[0]).is_none() {
-            return Err(Broken::NoSuchKind {
-                at: i,
-                kind: pair[0].clone(),
-            });
-        }
-        if reg.get(&pair[1]).is_none() {
-            return Err(Broken::NoSuchKind {
-                at: i + 1,
-                kind: pair[1].clone(),
-            });
-        }
-        if !connects(reg, &pair[0], &pair[1]) {
-            return Err(Broken::CannotFollow {
-                at: i,
-                from: pair[0].clone(),
-                to: pair[1].clone(),
-            });
-        }
-    }
-    if let [only] = plan {
-        if reg.get(only).is_none() {
-            return Err(Broken::NoSuchKind {
-                at: 0,
-                kind: only.clone(),
-            });
-        }
-    }
-    Ok(())
+    wire(reg, plan).map(|_| ())
 }
 
 /// Why a plan is not a chain.
@@ -497,6 +562,88 @@ mod tests {
             item(&told),
             PortType::TABLE_ROW,
             "a row, because rows arrived"
+        );
+    }
+
+    /// The next mile: a chain of kinds is one step from a wired graph, because given two adjacent
+    /// kinds and the type that joins them the ports are already decided. Every wiring failure worth
+    /// chasing — a port used backwards, a list into a port that takes one, a name declared in the
+    /// config and a different one wired — was a guess at something computable.
+    #[test]
+    fn a_chain_of_two_wires_itself() {
+        let r = reg();
+        let wires = wire(&r, &[id("format"), id("print")]).expect("a chain");
+        assert_eq!(wires.len(), 1);
+        assert_eq!(wires[0].from, 0, "by position in the chain");
+        assert_eq!(wires[0].to, 1);
+        assert_eq!(wires[0].from_port.as_str(), "text");
+        assert_eq!(wires[0].to_port.as_str(), "message");
+    }
+
+    /// A loop learns what it holds from what reached it, so the wiring has to bake as it walks —
+    /// the same reason the SEARCH had to. Asked at its default, `For Each` hands out a `text`, and
+    /// the node after it takes a row.
+    #[test]
+    fn wiring_a_loop_carries_what_it_was_given() {
+        let r = reg();
+        let wires = wire(
+            &r,
+            &[
+                id("table_read"),
+                id("get_table_rows"),
+                id("for_each"),
+                id("cell"),
+            ],
+        )
+        .expect("a chain");
+        assert_eq!(wires.len(), 3);
+        assert_eq!(wires[2].from_port.as_str(), "item");
+        assert_eq!(
+            wires[2].to_port.as_str(),
+            "row",
+            "a row reached the cell, not a text: {wires:?}"
+        );
+    }
+
+    /// `check` and `wire` must agree. One that refused what the other wires is a plan somebody is
+    /// told is broken and which builds perfectly — or worse, the reverse.
+    #[test]
+    fn what_wires_also_checks() {
+        let r = reg();
+        let chain = [
+            id("table_read"),
+            id("get_table_rows"),
+            id("for_each"),
+            id("cell"),
+        ];
+        assert!(wire(&r, &chain).is_ok());
+        assert_eq!(check(&r, &chain), Ok(()), "the same chain, the same answer");
+    }
+
+    /// Control is not data. A data wire is forced by types; which ARM the next node hangs off is a
+    /// decision — `found` is the happy path, and "tell me when nothing matched" is `not_found`. So
+    /// the first arm is a default, said plainly, not a computation pretending to be one.
+    #[test]
+    fn control_follows_the_first_arm() {
+        let r = reg();
+        let wires = wire(&r, &[id("for_each"), id("print")]).expect("a chain");
+        let exec: Vec<&Wire> = wires
+            .iter()
+            .filter(|w| w.to_port.as_str() == "exec_in")
+            .collect();
+        assert_eq!(exec.len(), 1, "control reaches the next node: {wires:?}");
+        assert_eq!(exec[0].from_port.as_str(), "loop_body", "its first arm");
+    }
+
+    /// A node with nothing to say about control is left alone rather than given a wire from a port
+    /// it does not have.
+    #[test]
+    fn a_pure_node_gets_no_control_wire() {
+        let r = reg();
+        let wires = wire(&r, &[id("format"), id("print")]).expect("a chain");
+        assert!(
+            wires.iter().all(|w| w.to_port.as_str() != "exec_in"),
+            "format is pure: {wires:?}"
         );
     }
 
