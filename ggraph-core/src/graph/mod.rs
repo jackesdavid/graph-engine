@@ -18,8 +18,8 @@
 //!   question a list of graphs asks, and the reason a list no longer has to carry every node and
 //!   edge of every graph to answer it.
 
-pub mod document;
 pub mod bake;
+pub mod document;
 pub mod readiness;
 pub mod topo;
 pub mod validate;

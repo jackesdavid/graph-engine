@@ -152,9 +152,7 @@ impl PortType {
             "texts" => matches!(v, V::List(items) if every(items, &is_text)),
             // A table is its columns and its rows. A bare list of rows is accepted too: stored
             // graphs predate the columns travelling alongside the data.
-            "table" => {
-                is_record(v) || matches!(v, V::List(items) if every(items, &is_record))
-            }
+            "table" => is_record(v) || matches!(v, V::List(items) if every(items, &is_record)),
             "table_rows" => matches!(v, V::List(items) if every(items, &is_record)),
             "table_row" | "table_column" => is_record(v),
             "scalar" => is_text(v) || is_num(v) || matches!(v, V::Bool(_) | V::Json(Json::Bool(_))),
@@ -302,7 +300,6 @@ impl Family {
         }
     }
 }
-
 
 /// The element type of a list type, for a node that has to say what it hands out one at a time.
 pub fn element_of(list: &PortType) -> PortType {
@@ -504,22 +501,52 @@ mod tests {
     /// A port asking for a family takes any member of it.
     #[test]
     fn a_family_port_takes_its_members() {
-        assert!(compatible(&Port::opt("a", PortType::NUM), &Port::opt("b", PortType::SCALAR)));
-        assert!(compatible(&Port::opt("a", PortType::TEXT), &Port::opt("b", PortType::SCALAR)));
-        assert!(compatible(&Port::opt("a", PortType::BOOL), &Port::opt("b", PortType::SCALAR)));
-        assert!(compatible(&Port::opt("a", PortType::NUMBERS), &Port::opt("b", PortType::LIST)));
-        assert!(compatible(&Port::opt("a", PortType::TABLE_ROWS), &Port::opt("b", PortType::LIST)));
+        assert!(compatible(
+            &Port::opt("a", PortType::NUM),
+            &Port::opt("b", PortType::SCALAR)
+        ));
+        assert!(compatible(
+            &Port::opt("a", PortType::TEXT),
+            &Port::opt("b", PortType::SCALAR)
+        ));
+        assert!(compatible(
+            &Port::opt("a", PortType::BOOL),
+            &Port::opt("b", PortType::SCALAR)
+        ));
+        assert!(compatible(
+            &Port::opt("a", PortType::NUMBERS),
+            &Port::opt("b", PortType::LIST)
+        ));
+        assert!(compatible(
+            &Port::opt("a", PortType::TABLE_ROWS),
+            &Port::opt("b", PortType::LIST)
+        ));
     }
 
     /// And nothing else. A table is columns and rows, so a loop handed one would walk those two
     /// entries; its rows are a wire away, and that wire is something somebody can see.
     #[test]
     fn a_unique_type_only_goes_where_it_belongs() {
-        assert!(!compatible(&Port::opt("a", PortType::TABLE), &Port::opt("b", PortType::LIST)));
-        assert!(!compatible(&Port::opt("a", PortType::TABLE), &Port::opt("b", PortType::SCALAR)));
-        assert!(!compatible(&Port::opt("a", PortType::TABLE_ROW), &Port::opt("b", PortType::TABLE)));
-        assert!(!compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::BYTES)));
-        assert!(compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::IMAGE)));
+        assert!(!compatible(
+            &Port::opt("a", PortType::TABLE),
+            &Port::opt("b", PortType::LIST)
+        ));
+        assert!(!compatible(
+            &Port::opt("a", PortType::TABLE),
+            &Port::opt("b", PortType::SCALAR)
+        ));
+        assert!(!compatible(
+            &Port::opt("a", PortType::TABLE_ROW),
+            &Port::opt("b", PortType::TABLE)
+        ));
+        assert!(!compatible(
+            &Port::opt("a", PortType::IMAGE),
+            &Port::opt("b", PortType::BYTES)
+        ));
+        assert!(compatible(
+            &Port::opt("a", PortType::IMAGE),
+            &Port::opt("b", PortType::IMAGE)
+        ));
     }
 
     /// A path on a disk and a handle to the store are both text, and are not interchangeable. While
@@ -565,7 +592,11 @@ mod tests {
         assert_eq!(declared.family(), Family::List);
         assert!(compatible(&declared, &loop_items));
 
-        assert_eq!(undeclared.family(), Family::Unique, "silence is not a family");
+        assert_eq!(
+            undeclared.family(),
+            Family::Unique,
+            "silence is not a family"
+        );
         assert!(!compatible(&undeclared, &loop_items));
     }
 
@@ -581,8 +612,14 @@ mod tests {
     /// into one that needs numbers, because the something might be documents.
     #[test]
     fn a_family_does_not_flow_back_into_a_member() {
-        assert!(!compatible(&Port::opt("a", PortType::LIST), &Port::opt("b", PortType::NUMBERS)));
-        assert!(!compatible(&Port::opt("a", PortType::SCALAR), &Port::opt("b", PortType::NUM)));
+        assert!(!compatible(
+            &Port::opt("a", PortType::LIST),
+            &Port::opt("b", PortType::NUMBERS)
+        ));
+        assert!(!compatible(
+            &Port::opt("a", PortType::SCALAR),
+            &Port::opt("b", PortType::NUM)
+        ));
     }
     use super::*;
 
@@ -603,21 +640,39 @@ mod tests {
         // vocabulary and does not exempt tests — an exemption is where the words come back in.
         let sprocket = PortType::new_static("sprocket");
         assert_eq!(serde_json::to_string(&sprocket).unwrap(), "\"sprocket\"");
-        assert!(compatible(&Port::opt("a", sprocket.clone()), &Port::opt("b", sprocket.clone())));
-        assert!(!compatible(&Port::opt("a", sprocket.clone()), &Port::opt("b", PortType::TEXT)));
+        assert!(compatible(
+            &Port::opt("a", sprocket.clone()),
+            &Port::opt("b", sprocket.clone())
+        ));
+        assert!(!compatible(
+            &Port::opt("a", sprocket.clone()),
+            &Port::opt("b", PortType::TEXT)
+        ));
     }
 
     #[test]
     fn any_is_compatible_in_both_directions() {
-        assert!(compatible(&Port::opt("a", PortType::ANY), &Port::opt("b", PortType::IMAGE)));
-        assert!(compatible(&Port::opt("a", PortType::IMAGE), &Port::opt("b", PortType::ANY)));
+        assert!(compatible(
+            &Port::opt("a", PortType::ANY),
+            &Port::opt("b", PortType::IMAGE)
+        ));
+        assert!(compatible(
+            &Port::opt("a", PortType::IMAGE),
+            &Port::opt("b", PortType::ANY)
+        ));
     }
 
     #[test]
     fn unrelated_types_do_not_connect() {
-        assert!(!compatible(&Port::opt("a", PortType::TEXT), &Port::opt("b", PortType::NUM)));
+        assert!(!compatible(
+            &Port::opt("a", PortType::TEXT),
+            &Port::opt("b", PortType::NUM)
+        ));
         assert!(
-            !compatible(&Port::opt("a", PortType::EXEC), &Port::opt("b", PortType::ANY)) || PortType::ANY.is_any(),
+            !compatible(
+                &Port::opt("a", PortType::EXEC),
+                &Port::opt("b", PortType::ANY)
+            ) || PortType::ANY.is_any(),
             "exec is a wire kind, not a value; ANY still absorbs it and that is deliberate"
         );
     }

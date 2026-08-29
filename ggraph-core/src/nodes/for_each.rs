@@ -98,7 +98,8 @@ impl<H: Host> NodeStep<H> for ForEach {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("for_each", "For Each", "Control")
-        .about(r#"Runs the nodes on `loop_body` once per item, then continues on `completed`.
+        .about(
+            r#"Runs the nodes on `loop_body` once per item, then continues on `completed`.
 
 Takes a **list**, never a table — put a table through **Table rows** first. The current item and its
 position come out of `item` and `index`.
@@ -106,7 +107,8 @@ position come out of `item` and `index`.
 ```
 Read a Table --table--> Table rows --rows--> For Each --item--> Print
                                               For Each --completed--> Send email
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::dynamic(ports))
         .with_exec_out(crate::spec::ExecOut::Static(&ARMS))

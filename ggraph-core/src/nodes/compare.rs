@@ -74,14 +74,16 @@ impl<H: Host> NodeRun<H> for Compare {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("compare", "Compare", "Logic")
-        .about(r#"Compares two values and returns a **bool**.
+        .about(
+            r#"Compares two values and returns a **bool**.
 
 Both sides are scalars — text, number or bool — and the operator is chosen in the inspector. Wire
 the result into **Branch**.
 
 ```
 Cell value (score) --> Compare (>= 0.8) --result--> Branch
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "operator": "==", "a": "", "b": "" }))

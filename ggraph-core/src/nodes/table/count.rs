@@ -32,11 +32,13 @@ impl<H: Host> NodeRun<H> for Count {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("table_count", "Count Rows", "Tables")
-        .about(r#"How many rows a stored table has.
+        .about(
+            r#"How many rows a stored table has.
 
 ```
 Count Rows (documents) --count--> Compare (> 0) --result--> Branch
-```"#)
+```"#,
+        )
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "table": "" }))
         .with_timeout(Timeout::Secs(30))

@@ -59,11 +59,13 @@ impl<H: Host> NodeRun<H> for Round {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("round", "Round", "Math")
-        .about(r#"Rounds one number to a set number of decimal places.
+        .about(
+            r#"Rounds one number to a set number of decimal places.
 
 ```
 Cell value (price) --> Round (2) --value--> Format
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "decimals": 2 }))

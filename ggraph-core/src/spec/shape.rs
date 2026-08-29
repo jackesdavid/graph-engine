@@ -274,7 +274,11 @@ impl Field {
         Field::new(key, label, FieldKind::Bool)
     }
 
-    pub fn choice(key: &str, label: &str, options: impl IntoIterator<Item = impl ToString>) -> Self {
+    pub fn choice(
+        key: &str,
+        label: &str,
+        options: impl IntoIterator<Item = impl ToString>,
+    ) -> Self {
         let opts = options.into_iter().map(|o| o.to_string()).collect();
         Field::new(key, label, FieldKind::Choice(opts))
     }

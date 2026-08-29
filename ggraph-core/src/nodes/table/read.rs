@@ -38,14 +38,14 @@ impl<H: Host> NodeRun<H> for Read {
         let cols: Vec<crate::port::Column> = cols
             .iter()
             .map(|c| {
-                crate::port::Column::new(crate::id::PortName::new(c.clone()), crate::port::PortType::TEXT)
+                crate::port::Column::new(
+                    crate::id::PortName::new(c.clone()),
+                    crate::port::PortType::TEXT,
+                )
             })
             .collect();
         let values: Vec<Value> = rows.iter().map(|r| row_value(r)).collect();
-        out.insert(
-            PortName::new("table"),
-            crate::table::make(&cols, values),
-        );
+        out.insert(PortName::new("table"), crate::table::make(&cols, values));
         Ok(out)
     }
 
@@ -59,14 +59,16 @@ impl<H: Host> NodeRun<H> for Read {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_read", "Read a Table", "Tables")
-        .about(r#"Reads a stored table, whole.
+        .about(
+            r#"Reads a stored table, whole.
 
 The table is one that ALREADY EXISTS, chosen by name in the inspector. To get data out of the
 indexed documents instead, use **Chunk Search**.
 
 ```
 Read a Table (prices) --table--> ReportTable --block--> ReportRender
-```"#)
+```"#,
+        )
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "table": "" }))
         .with_timeout(Timeout::Secs(60))

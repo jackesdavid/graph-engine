@@ -48,14 +48,16 @@ impl<H: Host> NodeStep<H> for Wait {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("wait", "Wait", "Control")
-        .about(r#"Pauses the graph for a number of seconds, then carries on.
+        .about(
+            r#"Pauses the graph for a number of seconds, then carries on.
 
 For pacing something that will not be hurried — an API that rate-limits, a device that needs a
 moment. It holds the run, so a long wait is a long run.
 
 ```
 HTTP Request --> Wait (30) --> HTTP Request
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_config(|| json!({ "seconds": "1" }))
         .with_timeout(Timeout::Inline)

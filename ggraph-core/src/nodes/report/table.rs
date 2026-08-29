@@ -26,7 +26,6 @@ static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
 /// Not from config: the source already declared them, and a second declaration here is a second
 /// thing to keep in step. A table with no rows has no columns to name, and renders as an empty one.
 
-
 /// A value as it will be printed.
 ///
 /// Choosing a representation IS the renderer's job — a number has to become text somewhere, and
@@ -105,13 +104,15 @@ impl<H: Host> NodeRun<H> for Table {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_table", "ReportTable", "Report")
-        .about(r#"Draws a table in a report.
+        .about(
+            r#"Draws a table in a report.
 
 Takes the table itself — the columns and their names come with it.
 
 ```
 Ask --result--> ReportTable --block--> ReportRender
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({}))

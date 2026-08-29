@@ -333,8 +333,14 @@ fn two_outputs_merge_into_one_answer() {
     let mut b = Built::new("branched");
     let a = b.node("format", json!({ "template": "one" }));
     let c = b.node("format", json!({ "template": "two" }));
-    let first = b.node("output", json!({ "values": [{ "name": "a", "type": "text" }] }));
-    let second = b.node("output", json!({ "values": [{ "name": "b", "type": "text" }] }));
+    let first = b.node(
+        "output",
+        json!({ "values": [{ "name": "a", "type": "text" }] }),
+    );
+    let second = b.node(
+        "output",
+        json!({ "values": [{ "name": "b", "type": "text" }] }),
+    );
     b.wire(a, "text", first, "a");
     b.wire(c, "text", second, "b");
 

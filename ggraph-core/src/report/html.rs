@@ -47,8 +47,11 @@ fn block(b: &Block) -> String {
             format!("<h{l}>{}</h{l}>\n", escape(text))
         }
 
-        Block::Paragraph { text } => format!("<p>{}</p>
-", escape(text)),
+        Block::Paragraph { text } => format!(
+            "<p>{}</p>
+",
+            escape(text)
+        ),
 
         Block::Table { columns, rows } => {
             let head = if columns.is_empty() {
@@ -93,7 +96,12 @@ fn block(b: &Block) -> String {
             let inner: String = match layout.direction {
                 crate::report::Direction::Row => children
                     .iter()
-                    .map(|c| format!("<div style=\"flex:1 1 0;min-width:0\">\n{}</div>\n", block(c)))
+                    .map(|c| {
+                        format!(
+                            "<div style=\"flex:1 1 0;min-width:0\">\n{}</div>\n",
+                            block(c)
+                        )
+                    })
                     .collect(),
                 crate::report::Direction::Column => children.iter().map(block).collect(),
             };

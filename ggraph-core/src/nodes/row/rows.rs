@@ -37,13 +37,15 @@ impl<H: Host> NodeRun<H> for GetTableRows {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("get_table_rows", "Table rows", "Data")
-        .about(r#"Turns a table into a **list** of rows, which is what a loop can take.
+        .about(
+            r#"Turns a table into a **list** of rows, which is what a loop can take.
 
 **For Each** never takes a table. This is the node between them.
 
 ```
 Read a Table --table--> Table rows --rows--> For Each --item--> Break row
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({}))

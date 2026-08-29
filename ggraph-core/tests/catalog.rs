@@ -184,7 +184,10 @@ fn every_kind_says_what_it_is_for() {
             exampleless.push(spec.id.as_str());
         }
     }
-    assert!(silent.is_empty(), "these kinds describe themselves to nobody: {silent:?}");
+    assert!(
+        silent.is_empty(),
+        "these kinds describe themselves to nobody: {silent:?}"
+    );
     assert!(
         exampleless.is_empty(),
         "these kinds have no example chain: {exampleless:?}\n\

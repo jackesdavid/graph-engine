@@ -23,8 +23,8 @@
 use crate::graph::PortLookup;
 use crate::host::{Host, ValueIo};
 use crate::id::{NodeId, PortName};
-use crate::port::PortType;
 use crate::port::Port;
+use crate::port::PortType;
 use crate::spec::{ExecOut, Field, FieldKind, Fields, NodeSpec, Ports};
 use crate::value::Value;
 use serde_json::{json, Value as Json};
@@ -145,9 +145,11 @@ impl<H: Host> NodeRegistry<H> {
     /// exercised by a catalogue test and by nothing else: a renamed node passed every test in the
     /// repository and then failed to load the first stored graph that contained the old name.
     pub fn get(&self, id: &NodeId) -> Option<&Arc<NodeSpec<H>>> {
-        self.specs
-            .get(id)
-            .or_else(|| self.aliases.get(id.as_str()).and_then(|id| self.specs.get(id)))
+        self.specs.get(id).or_else(|| {
+            self.aliases
+                .get(id.as_str())
+                .and_then(|id| self.specs.get(id))
+        })
     }
 
     /// Todas as declarações, para quem precisa de listar o que existe.
@@ -407,7 +409,9 @@ mod tests {
 
         let makes_text = r.producers(&PortType::TEXT);
         assert!(
-            makes_text.iter().any(|(k, p)| k.as_str() == "format" && p.as_str() == "text"),
+            makes_text
+                .iter()
+                .any(|(k, p)| k.as_str() == "format" && p.as_str() == "text"),
             "Format produces text: {makes_text:?}"
         );
         let takes_text = r.consumers(&PortType::TEXT);

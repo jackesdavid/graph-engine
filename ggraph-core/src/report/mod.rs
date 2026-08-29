@@ -21,8 +21,8 @@ mod sample;
 mod schema;
 
 pub use block::{Block, Row};
-pub use html::render_html;
 pub use chart_style::{Bars, ChartStyle};
+pub use html::render_html;
 pub use layout::{Align, Direction, Justify, Layout};
 pub use preview::{preview, renders};
 pub use sample::sample;

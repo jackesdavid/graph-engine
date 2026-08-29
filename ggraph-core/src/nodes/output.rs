@@ -144,7 +144,10 @@ mod tests {
     use super::*;
 
     fn names(cfg: &Json) -> Vec<String> {
-        ports(cfg).iter().map(|p| p.name.as_str().to_string()).collect()
+        ports(cfg)
+            .iter()
+            .map(|p| p.name.as_str().to_string())
+            .collect()
     }
 
     /// A value is named and typed, and the port takes that name — the caller knows the shape of
@@ -159,7 +162,10 @@ mod tests {
     /// A port nobody can name is one nothing can be wired to.
     #[test]
     fn a_blank_name_is_not_a_value() {
-        assert_eq!(names(&json!({ "values": [{ "name": " " }, { "name": "a" }] })), vec!["a"]);
+        assert_eq!(
+            names(&json!({ "values": [{ "name": " " }, { "name": "a" }] })),
+            vec!["a"]
+        );
     }
 
     /// Two ports with one name collapse into each other, and a value disappears without a word.
@@ -182,9 +188,13 @@ mod tests {
     /// record of this node the answer, with nothing carried alongside it.
     #[test]
     fn what_arrives_leaves_under_the_same_name() {
-        let cfg = json!({ "values": [{ "name": "a", "type": "num" }, { "name": "b", "type": "text" }] });
+        let cfg =
+            json!({ "values": [{ "name": "a", "type": "num" }, { "name": "b", "type": "text" }] });
         let ins: Vec<String> = names(&cfg);
-        let outs: Vec<String> = ports(&cfg).iter().map(|p| p.name.as_str().to_string()).collect();
+        let outs: Vec<String> = ports(&cfg)
+            .iter()
+            .map(|p| p.name.as_str().to_string())
+            .collect();
         assert_eq!(ins, outs);
     }
 }

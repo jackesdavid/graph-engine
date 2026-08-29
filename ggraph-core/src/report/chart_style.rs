@@ -119,7 +119,8 @@ mod tests {
     /// An inspector writes numbers and booleans as strings. Refusing one must not reset the rest.
     #[test]
     fn one_field_written_as_a_string_does_not_reset_the_others() {
-        let s = ChartStyle::read(&json!({ "bars": "horizontal", "gap": "40", "show_axes": "false" }));
+        let s =
+            ChartStyle::read(&json!({ "bars": "horizontal", "gap": "40", "show_axes": "false" }));
         assert_eq!(s.bars, Bars::Horizontal);
         assert_eq!(s.gap, 40);
         assert!(!s.show_axes);

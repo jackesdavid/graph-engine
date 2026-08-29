@@ -57,14 +57,16 @@ impl<H: Host> NodeStep<H> for Cooldown {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("cooldown", "Cooldown", "Control")
-        .about(r#"Lets control through, then blocks it for a set time.
+        .about(
+            r#"Lets control through, then blocks it for a set time.
 
 For anything that would otherwise fire repeatedly on a busy trigger — one alert an hour rather than
 one a second. It is a gate on control, not on data.
 
 ```
 Chunk Search --found--> Cooldown --> Send email
-```"#)
+```"#,
+        )
         .with_exec_out(ExecOut::Static(&ARMS))
         .with_config(|| json!({ "window_secs": "60" }))
         .with_timeout(Timeout::Inline)

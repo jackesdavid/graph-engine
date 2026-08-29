@@ -114,7 +114,11 @@ pub fn render(v: &Value) -> Option<String> {
         .map(|r| {
             names
                 .iter()
-                .map(|n| cell(r, n).map(|v| v.as_text().unwrap_or_else(|| v.summary())).unwrap_or_default())
+                .map(|n| {
+                    cell(r, n)
+                        .map(|v| v.as_text().unwrap_or_else(|| v.summary()))
+                        .unwrap_or_default()
+                })
                 .collect()
         })
         .collect();
@@ -143,7 +147,13 @@ pub fn render(v: &Value) -> Option<String> {
     };
 
     let mut out = vec![line(&names)];
-    out.push(width.iter().map(|w| "-".repeat(*w)).collect::<Vec<_>>().join("  "));
+    out.push(
+        width
+            .iter()
+            .map(|w| "-".repeat(*w))
+            .collect::<Vec<_>>()
+            .join("  "),
+    );
     out.extend(cells.iter().map(|r| line(r)));
     if rows.is_empty() {
         out.push("(no rows)".to_string());
@@ -194,7 +204,11 @@ mod tests {
     fn an_empty_table_still_knows_its_columns() {
         let t = make(&cols(), Vec::new());
         assert!(rows(Some(&t)).is_empty());
-        assert_eq!(columns(Some(&t)).len(), 2, "the shape survives having no data");
+        assert_eq!(
+            columns(Some(&t)).len(),
+            2,
+            "the shape survives having no data"
+        );
     }
 
     /// A bare list is still read as rows: stored graphs predate the columns travelling alongside.

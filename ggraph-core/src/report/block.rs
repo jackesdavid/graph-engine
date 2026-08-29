@@ -68,11 +68,8 @@ impl Block {
     }
 
     pub fn paragraph(text: impl Into<String>) -> Self {
-        Block::Paragraph {
-            text: text.into(),
-        }
+        Block::Paragraph { text: text.into() }
     }
-
 
     pub fn stack(layout: Layout, children: Vec<Block>) -> Self {
         Block::Layout { layout, children }

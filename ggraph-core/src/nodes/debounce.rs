@@ -85,7 +85,8 @@ impl<H: Host> NodeStep<H> for Debounce {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("debounce", "Start and Stop", "Control")
-        .about(r#"Turns a burst of repeated triggers into one start and one stop.
+        .about(
+            r#"Turns a burst of repeated triggers into one start and one stop.
 
 Control goes out `started` when the first arrives and `stopped` once they have gone quiet for the
 set time; `held_secs` says how long it lasted. For anything that fires continuously while a
@@ -95,7 +96,8 @@ each tick.
 ```
 On schedule --> Start and Stop --started--> Send email
                                 --stopped--> Add a Row
-```"#)
+```"#,
+        )
         .with_outputs(Ports::Static(&OUT))
         .with_exec_out(ExecOut::Static(&ARMS))
         .with_config(|| json!({ "window_secs": "30" }))

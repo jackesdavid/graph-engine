@@ -97,13 +97,15 @@ impl<H: Host> NodeStep<H> for Approval {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("approval", "Ask a Person", "Approval")
-        .about(r#"Stops and asks a person, and continues only when they answer.
+        .about(
+            r#"Stops and asks a person, and continues only when they answer.
 
 The run waits. `answered_by` says who replied, so a graph can record who authorised what.
 
 ```
 Format --text--> Ask a Person --approved--> Send email
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::Static(&OUT))
         .with_exec_out(ExecOut::Static(&ARMS))

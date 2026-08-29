@@ -56,6 +56,7 @@ pub use nodes::services::{
     TableStore, Verdict,
 };
 pub use port::{compatible, Column, Port, PortType, EXEC_IN, EXEC_OUT};
+pub use readiness::{unfilled, unfilled_with, Missing};
 pub use registry::{NodeRegistry, RegistryError};
 /// Re-exported because it appears in this crate's public API (`Host::instance_key`,
 /// `NodeTarget::instance`). A consumer must not have to guess which version to depend on, nor
@@ -66,6 +67,5 @@ pub use spec::{
     PortsFn, Purity, Step, StepCx, Timeout,
 };
 pub use topo::{back_edges, entry_nodes, ordering_pairs, topo_order};
-pub use readiness::{unfilled, unfilled_with, Missing};
 pub use validate::{validate, Problem};
 pub use value::{Bytes, ExternValue, Num, PortValues, Value};

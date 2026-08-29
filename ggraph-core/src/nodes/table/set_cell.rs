@@ -47,11 +47,13 @@ impl<H: Host> NodeRun<H> for SetCell {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_set_cell", "Change a Cell", "Tables")
-        .about(r#"Changes one cell of a stored table, by row number and column.
+        .about(
+            r#"Changes one cell of a stored table, by row number and column.
 
 ```
 Find a Row --index--> Change a Cell (status) --> Print
-```"#)
+```"#,
+        )
         .with_inputs(Ports::Static(&IN))
         .with_config(|| json!({ "table": "", "column": "", "row": "", "value": "" }))
         .with_timeout(Timeout::Secs(30))

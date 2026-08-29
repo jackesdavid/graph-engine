@@ -45,7 +45,10 @@ pub struct Wired(Vec<(PortName, Port)>);
 impl Wired {
     /// The source port feeding this input, if anything is.
     pub fn on(&self, input: &str) -> Option<&Port> {
-        self.0.iter().find(|(n, _)| n.as_str() == input).map(|(_, p)| p)
+        self.0
+            .iter()
+            .find(|(n, _)| n.as_str() == input)
+            .map(|(_, p)| p)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -96,18 +99,18 @@ pub fn bake<M: GraphMeta, H: Host>(graph: &mut Graph<M>, reg: &NodeRegistry<H>) 
 
 /// The source port of every wire arriving at this node, resolved against the source's own config —
 /// which may itself have just been baked, and is the reason this is recomputed each pass.
-fn incoming<M: GraphMeta, H: Host>(
-    graph: &Graph<M>,
-    reg: &NodeRegistry<H>,
-    node: u32,
-) -> Wired {
+fn incoming<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>, node: u32) -> Wired {
     let mut out = Vec::new();
     for e in &graph.edges {
         if e.to != node {
             continue;
         }
-        let Some(src) = graph.node(e.from) else { continue };
-        let Some(spec) = reg.get(&src.kind) else { continue };
+        let Some(src) = graph.node(e.from) else {
+            continue;
+        };
+        let Some(spec) = reg.get(&src.kind) else {
+            continue;
+        };
         if let Some(p) = spec
             .outputs
             .resolve(&src.config)
@@ -236,10 +239,7 @@ mod tests {
         let rows = g.add_node(NodeId::new("get_table_rows"), 0, 0);
         let each = g.add_node(NodeId::new("for_each"), 200, 0);
         let cell = g.add_node(NodeId::new("cell"), 400, 0);
-        for (f, fp, t, tp) in [
-            (rows, "rows", each, "items"),
-            (each, "item", cell, "row"),
-        ] {
+        for (f, fp, t, tp) in [(rows, "rows", each, "items"), (each, "item", cell, "row")] {
             g.edges.push(crate::graph::Edge {
                 from: f,
                 from_port: PortName::new(fp),

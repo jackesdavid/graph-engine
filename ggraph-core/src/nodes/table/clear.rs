@@ -32,13 +32,15 @@ impl<H: Host> NodeRun<H> for Clear {
 
 pub fn spec<H: Host>(services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("table_clear", "Empty a Table", "Tables")
-        .about(r#"Empties a stored table, keeping its columns.
+        .about(
+            r#"Empties a stored table, keeping its columns.
 
 For a table that is rebuilt each run rather than added to.
 
 ```
 On schedule --> Empty a Table (results) --> For Each --item--> Add a Row
-```"#)
+```"#,
+        )
         .with_config(|| json!({ "table": "" }))
         .with_timeout(Timeout::Secs(30))
         .running(Clear {

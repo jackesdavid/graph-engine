@@ -106,7 +106,8 @@ impl<H: Host> NodeRun<H> for LayoutNode {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_layout", "ReportLayout", "Report")
-        .about(r#"Puts blocks beside or below each other.
+        .about(
+            r#"Puts blocks beside or below each other.
 
 It takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.
 Add a slot with `+`, name it, and it becomes a port.
@@ -114,7 +115,8 @@ Add a slot with `+`, name it, and it becomes a port.
 ```
 ReportHeading --block--> ReportLayout.header
 ReportTable ---block--> ReportLayout.body --block--> ReportRender
-```"#)
+```"#,
+        )
         .with_inputs(Ports::dynamic(ports))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| {
@@ -145,7 +147,10 @@ mod tests {
     use crate::report::Direction;
 
     fn names(cfg: &Json) -> Vec<String> {
-        ports(cfg).iter().map(|p| p.name.as_str().to_string()).collect()
+        ports(cfg)
+            .iter()
+            .map(|p| p.name.as_str().to_string())
+            .collect()
     }
 
     /// A slot is added by name and the port takes that name: `header` says on the canvas what
@@ -159,7 +164,10 @@ mod tests {
     /// A port nobody can name is one nothing can be wired to.
     #[test]
     fn a_blank_name_is_not_a_slot() {
-        assert_eq!(names(&json!({ "slots": [{ "name": "  " }, { "name": "body" }] })), vec!["body"]);
+        assert_eq!(
+            names(&json!({ "slots": [{ "name": "  " }, { "name": "body" }] })),
+            vec!["body"]
+        );
     }
 
     /// Two ports with one name collapse into each other, and a component disappears without a word.
@@ -172,7 +180,10 @@ mod tests {
     /// A document written before slots had names must still open. It was a count then.
     #[test]
     fn a_graph_written_before_named_slots_still_loads() {
-        assert_eq!(names(&json!({ "slots": 3 })), vec!["slot_1", "slot_2", "slot_3"]);
+        assert_eq!(
+            names(&json!({ "slots": 3 })),
+            vec!["slot_1", "slot_2", "slot_3"]
+        );
         assert_eq!(names(&json!({ "slots": "2" })), vec!["slot_1", "slot_2"]);
         assert_eq!(names(&json!({})).len(), 2, "a default that is useful");
     }

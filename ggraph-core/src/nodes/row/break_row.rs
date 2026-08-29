@@ -76,7 +76,8 @@ impl<H: Host> NodeRun<H> for BreakRow {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("break_row", "Break row", "Data")
-        .about(r#"Opens a row into one port per column.
+        .about(
+            r#"Opens a row into one port per column.
 
 The same job as **Cell value**, done once instead of once per column. The ports come from the schema
 you wire in, each with its column's type.
@@ -84,7 +85,8 @@ you wire in, each with its column's type.
 ```
 First row --row--> Break row --model--> Format
                               --price--> Round
-```"#)
+```"#,
+        )
         // The columns the wire brought. `Ports::dynamic` cannot see edges, so the schema is
         // copied in and the ports resolve from config as they always did — the same copy the
         // editor made on the drop of a wire, made here so anything assembling a graph gets it.

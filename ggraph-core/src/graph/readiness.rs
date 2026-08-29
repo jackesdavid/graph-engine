@@ -48,7 +48,11 @@ impl std::fmt::Display for Missing {
                 self.node, self.kind, self.port
             )
         } else {
-            write!(f, "node {} ({}) needs {:?}", self.node, self.kind, self.port)
+            write!(
+                f,
+                "node {} ({}) needs {:?}",
+                self.node, self.kind, self.port
+            )
         }
     }
 }
@@ -273,7 +277,10 @@ mod tests {
         let id = g.add_node(NodeId::new("table_schema"), 0, 0);
         let m = unfilled(&g, &reg());
         assert_eq!(m.len(), 1, "{m:?}");
-        assert!(m[0].is_setting, "a setting, not a port — the remedies differ");
+        assert!(
+            m[0].is_setting,
+            "a setting, not a port — the remedies differ"
+        );
         assert_eq!(m[0].port, PortName::new("columns"));
 
         g.node_mut(id).unwrap().config = json!({ "columns": [{ "name": "n", "type": "text" }] });

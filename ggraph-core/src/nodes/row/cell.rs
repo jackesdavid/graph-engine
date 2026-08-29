@@ -95,14 +95,16 @@ impl<H: Host> NodeRun<H> for Cell {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("cell", "Cell value", "Data")
-        .about(r#"Takes ONE named column out of a row.
+        .about(
+            r#"Takes ONE named column out of a row.
 
 The column is chosen in the inspector, from the schema you wire in — so the port comes out with
 that column's type: a `num` column gives a number, not text somebody has to convert.
 
 ```
 Read a Table --table--> First row --row--> Cell value (column: price) --> Round
-```"#)
+```"#,
+        )
         // The columns the wire brought. `Ports::dynamic` cannot see edges, so the schema is
         // copied in and the ports resolve from config as they always did — the same copy the
         // editor made on the drop of a wire, made here so anything assembling a graph gets it.
@@ -151,7 +153,10 @@ mod tests {
     #[test]
     fn there_is_no_pin_until_a_column_is_chosen() {
         assert!(ports(&cfg("")).is_empty());
-        assert!(ports(&json!({ "column": "score" })).is_empty(), "no schema, no type");
+        assert!(
+            ports(&json!({ "column": "score" })).is_empty(),
+            "no schema, no type"
+        );
     }
 
     /// The names come from the schema, so a column is picked rather than remembered.

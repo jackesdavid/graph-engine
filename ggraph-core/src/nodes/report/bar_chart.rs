@@ -67,8 +67,9 @@ struct BarChart;
 
 impl<H: Host> NodeRun<H> for BarChart {
     fn run(&self, cx: &NodeCx<'_, H>) -> Result<PortValues, NodeError> {
-        let value_col = column(cx.config, "values")
-            .ok_or_else(|| NodeError::new("no column for the values — connect a schema and pick one"))?;
+        let value_col = column(cx.config, "values").ok_or_else(|| {
+            NodeError::new("no column for the values — connect a schema and pick one")
+        })?;
 
         let rows = crate::table::rows(cx.input("table"));
         let label_col = column(cx.config, "labels");
@@ -118,7 +119,8 @@ impl<H: Host> NodeRun<H> for BarChart {
 
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_bar_chart", "ReportBarChart", "Report")
-        .about(r#"Draws a bar chart in a report.
+        .about(
+            r#"Draws a bar chart in a report.
 
 Takes the table and its schema, then you choose which column is which axis BY NAME in the inspector.
 How it is drawn — bar direction, gap, whether the axes show — is separate from what it shows.
@@ -126,7 +128,8 @@ How it is drawn — bar direction, gap, whether the axes show — is separate fr
 ```
 Ask --result--> ReportBarChart --block--> ReportLayout
 Schema ------schema-------------^
-```"#)
+```"#,
+        )
         // The columns the wire brought. `Ports::dynamic` cannot see edges, so the schema is
         // copied in and the ports resolve from config as they always did — the same copy the
         // editor made on the drop of a wire, made here so anything assembling a graph gets it.
@@ -180,7 +183,11 @@ mod tests {
     #[test]
     fn each_axis_is_offered_only_the_columns_it_can_take() {
         let f = fields(&cfg());
-        assert_eq!(options(&f[1]), vec!["pontuação", "página"], "values: the numbers");
+        assert_eq!(
+            options(&f[1]),
+            vec!["pontuação", "página"],
+            "values: the numbers"
+        );
         assert_eq!(options(&f[2]), vec!["documento"], "labels: the text");
     }
 

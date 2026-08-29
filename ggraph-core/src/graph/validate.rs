@@ -231,7 +231,13 @@ pub fn validate<M: GraphMeta, H: Host>(graph: &Graph<M>, reg: &NodeRegistry<H>) 
                 // `exec_in` is on every node that takes control and is not in `inputs`; leaving it
                 // out would send a reader looking for the one port they most likely wanted.
                 available: std::iter::once(EXEC_IN.name.clone())
-                    .chain(dspec.inputs.resolve(&dst.config).into_iter().map(|p| p.name))
+                    .chain(
+                        dspec
+                            .inputs
+                            .resolve(&dst.config)
+                            .into_iter()
+                            .map(|p| p.name),
+                    )
                     .collect(),
             });
             continue;

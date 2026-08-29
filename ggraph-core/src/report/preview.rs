@@ -169,7 +169,9 @@ mod tests {
             ]),
             json!([{ "from": 2, "from_port": "block", "to": 1, "to_port": "block" }]),
         );
-        let Block::Layout { children, .. } = preview(&g, 1) else { panic!() };
+        let Block::Layout { children, .. } = preview(&g, 1) else {
+            panic!()
+        };
         assert!(matches!(&children[0], Block::Paragraph { text } if text.contains("cabeçalho")));
     }
 
@@ -180,7 +182,9 @@ mod tests {
             json!([{ "id": 1, "kind": "report_render", "x": 0, "y": 0, "config": {} }]),
             json!([]),
         );
-        assert!(matches!(preview(&g, 1), Block::Paragraph { text } if text.contains("nothing wired")));
+        assert!(
+            matches!(preview(&g, 1), Block::Paragraph { text } if text.contains("nothing wired"))
+        );
     }
 
     /// A document that arrived by hand can contain a cycle, and a preview must not hang on it.

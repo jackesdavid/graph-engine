@@ -76,14 +76,16 @@ impl<H: Host> NodeRun<H> for Format {
 
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("format", "Format", "Text")
-        .about(r#"Builds a piece of text from a template.
+        .about(
+            r#"Builds a piece of text from a template.
 
 Every `{name}` in the template becomes an input port of that name — so the template decides the
 node's shape. This is how values become a sentence.
 
 ```
 Cell value (model) --> Format ("Model: {model}") --text--> ReportParagraph
-```"#)
+```"#,
+        )
         .with_inputs(Ports::dynamic(inputs))
         .with_outputs(Ports::Static(&OUT))
         .with_config(|| json!({ "template": "" }))

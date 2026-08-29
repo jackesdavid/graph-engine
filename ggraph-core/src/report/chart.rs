@@ -45,11 +45,23 @@ pub fn bar_chart(
         // chart floating in a margin nothing occupies.
         let horizontal = style.bars == super::Bars::Horizontal;
         let across = if style.show_axes || style.show_labels {
-            if horizontal { 120 } else { 56 }
+            if horizontal {
+                120
+            } else {
+                56
+            }
         } else {
             0
         };
-        let along = if style.show_axes { if horizontal { 40 } else { 48 } } else { 0 };
+        let along = if style.show_axes {
+            if horizontal {
+                40
+            } else {
+                48
+            }
+        } else {
+            0
+        };
 
         let mut builder = ChartBuilder::on(&root);
         builder
@@ -129,7 +141,12 @@ mod tests {
 
     #[test]
     fn a_bar_chart_is_self_contained_svg() {
-        let svg = bar_chart("Relevance", &["a.pdf".into(), "b.pdf".into()], &[0.8, 0.4], &Default::default());
+        let svg = bar_chart(
+            "Relevance",
+            &["a.pdf".into(), "b.pdf".into()],
+            &[0.8, 0.4],
+            &Default::default(),
+        );
         assert!(svg.contains("<svg"), "{svg}");
 
         // The property that matters more than any drawing detail: nothing is FETCHED. Checking for
@@ -159,8 +176,14 @@ mod tests {
 
     #[test]
     fn the_gap_changes_how_wide_a_bar_is() {
-        let tight = svg(super::super::ChartStyle { gap: 0, ..Default::default() });
-        let loose = svg(super::super::ChartStyle { gap: 60, ..Default::default() });
+        let tight = svg(super::super::ChartStyle {
+            gap: 0,
+            ..Default::default()
+        });
+        let loose = svg(super::super::ChartStyle {
+            gap: 60,
+            ..Default::default()
+        });
         assert_ne!(tight, loose);
     }
 
@@ -169,7 +192,10 @@ mod tests {
     #[test]
     fn the_axes_and_the_names_come_off_separately() {
         let full = svg(super::super::ChartStyle::default());
-        let no_axes = svg(super::super::ChartStyle { show_axes: false, ..Default::default() });
+        let no_axes = svg(super::super::ChartStyle {
+            show_axes: false,
+            ..Default::default()
+        });
         let bare = svg(super::super::ChartStyle {
             show_axes: false,
             show_labels: false,
@@ -177,7 +203,10 @@ mod tests {
         });
         assert!(full.contains("aaa"), "the names are drawn by default");
         assert!(no_axes.contains("aaa"), "and survive the axes coming off");
-        assert!(!bare.contains("aaa"), "until they are turned off themselves");
+        assert!(
+            !bare.contains("aaa"),
+            "until they are turned off themselves"
+        );
     }
 
     /// A search that found no numbers must not fail the report built around it.
@@ -194,7 +223,12 @@ mod tests {
     /// chart lies — and the values here (100 and 101) are exactly the shape that tempts it.
     #[test]
     fn the_axis_starts_at_zero() {
-        let svg = bar_chart("t", &["a".into(), "b".into()], &[100.0, 101.0], &Default::default());
+        let svg = bar_chart(
+            "t",
+            &["a".into(), "b".into()],
+            &[100.0, 101.0],
+            &Default::default(),
+        );
         // The label sits on its own line inside the <text> element.
         assert!(
             svg.contains("\n0.0\n"),
