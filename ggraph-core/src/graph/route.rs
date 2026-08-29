@@ -210,14 +210,32 @@ pub fn route<H: Host>(
         v.resize(LONGEST, u32::MAX);
         v
     };
-    let mut heap: std::collections::BinaryHeap<(Vec<u32>, std::cmp::Reverse<usize>, usize)> =
-        std::collections::BinaryHeap::new();
+    // Where each kind sits in the palette, so a tie is settled by a decision somebody made rather
+    // than by how the walk happened to run. Two chains that score identically were separated by
+    // the order their steps were pushed — stable, but meaningless, and liable to flip silently
+    // when an unrelated kind is added to the set.
+    let order: HashMap<&NodeId, usize> = kinds.iter().enumerate().map(|(i, k)| (k, i)).collect();
+    let seat = |path: &[NodeId]| -> std::cmp::Reverse<Vec<usize>> {
+        std::cmp::Reverse(
+            path.iter()
+                .map(|k| order.get(k).copied().unwrap_or(usize::MAX))
+                .collect(),
+        )
+    };
+
+    #[allow(clippy::type_complexity)]
+    let mut heap: std::collections::BinaryHeap<(
+        Vec<u32>,
+        std::cmp::Reverse<usize>,
+        std::cmp::Reverse<Vec<usize>>,
+        usize,
+    )> = std::collections::BinaryHeap::new();
     let mut steps: Vec<Step> = vec![Step {
         path: vec![from.clone()],
         arriving: None,
         scores: Vec::new(),
     }];
-    heap.push((key(&[]), std::cmp::Reverse(1), 0));
+    heap.push((key(&[]), std::cmp::Reverse(1), seat(&[from.clone()]), 0));
 
     let score = scores(reg);
 
@@ -229,7 +247,7 @@ pub fn route<H: Host>(
     let mut seen: HashMap<(NodeId, PortType), usize> = HashMap::new();
 
     let mut found: Vec<Vec<NodeId>> = Vec::new();
-    while let Some((_, _, at)) = heap.pop() {
+    while let Some((_, _, _, at)) = heap.pop() {
         let last = steps[at].path.last().expect("a path has a head").clone();
         if last != *to {
             let state = (
@@ -288,13 +306,13 @@ pub fn route<H: Host>(
             let mut scores = steps[at].scores.clone();
             scores.push(sc);
             let k = key(&scores);
-            let len = path.len();
+            let (len, rank) = (path.len(), seat(&path));
             steps.push(Step {
                 path,
                 arriving: Some((on, port)),
                 scores,
             });
-            heap.push((k, std::cmp::Reverse(len), steps.len() - 1));
+            heap.push((k, std::cmp::Reverse(len), rank, steps.len() - 1));
         }
     }
     found
@@ -498,6 +516,22 @@ mod tests {
             PortType::TABLE_ROW,
             "a row, because rows arrived"
         );
+    }
+
+    /// Two chains can score the same — `report_table` and `report_bar_chart` take the same table
+    /// and differ only in what they draw — and the winner used to be whichever step was pushed
+    /// later. Stable, but meaningless, and liable to flip when an unrelated kind joins the set.
+    #[test]
+    fn a_tie_is_settled_by_the_palette_not_by_the_walk() {
+        let r = reg();
+        let first = route(&r, &id("format"), &id("print"), 3);
+        for _ in 0..5 {
+            assert_eq!(
+                route(&r, &id("format"), &id("print"), 3),
+                first,
+                "same question, same answer"
+            );
+        }
     }
 
     /// Where a graph begins: the kinds nothing has to come before.
