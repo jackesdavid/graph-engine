@@ -111,6 +111,22 @@ Read a Table --table--> Table rows --rows--> For Each --item--> Print
         .with_outputs(Ports::dynamic(ports))
         .with_exec_out(crate::spec::ExecOut::Static(&ARMS))
         .with_config(|| json!({ "items": "", "items_type": "" }))
+        // What one of them IS, taken from the list that arrived. Nothing else can know: a
+        // product's `chunk_results` is a name this crate cannot read an element off, and the
+        // wire is the only place the answer exists.
+        .baking(|cfg, wired| {
+            // `any` is what a type says when it does not know one of its elements. Writing it
+            // down would replace "nobody has said" with "it was decided, and the decision was
+            // nothing" — and the port would stay as useless while looking settled.
+            let el = wired.on("items")?.element();
+            if el.is_any() {
+                return None;
+            }
+            let mut next = cfg.clone();
+            next.as_object_mut()?
+                .insert("items_type".into(), json!(el.as_str()));
+            Some(next)
+        })
         .with_timeout(Timeout::Inline)
         .stepping(ForEach)
 }

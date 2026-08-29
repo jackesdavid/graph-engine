@@ -103,6 +103,21 @@ that column's type: a `num` column gives a number, not text somebody has to conv
 ```
 Read a Table --table--> First row --row--> Cell value (column: price) --> Round
 ```"#)
+        // The columns the wire brought. `Ports::dynamic` cannot see edges, so the schema is
+        // copied in and the ports resolve from config as they always did — the same copy the
+        // editor made on the drop of a wire, made here so anything assembling a graph gets it.
+        .baking(|cfg, wired| {
+            let cols = &wired.on("schema")?.columns;
+            let mut next = cfg.clone();
+            next.as_object_mut()?.insert(
+                "columns".into(),
+                json!(cols
+                    .iter()
+                    .map(|c| json!({ "name": c.name.as_str(), "type": c.ty.as_str() }))
+                    .collect::<Vec<_>>()),
+            );
+            Some(next)
+        })
         .with_inputs(Ports::Static(&IN))
         .with_outputs(Ports::dynamic(ports))
         .with_fields(Fields::dynamic(fields))

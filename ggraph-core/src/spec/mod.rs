@@ -118,6 +118,9 @@ pub struct NodeSpec<H: Host> {
     /// How each configuration key is edited. Empty means the editor guesses from the default
     /// value, which is what every node did before this existed.
     pub fields: Fields,
+    /// Configuration this kind can only learn from what is wired into it. See
+    /// [`bake`](crate::graph::bake).
+    pub bake: Option<crate::graph::bake::BakeFn>,
     pub purity: Purity,
     pub timeout: Timeout,
     pub behavior: Behavior<H>,
@@ -138,6 +141,15 @@ impl<H: Host> std::fmt::Debug for NodeSpec<H> {
 }
 
 impl<H: Host> NodeSpec<H> {
+    /// What this kind takes from its wiring. See [`bake`](crate::graph::bake).
+    pub fn baking(
+        mut self,
+        f: impl Fn(&Json, &crate::graph::bake::Wired) -> Option<Json> + Send + Sync + 'static,
+    ) -> Self {
+        self.bake = Some(std::sync::Arc::new(f));
+        self
+    }
+
     /// What this node is for, in Markdown, with an example. See [`NodeSpec::about`].
     pub fn about(mut self, md: &'static str) -> Self {
         self.about = md;
@@ -158,6 +170,7 @@ impl<H: Host> NodeSpec<H> {
             exec_out: ExecOut::DEFAULT,
             default_config: Arc::new(|| Json::Object(Default::default())),
             fields: Fields::None,
+            bake: None,
             purity: Purity::EFFECTFUL,
             timeout: Timeout::Secs(30),
             behavior: Behavior::Inert,
