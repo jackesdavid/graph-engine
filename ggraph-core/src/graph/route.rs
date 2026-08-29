@@ -121,60 +121,62 @@ pub fn route<H: Host>(
         return vec![vec![from.clone()]];
     }
 
-    // The relation, computed once. Recomputing `connects` inside the walk turns a search over
-    // fifty kinds into fifty times the port resolution it needed.
+    // The relation, computed once with its scores. Recomputing it inside the walk turns a search
+    // over fifty kinds into fifty times the port resolution it needed.
     let kinds: Vec<NodeId> = reg.palette().map(|s| s.id.clone()).collect();
-    let mut edges: HashMap<&NodeId, Vec<&NodeId>> = HashMap::new();
+    let mut edges: HashMap<&NodeId, Vec<(&NodeId, u32)>> = HashMap::new();
     for a in &kinds {
         for b in &kinds {
-            if a != b && connects(reg, a, b) {
-                edges.entry(a).or_default().push(b);
+            if a == b {
+                continue;
+            }
+            if let Some(w) = strength(reg, a, b) {
+                edges.entry(a).or_default().push((b, w));
             }
         }
     }
 
-    // Ranked by the WEAKEST link, because a chain is only as meaningful as its vaguest step. A
-    // route held together by `text` at one joint is a route that happens to type-check.
-    let weakest = |path: &[&NodeId]| -> u32 {
-        path.windows(2)
-            .filter_map(|w| strength(reg, w[0], w[1]))
-            .min()
-            .unwrap_or(0)
-    };
+    // BEST-first, not breadth-first. Breadth returns the shortest routes, and the shortest are the
+    // ones held together by the vaguest types: `chunk_search → send_email` in one hop, through an
+    // error message reaching an address. Expanding by weakest-link instead means the first answers
+    // out are the most meaningful, and the long specific chain is found before the budget is spent
+    // on dozens of short empty ones.
+    //
+    // Ordered by (weakest link, then FEWER nodes) — `Reverse` on the length so the heap's max is
+    // the shortest of equals.
+    let mut heap: std::collections::BinaryHeap<(u32, std::cmp::Reverse<usize>, Vec<&NodeId>)> =
+        std::collections::BinaryHeap::new();
+    heap.push((u32::MAX, std::cmp::Reverse(1), vec![from]));
 
-    let mut found: Vec<(u32, Vec<NodeId>)> = Vec::new();
-    // Every route up to a bound, then the best of them — rather than the first `limit` the walk
-    // happens upon, which by breadth alone are the shortest and by content are often the emptiest.
-    let ceiling = limit.saturating_mul(8).max(64);
-    let mut queue: VecDeque<Vec<&NodeId>> = VecDeque::from([vec![from]]);
-    while let Some(path) = queue.pop_front() {
-        if found.len() >= ceiling {
-            break;
-        }
-        if path.len() > LONGEST {
+    let mut found: Vec<Vec<NodeId>> = Vec::new();
+    while let Some((worst, _, path)) = heap.pop() {
+        if found.len() >= limit || path.len() > LONGEST {
+            if found.len() >= limit {
+                break;
+            }
             continue;
         }
         let last = *path.last().expect("a path has a head");
-        for nxt in edges.get(last).into_iter().flatten() {
+        for (nxt, w) in edges.get(last).into_iter().flatten() {
             // A kind appears once. A chain that visits one twice is a longer way to say the same
-            // thing, and it is how the search runs forever on a set that loops.
+            // thing, and it is how a search runs forever on a set that loops.
             if path.contains(nxt) {
                 continue;
             }
             let mut on = path.clone();
             on.push(nxt);
+            let worst = worst.min(*w);
             if *nxt == to {
-                found.push((weakest(&on), on.iter().map(|k| (*k).clone()).collect()));
+                found.push(on.iter().map(|k| (*k).clone()).collect());
+                if found.len() >= limit {
+                    break;
+                }
             } else {
-                queue.push_back(on);
+                heap.push((worst, std::cmp::Reverse(on.len()), on));
             }
         }
     }
-    // Strongest first, and the shorter of two equals — a longer chain has to be MORE meaningful to
-    // earn its extra node, not merely as meaningful.
-    found.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.len().cmp(&b.1.len())));
-    found.truncate(limit);
-    found.into_iter().map(|(_, p)| p).collect()
+    found
 }
 
 /// The kinds that start a chain: they take no data, so nothing needs to come before them.
