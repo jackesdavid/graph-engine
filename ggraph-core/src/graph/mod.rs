@@ -14,6 +14,8 @@
 //!   document is in view.
 //! - [`bake`] — the configuration a node can only learn from what is wired into it, copied in so
 //!   the ports can resolve from config alone.
+//! - [`route`] — which kinds may follow which, and what chains connect two of them. The first
+//!   mile of building a graph, answered by search rather than by guessing.
 //! - [`readiness`] — whether it is FINISHED: wired up, with every required input filled. The
 //!   question a list of graphs asks, and the reason a list no longer has to carry every node and
 //!   edge of every graph to answer it.
@@ -21,6 +23,7 @@
 pub mod bake;
 pub mod document;
 pub mod readiness;
+pub mod route;
 pub mod topo;
 pub mod validate;
 

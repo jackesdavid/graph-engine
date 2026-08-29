@@ -39,7 +39,7 @@ pub mod spec;
 // `ggraph_core::codec` or `ggraph_core::topo`. Grouping files is for whoever reads them, and is no
 // reason to break anybody's imports.
 pub use data::{codec, id, port, value};
-pub use graph::{bake, readiness, topo, validate};
+pub use graph::{bake, readiness, route, topo, validate};
 
 pub use codec::{decode, decode_ports, encode, encode_ports};
 pub use data::schema;
