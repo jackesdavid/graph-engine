@@ -39,16 +39,50 @@ const LONGEST: usize = 6;
 /// deciding whether to place it. A node whose ports depend on its settings can gain more once
 /// configured; it never loses the ones it started with.
 pub fn connects<H: Host>(reg: &NodeRegistry<H>, from: &NodeId, to: &NodeId) -> bool {
-    let (Some(a), Some(b)) = (reg.get(from), reg.get(to)) else {
-        return false;
-    };
+    strength(reg, from, to).is_some()
+}
+
+/// How MUCH two kinds connect, or `None` if they do not.
+///
+/// Connectivity alone turned out to be nearly meaningless. Half a catalogue has a `text` port, so
+/// almost everything can follow almost everything: `chunk_search → send_email` is a legal chain via
+/// the search's `error_message` reaching the mailer's `to`. Type-correct, and nonsense.
+///
+/// So a link is scored by how SPECIFIC the type it travels on is — how few kinds in the whole set
+/// produce one. A `chunk_results` has one producer and means something; a `text` has thirty and
+/// means almost nothing. The strongest shared type wins, because two kinds joined by both a
+/// `table` and a `text` are joined by the table.
+pub fn strength<H: Host>(reg: &NodeRegistry<H>, from: &NodeId, to: &NodeId) -> Option<u32> {
+    let (a, b) = (reg.get(from)?, reg.get(to)?);
     let outs = a.outputs.resolve(&(a.default_config)());
     let ins = b.inputs.resolve(&(b.default_config)());
-    outs.iter().filter(|p| p.ty != PortType::EXEC).any(|o| {
-        ins.iter()
+    let mut best: Option<u32> = None;
+    for o in outs.iter().filter(|p| p.ty != PortType::EXEC) {
+        let fits = ins
+            .iter()
             .filter(|p| p.ty != PortType::EXEC)
-            .any(|i| compatible(o, i))
-    })
+            .any(|i| compatible(o, i));
+        if fits {
+            let s = specificity(reg, &o.ty);
+            best = Some(best.map_or(s, |b| b.max(s)));
+        }
+    }
+    best
+}
+
+/// How much a type narrows things down: the fewer kinds produce one, the more a wire carrying it
+/// says. Inverted into a score so that bigger is better and the arithmetic reads the right way.
+fn specificity<H: Host>(reg: &NodeRegistry<H>, ty: &PortType) -> u32 {
+    let makers = reg
+        .palette()
+        .filter(|s| {
+            s.outputs
+                .resolve(&(s.default_config)())
+                .iter()
+                .any(|p| p.ty == *ty)
+        })
+        .count() as u32;
+    u32::MAX - makers
 }
 
 /// Every kind that may follow this one, in palette order.
@@ -99,10 +133,22 @@ pub fn route<H: Host>(
         }
     }
 
-    let mut found = Vec::new();
+    // Ranked by the WEAKEST link, because a chain is only as meaningful as its vaguest step. A
+    // route held together by `text` at one joint is a route that happens to type-check.
+    let weakest = |path: &[&NodeId]| -> u32 {
+        path.windows(2)
+            .filter_map(|w| strength(reg, w[0], w[1]))
+            .min()
+            .unwrap_or(0)
+    };
+
+    let mut found: Vec<(u32, Vec<NodeId>)> = Vec::new();
+    // Every route up to a bound, then the best of them — rather than the first `limit` the walk
+    // happens upon, which by breadth alone are the shortest and by content are often the emptiest.
+    let ceiling = limit.saturating_mul(8).max(64);
     let mut queue: VecDeque<Vec<&NodeId>> = VecDeque::from([vec![from]]);
     while let Some(path) = queue.pop_front() {
-        if found.len() >= limit {
+        if found.len() >= ceiling {
             break;
         }
         if path.len() > LONGEST {
@@ -118,16 +164,17 @@ pub fn route<H: Host>(
             let mut on = path.clone();
             on.push(nxt);
             if *nxt == to {
-                found.push(on.iter().map(|k| (*k).clone()).collect());
-                if found.len() >= limit {
-                    break;
-                }
+                found.push((weakest(&on), on.iter().map(|k| (*k).clone()).collect()));
             } else {
                 queue.push_back(on);
             }
         }
     }
-    found
+    // Strongest first, and the shorter of two equals — a longer chain has to be MORE meaningful to
+    // earn its extra node, not merely as meaningful.
+    found.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.len().cmp(&b.1.len())));
+    found.truncate(limit);
+    found.into_iter().map(|(_, p)| p).collect()
 }
 
 /// The kinds that start a chain: they take no data, so nothing needs to come before them.
