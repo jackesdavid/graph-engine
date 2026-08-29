@@ -23,7 +23,9 @@ use crate::value::{PortValues, Value};
 use serde_json::{json, Value as Json};
 
 static IN: [Port; 2] = [
-    Port::req("row", PortType::TABLE_ROW),
+    // Wired, not typed: a row is a value another node produces, and no box holds one. Without
+    // saying so, this reads as a kind a chain could BEGIN at.
+    Port::req("row", PortType::TABLE_ROW).wired(),
     // A shape dependency: connecting a schema writes its columns onto this node, which is what
     // lets the column be picked from a list and the output be typed. `Ports::dynamic` never sees
     // an edge, so the columns have to be here rather than followed back up the wire.

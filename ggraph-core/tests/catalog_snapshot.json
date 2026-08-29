@@ -765,7 +765,8 @@
           "family": "unique",
           "name": "row",
           "required": true,
-          "type": "table_row"
+          "type": "table_row",
+          "wired_only": true
         },
         {
           "family": "unique",
@@ -790,7 +791,8 @@
           "family": "unique",
           "name": "row",
           "required": true,
-          "type": "table_row"
+          "type": "table_row",
+          "wired_only": true
         },
         {
           "family": "unique",

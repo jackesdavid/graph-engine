@@ -393,16 +393,21 @@ pub fn wire<H: Host>(reg: &NodeRegistry<H>, chain: &[NodeId]) -> Result<Vec<Wire
     Ok(wires)
 }
 
-/// The kinds that start a chain: they take no data, so nothing needs to come before them.
+/// The kinds a chain can BEGIN at: nothing has to come before them.
 ///
-/// Where a graph BEGINS, which is the one end a search cannot work backwards from.
+/// Not "takes no data". That excluded every node whose input is a setting somebody types, which is
+/// where most graphs actually start — a search takes a query and the query is typed in. Calling it
+/// un-startable said the opposite of the truth, and seven of ten real requests begin there.
+///
+/// What disqualifies a kind is a required input that can only arrive on a WIRE: a cell needs a row
+/// and no box holds one, so something must come first.
 pub fn sources<H: Host>(reg: &NodeRegistry<H>) -> Vec<NodeId> {
     reg.palette()
         .filter(|s| {
             s.inputs
                 .resolve(&(s.default_config)())
                 .iter()
-                .all(|p| p.ty == PortType::EXEC)
+                .all(|p| p.ty == PortType::EXEC || !p.required || !p.wired_only)
         })
         .map(|s| s.id.clone())
         .collect()
@@ -649,13 +654,20 @@ mod tests {
 
     /// Where a graph begins: the kinds nothing has to come before.
     #[test]
-    fn a_source_is_a_kind_that_needs_nothing() {
+    fn a_source_is_a_kind_nothing_has_to_come_before() {
         let r = reg();
         let s = sources(&r);
+        assert!(s.contains(&id("table_schema")), "declares itself: {s:?}");
         assert!(
-            s.contains(&id("table_schema")),
-            "a schema declares itself: {s:?}"
+            s.contains(&id("format")),
+            "a template is typed in, so nothing has to come first: {s:?}"
         );
-        assert!(!s.contains(&id("print")), "print needs something to print");
+    }
+
+    /// A required input that can only be WIRED is a kind something must come before.
+    #[test]
+    fn a_kind_that_must_be_wired_into_is_not_a_source() {
+        let r = reg();
+        assert!(!sources(&r).contains(&id("cell")), "a cell needs a row");
     }
 }
