@@ -442,7 +442,9 @@ impl Port {
     /// Needed by a product declaring its own type: the engine has never heard of `chunk_results`,
     /// and one that could not say it is a list would be a list no loop could walk. The engine's own
     /// types default correctly, so its nodes say nothing.
-    pub fn in_family(mut self, f: Family) -> Self {
+    /// `const`, so a port declared in a `static` can say it — which is where most are declared, and
+    /// a product type that could not be written there would be a type nobody used.
+    pub const fn in_family(mut self, f: Family) -> Self {
         self.family = Some(f);
         self
     }
