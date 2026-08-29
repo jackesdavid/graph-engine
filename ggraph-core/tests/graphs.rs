@@ -285,3 +285,60 @@ fn a_finished_loop_holds_nothing_on_its_item_port() {
          a stale value there reads as a real one"
     );
 }
+
+/// A graph that can be ASKED, not just run.
+///
+/// Every node's outputs were always in reach and that was the problem: a caller got a hundred
+/// values keyed by node id and no way to know which was the answer. Which one it is can only be the
+/// author's decision, and `output` is where they make it — on the canvas, where it can be read.
+#[test]
+fn a_graph_gives_back_what_its_output_node_was_wired() {
+    let mut b = Built::new("asked");
+    let make = b.node("format", json!({ "template": "olá" }));
+    let end = b.node(
+        "output",
+        json!({ "values": [{ "name": "greeting", "type": "text" }] }),
+    );
+    b.wire(make, "text", end, "greeting");
+
+    let outs = b.run().expect("it runs");
+    let got = ggraph_core::exec::delivered(&b.graph, &outs);
+    assert_eq!(
+        got.get(&ggraph_core::PortName::new("greeting"))
+            .and_then(|v| v.as_text())
+            .as_deref(),
+        Some("olá"),
+        "the value the author named is the one that comes back"
+    );
+}
+
+/// A graph with nowhere to put an answer ran, and answered nothing. Said plainly rather than
+/// guessed at: "the last node to run" is an accident of topology, and a graph with two branches
+/// has no last node at all.
+#[test]
+fn a_graph_with_no_output_delivers_nothing() {
+    let mut b = Built::new("silent");
+    let make = b.node("format", json!({ "template": "olá" }));
+    let say = b.node("print", json!({}));
+    b.wire(make, "text", say, "message");
+
+    let outs = b.run().expect("it runs");
+    assert!(ggraph_core::exec::delivered(&b.graph, &outs).is_empty());
+}
+
+/// Branches that end in different places should not have to route back through one node to be
+/// readable, so more than one Output is allowed and their values merge.
+#[test]
+fn two_outputs_merge_into_one_answer() {
+    let mut b = Built::new("branched");
+    let a = b.node("format", json!({ "template": "one" }));
+    let c = b.node("format", json!({ "template": "two" }));
+    let first = b.node("output", json!({ "values": [{ "name": "a", "type": "text" }] }));
+    let second = b.node("output", json!({ "values": [{ "name": "b", "type": "text" }] }));
+    b.wire(a, "text", first, "a");
+    b.wire(c, "text", second, "b");
+
+    let outs = b.run().expect("it runs");
+    let got = ggraph_core::exec::delivered(&b.graph, &outs);
+    assert_eq!(got.len(), 2, "both branches are readable: {got:?}");
+}

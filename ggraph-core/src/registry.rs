@@ -290,6 +290,13 @@ fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
     }
     // Only when declared. A node that says nothing leaves the editor guessing from the default
     // value, which is what every node did before fields existed.
+    // What the kind is FOR. Two readers, one text: the palette shows it to a person and the
+    // catalogue hands it to whatever is choosing nodes. Absent when nobody has written one, so the
+    // reader can tell "no description" from "described as nothing".
+    if !s.about.is_empty() {
+        j["about"] = Json::from(s.about);
+    }
+
     let fields = s.fields.resolve(cfg);
     if !fields.is_empty() {
         j["fields"] = Json::Array(fields.iter().map(field_json).collect());

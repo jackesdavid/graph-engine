@@ -94,6 +94,18 @@ pub struct NodeSpec<H: Host> {
     pub label: &'static str,
     /// The palette group.
     pub category: &'static str,
+    /// What this node is for, in Markdown, with an example of using it.
+    ///
+    /// A port has been able to say what it is for since [`Port::about`]; a KIND could not, and the
+    /// gap showed. Asked to report on hardware models, a model picked `table_read` — which reads a
+    /// table that must already exist — over the node that searches the corpus, because nothing in
+    /// the catalogue distinguished them. `label` and `category` name a thing; they do not say when
+    /// to reach for it.
+    ///
+    /// Two readers, one text: the palette shows it to a person, and the catalogue hands it to
+    /// whatever is choosing nodes. Write the example as a chain — what feeds this, what it feeds —
+    /// because that is the question being asked when somebody reads it.
+    pub about: &'static str,
     /// Registered, but not offered in the palette. A kind that is real and resolvable but that
     /// nobody should add by hand — a wire organiser the engine collapses before execution.
     /// Seeding a registry from the palette list instead of the full set is how a stored graph
@@ -126,6 +138,12 @@ impl<H: Host> std::fmt::Debug for NodeSpec<H> {
 }
 
 impl<H: Host> NodeSpec<H> {
+    /// What this node is for, in Markdown, with an example. See [`NodeSpec::about`].
+    pub fn about(mut self, md: &'static str) -> Self {
+        self.about = md;
+        self
+    }
+
     /// The common shape: effectful, one exec arm, no aliases, in the palette.
     pub fn effectful(id: &'static str, label: &'static str, category: &'static str) -> Self {
         NodeSpec {
@@ -133,6 +151,7 @@ impl<H: Host> NodeSpec<H> {
             aliases: &[],
             label,
             category,
+            about: "",
             hidden: false,
             inputs: Ports::NONE,
             outputs: Ports::NONE,

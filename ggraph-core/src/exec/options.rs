@@ -178,3 +178,32 @@ pub struct Entry {
 
 /// What a finished run produced, per node.
 pub type Outputs = HashMap<u32, PortValues>;
+
+/// What a finished run gives back to whoever called it.
+///
+/// Every node's outputs are in [`Outputs`] and always were, which is exactly the problem: a caller
+/// asking "what did this graph produce" got a hundred values keyed by node id and no way to know
+/// which was the answer. That is a question only the graph's author can settle, and the `output`
+/// node is where they settle it.
+///
+/// More than one `output` is allowed and their values are merged. A graph whose branches end in
+/// different places should not have to route them all back through one node to be readable, and
+/// two branches that both ran and both named a value `answer` have a genuine conflict — last one
+/// wins, the same rule a data input already applies to a fan-in.
+pub fn delivered<M: crate::graph::GraphMeta>(
+    graph: &crate::graph::Graph<M>,
+    outputs: &Outputs,
+) -> PortValues {
+    let mut out = PortValues::new();
+    for n in &graph.nodes {
+        if n.kind.as_str() != "output" {
+            continue;
+        }
+        if let Some(vals) = outputs.get(&n.id) {
+            for (k, v) in vals.iter() {
+                out.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    out
+}

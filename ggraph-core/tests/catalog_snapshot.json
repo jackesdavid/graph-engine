@@ -507,6 +507,80 @@
       "slug": "print"
     },
     {
+      "about": "Ends a graph by naming what it gives back.\n\nAdd a value in the inspector, give it a name and a type, and a port of that name appears. Whatever\nyou wire to it is what a caller receives when the graph finishes — so this is how a graph stops\nbeing a thing that *happens* and becomes a thing you can *ask*.\n\nEverything a caller gets comes from here. A graph with no Output ran, and returned nothing.\n\n```\nChunk Search --results--> Ask --answer--> Output.answer\n```\n",
+      "category": "Output",
+      "default_config": {
+        "values": [
+          {
+            "name": "result",
+            "type": "text"
+          }
+        ]
+      },
+      "dynamic": true,
+      "fields": [
+        {
+          "fields": [
+            {
+              "key": "name",
+              "kind": "text",
+              "label": "Name",
+              "required": false
+            },
+            {
+              "key": "type",
+              "kind": "choice",
+              "label": "Type",
+              "options": [
+                "text",
+                "num",
+                "bool",
+                "table",
+                "json",
+                "list",
+                "file_ref"
+              ],
+              "required": false
+            }
+          ],
+          "key": "values",
+          "kind": "rows",
+          "label": "Values",
+          "required": true
+        }
+      ],
+      "inputs": [
+        {
+          "family": "unique",
+          "name": "exec_in",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "family": "scalar",
+          "name": "result",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "label": "Output",
+      "outputs": [
+        {
+          "family": "unique",
+          "name": "exec_out",
+          "required": false,
+          "type": "exec"
+        },
+        {
+          "family": "scalar",
+          "name": "result",
+          "required": false,
+          "type": "text"
+        }
+      ],
+      "slug": "output"
+    },
+    {
       "category": "Math",
       "default_config": {
         "decimals": 2
