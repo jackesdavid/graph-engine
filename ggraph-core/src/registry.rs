@@ -333,6 +333,10 @@ fn port_json(p: &Port) -> Json {
         "type": p.ty.as_str(),
         "required": p.required,
     });
+    // Only when true. An editor drawing "wire this" on every port would be drawing nothing.
+    if p.wired_only {
+        j["wired_only"] = Json::Bool(true);
+    }
     // What the port is for, when somebody has said. This is the surface a model reads before it
     // wires anything, and the tooltip a person reads before drawing the same wire.
     if !p.about.is_empty() {

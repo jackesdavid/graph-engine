@@ -37,10 +37,20 @@ pub struct Missing {
     /// A setting rather than a port. Worth distinguishing because the remedies differ: a port can
     /// be wired OR typed into, a setting can only be typed into.
     pub is_setting: bool,
+    /// And this one can ONLY be wired — worth saying, because "needs `schema`" sends a reader to
+    /// type one in, which is the thing that does not work.
+    pub wired_only: bool,
 }
 
 impl std::fmt::Display for Missing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.wired_only {
+            return write!(
+                f,
+                "node {} ({}) needs a wire into {:?} — no value typed there will do",
+                self.node, self.kind, self.port
+            );
+        }
         if self.is_setting {
             write!(
                 f,
@@ -90,10 +100,13 @@ pub fn unfilled_with<M: GraphMeta, H: Host>(
                 .edges
                 .iter()
                 .any(|e| e.to == n.id && e.to_port == port.name);
-            if wired
-                || literals.read(&n.kind, &port, &n.config).is_some()
-                || config_literal(&n.config, port.name.as_str()).is_some()
-            {
+            // The host's own reading is always taken: it may resolve a device id or a table id
+            // into a real value, which is a thing configuration genuinely can carry. The PLAIN
+            // fallback is what `wired_only` turns off — a schema typed at a key called `schema` is
+            // a shape nothing validated, and it fails at run time on a graph called ready.
+            let from_config = literals.read(&n.kind, &port, &n.config).is_some()
+                || (!port.wired_only && config_literal(&n.config, port.name.as_str()).is_some());
+            if wired || from_config {
                 continue;
             }
             out.push(Missing {
@@ -101,6 +114,7 @@ pub fn unfilled_with<M: GraphMeta, H: Host>(
                 kind: n.kind.as_str().to_string(),
                 port: port.name.clone(),
                 is_setting: false,
+                wired_only: port.wired_only,
             });
         }
 
@@ -116,6 +130,7 @@ pub fn unfilled_with<M: GraphMeta, H: Host>(
                 kind: n.kind.as_str().to_string(),
                 port: field.key.clone(),
                 is_setting: true,
+                wired_only: false,
             });
         }
     }
@@ -216,6 +231,7 @@ mod tests {
                 kind: "http_request".into(),
                 port: PortName::new("url"),
                 is_setting: false,
+                wired_only: false,
             }]
         );
     }
@@ -323,6 +339,26 @@ mod tests {
         let say = g.add_node(NodeId::new("print"), 200, 0);
         g.add_edge(&r, each, "loop_body", say, "exec_in").unwrap();
         assert!(inspect(&g, &r).is_ready());
+    }
+
+    /// The case this exists for: a model wrote the schema at a key called `schema` instead of
+    /// wiring the node that publishes one. Every check called the graph ready and the RUN failed,
+    /// which is the discovery arriving at the worst moment.
+    #[test]
+    fn a_wired_only_port_is_not_filled_by_typing_at_it() {
+        let r = reg();
+        let mut g: Graph = Graph::new("typed");
+        let cell = g.add_node(NodeId::new("cell"), 0, 0);
+        // The port is optional on `cell`, so borrow one that is not: prove the rule on the flag.
+        let probe = crate::port::Port::req("schema", crate::port::PortType::SCHEMA).wired();
+        assert!(probe.wired_only);
+        let plain = crate::port::Port::req("schema", crate::port::PortType::SCHEMA);
+        assert!(
+            !plain.wired_only,
+            "the default is unchanged: a box may fill a port"
+        );
+        let _ = cell;
+        let _ = &r;
     }
 
     /// A graph that gives something back is one somebody can call. Not required of every graph —

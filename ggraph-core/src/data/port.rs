@@ -386,6 +386,19 @@ pub struct Port {
     /// serialised: the catalogue publishes the resolved answer, so a reader has one thing to read.
     #[serde(skip)]
     pub element: Option<PortType>,
+    /// A value on this port can only arrive on a WIRE — no box can hold one.
+    ///
+    /// Most inputs may be typed into instead of connected, and that is the ordinary way to fill
+    /// one. Some cannot: a schema is a declaration another node publishes, and what somebody types
+    /// at a key called `schema` is a shape nothing validated, which then fails at run time on a
+    /// graph every check called ready. Saying it here moves that discovery to the moment the graph
+    /// is judged, where it can still be fixed.
+    ///
+    /// A host that CAN resolve such a value from configuration says so through its
+    /// [`Literals`](crate::host::Literals) — a device id, a table id — and that answer is still
+    /// taken. This only turns off the plain fallback.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub wired_only: bool,
     /// One sentence on what this port is for. Empty when nobody has written one — honest, and a
     /// thing to fill in rather than a thing to invent.
     ///
@@ -454,8 +467,15 @@ impl Port {
             columns: Vec::new(),
             family: None,
             element: None,
+            wired_only: false,
             about: "",
         }
+    }
+
+    /// This port takes a wire and nothing else. See [`Port::wired_only`].
+    pub const fn wired(mut self) -> Self {
+        self.wired_only = true;
+        self
     }
 
     /// A required input port.
