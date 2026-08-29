@@ -182,19 +182,34 @@ pub fn route<H: Host>(
     struct Step {
         path: Vec<NodeId>,
         arriving: Option<(crate::id::PortName, crate::port::Port)>,
+        /// One score per link, in order. Kept whole because ranking needs more than the minimum.
+        scores: Vec<u32>,
     }
 
     // BEST-first on the weakest link, not breadth-first. Breadth returns the shortest routes, and
     // the shortest are the ones held together by the vaguest types: `chunk_search → send_email` in
     // one hop, through an error message reaching an address. Expanding by weakest link means the
     // first answers out are the most meaningful.
-    let mut heap: std::collections::BinaryHeap<(u32, std::cmp::Reverse<usize>, usize)> =
+    // The key is every link score, WEAKEST FIRST, padded so a shorter path's missing links read as
+    // unbreakable. Ranking on the minimum alone left two paths with the same bottleneck
+    // indistinguishable — `table_read → get_table_rows → for_each` and `table_read → pick_numbers
+    // → for_each` share their weakest link and differ entirely in the one after it. Comparing the
+    // whole sorted list says the second thing too, and the padding keeps a short strong path ahead
+    // of a long one that merely matches it.
+    let key = |scores: &[u32]| -> Vec<u32> {
+        let mut v = scores.to_vec();
+        v.sort_unstable();
+        v.resize(LONGEST, u32::MAX);
+        v
+    };
+    let mut heap: std::collections::BinaryHeap<(Vec<u32>, std::cmp::Reverse<usize>, usize)> =
         std::collections::BinaryHeap::new();
     let mut steps: Vec<Step> = vec![Step {
         path: vec![from.clone()],
         arriving: None,
+        scores: Vec::new(),
     }];
-    heap.push((u32::MAX, std::cmp::Reverse(1), 0));
+    heap.push((key(&[]), std::cmp::Reverse(1), 0));
 
     let score = scores(reg);
 
@@ -206,7 +221,7 @@ pub fn route<H: Host>(
     let mut seen: HashMap<(NodeId, PortType), usize> = HashMap::new();
 
     let mut found: Vec<Vec<NodeId>> = Vec::new();
-    while let Some((worst, _, at)) = heap.pop() {
+    while let Some((_, _, at)) = heap.pop() {
         let last = steps[at].path.last().expect("a path has a head").clone();
         if last != *to {
             let state = (
@@ -262,15 +277,16 @@ pub fn route<H: Host>(
             let Some((sc, on, port)) = best else { continue };
             let mut path = steps[at].path.clone();
             path.push(b.clone());
+            let mut scores = steps[at].scores.clone();
+            scores.push(sc);
+            let k = key(&scores);
+            let len = path.len();
             steps.push(Step {
                 path,
                 arriving: Some((on, port)),
+                scores,
             });
-            heap.push((
-                worst.min(sc),
-                std::cmp::Reverse(steps.len()),
-                steps.len() - 1,
-            ));
+            heap.push((k, std::cmp::Reverse(len), steps.len() - 1));
         }
     }
     found
