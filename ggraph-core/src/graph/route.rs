@@ -150,13 +150,22 @@ pub fn route<H: Host>(
 
     let mut found: Vec<Vec<NodeId>> = Vec::new();
     while let Some((worst, _, path)) = heap.pop() {
-        if found.len() >= limit || path.len() > LONGEST {
+        let last = *path.last().expect("a path has a head");
+
+        // A completed route is RECORDED when it is popped, not when it is reached. Recording on
+        // arrival puts them in the order the walk stumbled over them, which is not the order of
+        // their weakest link — and the whole ranking then did nothing.
+        if last == to {
+            found.push(path.iter().map(|k| (*k).clone()).collect());
             if found.len() >= limit {
                 break;
             }
             continue;
         }
-        let last = *path.last().expect("a path has a head");
+        if path.len() > LONGEST {
+            continue;
+        }
+
         for (nxt, w) in edges.get(last).into_iter().flatten() {
             // A kind appears once. A chain that visits one twice is a longer way to say the same
             // thing, and it is how a search runs forever on a set that loops.
@@ -165,15 +174,7 @@ pub fn route<H: Host>(
             }
             let mut on = path.clone();
             on.push(nxt);
-            let worst = worst.min(*w);
-            if *nxt == to {
-                found.push(on.iter().map(|k| (*k).clone()).collect());
-                if found.len() >= limit {
-                    break;
-                }
-            } else {
-                heap.push((worst, std::cmp::Reverse(on.len()), on));
-            }
+            heap.push((worst.min(*w), std::cmp::Reverse(on.len()), on));
         }
     }
     found
