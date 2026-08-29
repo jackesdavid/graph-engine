@@ -199,7 +199,7 @@
       "slug": "compare"
     },
     {
-      "about": "Runs the nodes on `loop_body` once per item, then continues on `completed`.\n\nTakes a **list**, never a table — put a table through **Table rows** first. The current item and its\nposition come out of `item` and `index`.\n\n```\nRead a Table --table--> Table rows --rows--> For Each --item--> Print\n                                              For Each --completed--> Send email\n```",
+      "about": "Runs the nodes on `loop_body` once per item, then continues on `completed`.\n\n**Only when the next node takes ONE.** If it takes the list itself, wire the list straight to it —\na loop in front of a node that wanted the whole thing is a longer graph doing the same work, and\nusually a broken one. Look at the types: `chunk_results` into a port that takes `chunk_results` is\none wire. `chunk_results` into a port that takes `chunk_result` is what this node is for.\n\nTakes a **list**, never a table — put a table through **Table rows** first. The current item and its\nposition come out of `item` and `index`.\n\n```\nChunk Search --results--> For Each --item--> Break passage      … one at a time\nChunk Search --results--> Ask.passages                          … all of them, no loop\n```",
       "category": "Control",
       "default_config": {
         "items": "",

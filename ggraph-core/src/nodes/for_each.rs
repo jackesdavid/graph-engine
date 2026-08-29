@@ -101,12 +101,17 @@ pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H
         .about(
             r#"Runs the nodes on `loop_body` once per item, then continues on `completed`.
 
+**Only when the next node takes ONE.** If it takes the list itself, wire the list straight to it —
+a loop in front of a node that wanted the whole thing is a longer graph doing the same work, and
+usually a broken one. Look at the types: `chunk_results` into a port that takes `chunk_results` is
+one wire. `chunk_results` into a port that takes `chunk_result` is what this node is for.
+
 Takes a **list**, never a table — put a table through **Table rows** first. The current item and its
 position come out of `item` and `index`.
 
 ```
-Read a Table --table--> Table rows --rows--> For Each --item--> Print
-                                              For Each --completed--> Send email
+Chunk Search --results--> For Each --item--> Break passage      … one at a time
+Chunk Search --results--> Ask.passages                          … all of them, no loop
 ```"#,
         )
         .with_inputs(Ports::Static(&IN))
