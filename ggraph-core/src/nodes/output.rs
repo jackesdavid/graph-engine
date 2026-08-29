@@ -47,6 +47,25 @@ pub const VALUE_TYPES: [&str; 7] = ["text", "num", "bool", "table", "json", "lis
 /// other, silently losing a value.
 pub(crate) fn declared(cfg: &Json) -> Vec<(String, PortType)> {
     let mut out: Vec<(String, PortType)> = Vec::new();
+
+    // The shorthand: `{"values": {"answer": "text"}}` — a name to a type, which is what the list of
+    // records says at four times the length. Accepted because it is what anybody writes when they
+    // are writing the config rather than clicking it, and refusing it taught nobody anything.
+    if let Some(map) = cfg.get("values").and_then(Json::as_object) {
+        for (name, ty) in map {
+            let name = name.trim();
+            if name.is_empty() || out.iter().any(|(n, _)| n == name) {
+                continue;
+            }
+            let ty = ty
+                .as_str()
+                .filter(|t| VALUE_TYPES.contains(t))
+                .unwrap_or("text");
+            out.push((name.to_string(), PortType::new(ty)));
+        }
+        return out;
+    }
+
     let Some(items) = cfg.get("values").and_then(Json::as_array) else {
         return out;
     };
@@ -182,6 +201,16 @@ mod tests {
     fn an_unknown_type_falls_back_rather_than_failing() {
         let cfg = json!({ "values": [{ "name": "a", "type": "hologram" }] });
         assert_eq!(ports(&cfg)[0].ty, PortType::TEXT);
+    }
+
+    /// The shorthand, because it is what anybody writing the config by hand reaches for — and what
+    /// a model wrote three times running while being told, each time, that it was wrong.
+    #[test]
+    fn a_name_to_a_type_is_the_same_declaration() {
+        let short = json!({ "values": { "answer": "num" } });
+        let long = json!({ "values": [{ "name": "answer", "type": "num" }] });
+        assert_eq!(declared(&short), declared(&long));
+        assert_eq!(ports(&short)[0].ty, PortType::NUM);
     }
 
     /// Whatever the ports are, they are the same on both sides — that is what makes the run's own
