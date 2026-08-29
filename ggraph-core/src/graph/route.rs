@@ -399,15 +399,25 @@ pub fn wire<H: Host>(reg: &NodeRegistry<H>, chain: &[NodeId]) -> Result<Vec<Wire
 /// where most graphs actually start — a search takes a query and the query is typed in. Calling it
 /// un-startable said the opposite of the truth, and seven of ten real requests begin there.
 ///
-/// What disqualifies a kind is a required input that can only arrive on a WIRE: a cell needs a row
-/// and no box holds one, so something must come first.
+/// Two things disqualify a kind. A required input that can only arrive on a WIRE — a cell needs a
+/// row and no box holds one, so something must come first. And giving nothing: a SINK satisfies
+/// the first rule trivially, because nothing has to precede a node whose ports it declares itself,
+/// and a model offered `output` as a place to begin duly began there.
 pub fn sources<H: Host>(reg: &NodeRegistry<H>) -> Vec<NodeId> {
     reg.palette()
         .filter(|s| {
-            s.inputs
-                .resolve(&(s.default_config)())
+            let cfg = (s.default_config)();
+            let takeable = s
+                .inputs
+                .resolve(&cfg)
                 .iter()
-                .all(|p| p.ty == PortType::EXEC || !p.required || !p.wired_only)
+                .all(|p| p.ty == PortType::EXEC || !p.required || !p.wired_only);
+            let gives_something = s
+                .outputs
+                .resolve(&cfg)
+                .iter()
+                .any(|p| p.ty != PortType::EXEC);
+            takeable && gives_something
         })
         .map(|s| s.id.clone())
         .collect()
@@ -669,5 +679,18 @@ mod tests {
     fn a_kind_that_must_be_wired_into_is_not_a_source() {
         let r = reg();
         assert!(!sources(&r).contains(&id("cell")), "a cell needs a row");
+    }
+
+    /// A sink is not a start. `output` needs nothing before it — its ports are whatever it
+    /// declares — so it satisfied the rule and was offered as a place to BEGIN, which a model
+    /// duly did.
+    #[test]
+    fn a_kind_that_gives_nothing_is_not_a_source() {
+        let r = reg();
+        let s = sources(&r);
+        assert!(
+            !s.contains(&id("print")),
+            "print delivers, it does not produce: {s:?}"
+        );
     }
 }
