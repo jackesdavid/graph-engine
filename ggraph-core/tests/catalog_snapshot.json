@@ -2,7 +2,6 @@
   "kinds": [
     {
       "about": "Stops and asks a person, and continues only when they answer.\n\nThe run waits. `answered_by` says who replied, so a graph can record who authorised what.\n\n```\nFormat --text--> Ask a Person --approved--> Send email\n```",
-      "can_start": true,
       "category": "Approval",
       "default_config": {
         "audience": "",
@@ -327,7 +326,6 @@
     },
     {
       "about": "Asks a language model a question and returns its answer as text.\n\nFor questions that need no documents. Anything about what the INDEXED documents say goes through\n**Chunk Search** and **Ask**, whose answers are checked against their sources.\n\n```\nFormat --text--> Ask a Model --answer--> Output.answer\n```",
-      "can_start": true,
       "category": "AI",
       "default_config": {
         "prompt": "",
@@ -529,7 +527,6 @@
     },
     {
       "about": "Ends a graph by naming what it gives back.\n\nAdd a value in the inspector, give it a name and a type, and a port of that name appears. Whatever\nyou wire to it is what a caller receives when the graph finishes — so this is how a graph stops\nbeing a thing that *happens* and becomes a thing you can *ask*.\n\nEverything a caller gets comes from here. A graph with no Output ran, and returned nothing.\n\n```\nChunk Search --results--> Ask --answer--> Output.answer\n```\n",
-      "can_start": true,
       "category": "Output",
       "default_config": {
         "values": [
@@ -604,7 +601,6 @@
     },
     {
       "about": "Rounds one number to a set number of decimal places.\n\n```\nCell value (price) --> Round (2) --value--> Format\n```",
-      "can_start": true,
       "category": "Math",
       "default_config": {
         "decimals": 2
@@ -630,7 +626,6 @@
     },
     {
       "about": "Rounds every number in a list.\n\n```\nPick numbers --values--> Round each --values--> ReportBarChart\n```",
-      "can_start": true,
       "category": "Math",
       "default_config": {
         "decimals": 2
@@ -658,7 +653,6 @@
     },
     {
       "about": "Takes one column out of a table as a plain list of numbers.\n\nFor feeding something that wants values rather than rows — a chart, a round, a sum.\n\n```\nRead a Table --table--> Pick numbers (column: price) --values--> Round each\n```",
-      "can_start": true,
       "category": "Data",
       "default_config": {
         "column": ""
@@ -685,7 +679,6 @@
     },
     {
       "about": "Takes one column out of a table as a plain list of text.\n\n```\nAsk --result--> Pick texts (column: model) --values--> For Each\n```",
-      "can_start": true,
       "category": "Data",
       "default_config": {
         "column": ""
@@ -712,7 +705,6 @@
     },
     {
       "about": "Turns a table into a **list** of rows, which is what a loop can take.\n\n**For Each** never takes a table. This is the node between them.\n\n```\nRead a Table --table--> Table rows --rows--> For Each --item--> Break row\n```",
-      "can_start": true,
       "category": "Data",
       "default_config": {},
       "inputs": [
@@ -737,7 +729,6 @@
     },
     {
       "about": "Takes the first row of a table.\n\nFor the answer that is one row — a total, a name, a single match. Use **Cell value** or **Break row**\nnext to get at the columns.\n\n```\nAsk --result--> First row --row--> Cell value (column: total)\n```",
-      "can_start": true,
       "category": "Data",
       "default_config": {},
       "inputs": [
@@ -923,7 +914,6 @@
     },
     {
       "about": "Draws a table in a report.\n\nTakes the table itself — the columns and their names come with it.\n\n```\nAsk --result--> ReportTable --block--> ReportRender\n```",
-      "can_start": true,
       "category": "Report",
       "default_config": {},
       "inputs": [
@@ -947,7 +937,6 @@
     },
     {
       "about": "Draws a bar chart in a report.\n\nTakes the table and its schema, then you choose which column is which axis BY NAME in the inspector.\nHow it is drawn — bar direction, gap, whether the axes show — is separate from what it shows.\n\n```\nAsk --result--> ReportBarChart --block--> ReportLayout\nSchema ------schema-------------^\n```",
-      "can_start": true,
       "category": "Report",
       "default_config": {
         "bars": "vertical",
@@ -1037,7 +1026,6 @@
     },
     {
       "about": "Puts blocks beside or below each other.\n\nIt takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.\nAdd a slot with `+`, name it, and it becomes a port.\n\n```\nReportHeading --block--> ReportLayout.header\nReportTable ---block--> ReportLayout.body --block--> ReportRender\n```",
-      "can_start": true,
       "category": "Report",
       "default_config": {
         "align": "stretch",
@@ -1137,7 +1125,6 @@
     },
     {
       "about": "Turns a report into a finished document and writes it.\n\nGive it ONE block — stack several with a **ReportLayout** first. `file` is a handle to what was\nwritten, which is what **Send email** and **Save to disk** take.\n\n```\nReportLayout --block--> ReportRender --file--> Send email.attach\n```",
-      "can_start": true,
       "category": "Report",
       "default_config": {
         "format": "html",

@@ -449,6 +449,27 @@ impl Port {
         self
     }
 
+    /// Can this port's value come from a box somebody types in?
+    ///
+    /// A scalar can, and so can the two shapes an inspector can edit as text. A table, a block, a
+    /// schema, a row, a handle to a file — nothing an editor offers holds one of those, and a
+    /// required port of such a type is a port something must be WIRED into.
+    ///
+    /// Derived rather than declared, because declared meant remembered: `wired_only` was opt-in
+    /// and three ports in the whole set had opted in, so a node needing a block read as a place a
+    /// chain could begin. `wired()` remains, for saying it about a type that could otherwise be
+    /// typed — a schema written at a key called `schema` is a shape nothing validated.
+    pub fn typeable(&self) -> bool {
+        self.family() == Family::Scalar
+            || self.ty == PortType::JSON
+            || self.ty.as_str() == "dictionary"
+    }
+
+    /// Must a value arrive here on a wire?
+    pub fn needs_a_wire(&self) -> bool {
+        self.wired_only || (self.required && !self.typeable())
+    }
+
     /// This port's family: what it declared, or what its type is.
     pub fn family(&self) -> Family {
         self.family.unwrap_or_else(|| Family::of(&self.ty))

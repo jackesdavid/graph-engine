@@ -318,17 +318,22 @@ fn kind_json<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> Json {
 /// Here rather than only there because the catalogue has to publish it, and a rule stated twice is
 /// a rule that disagrees with itself.
 pub(crate) fn starts<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> bool {
-    let takeable = s
-        .inputs
-        .resolve(cfg)
+    let ins = s.inputs.resolve(cfg);
+    let outs = s.outputs.resolve(cfg);
+
+    // Nothing has to come before it: no input needs a wire.
+    let takeable = ins
         .iter()
-        .all(|p| p.ty == PortType::EXEC || !p.required || !p.wired_only);
-    let gives = s
-        .outputs
-        .resolve(cfg)
+        .all(|p| p.ty == PortType::EXEC || !p.needs_a_wire());
+
+    // And something comes out that was not put in. A node whose every output type is also one of
+    // its input types RELAYS — `output` hands back what it was given, satisfied "something comes
+    // out", and was offered as a place to begin.
+    let originates = outs
         .iter()
-        .any(|p| p.ty != PortType::EXEC);
-    takeable && gives
+        .any(|o| o.ty != PortType::EXEC && !ins.iter().any(|i| i.ty == o.ty));
+
+    takeable && originates
 }
 
 fn field_json(f: &Field) -> Json {

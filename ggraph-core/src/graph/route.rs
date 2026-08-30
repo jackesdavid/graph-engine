@@ -668,6 +668,33 @@ mod tests {
         assert!(!sources(&r).contains(&id("cell")), "a cell needs a row");
     }
 
+    /// A required input of a type no box can hold must be WIRED, whether or not anybody said so.
+    /// `report_render` needs a block and `get_table_rows` needs a table; both read as places a
+    /// chain could begin, because `wired_only` was a flag somebody had to remember and three ports
+    /// in the whole set had it.
+    #[test]
+    fn a_required_input_no_box_can_hold_is_wired_by_its_type() {
+        let r = reg();
+        let s = sources(&r);
+        assert!(!s.contains(&id("report_render")), "it needs a block: {s:?}");
+        assert!(!s.contains(&id("get_table_rows")), "it needs a table");
+        assert!(
+            s.contains(&id("http_request")),
+            "its url is REQUIRED and is text, and text goes in a box: {s:?}"
+        );
+    }
+
+    /// A node that hands back what it was given originates nothing. `output` mirrors its inputs on
+    /// its outputs, satisfied "something comes out", and was offered as a place to begin.
+    #[test]
+    fn a_pass_through_is_not_a_source() {
+        let r = reg();
+        assert!(
+            !sources(&r).contains(&id("output")),
+            "it relays, it does not produce"
+        );
+    }
+
     /// A sink is not a start. `output` needs nothing before it — its ports are whatever it
     /// declares — so it satisfied the rule and was offered as a place to BEGIN, which a model
     /// duly did.
