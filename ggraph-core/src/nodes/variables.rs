@@ -92,13 +92,21 @@ impl<H: Host> NodeRun<H> for GetVariable {
 pub fn set_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::effectful("set_variable", "Set Variable", "Variables")
         .about(
-            r#"Stores a value under a name, for another part of the graph to read.
+            r#"Puts a value into a variable, **replacing whatever was there**.
 
-Use it when a value is needed somewhere a wire cannot reach — across a loop's body, or in a branch
-that runs later. A wire is clearer whenever one will do.
+The other half of a variable's life: **Get Variable** reads what it holds now, and this is what
+changes it. A value written here is seen by every read that happens afterwards — including a later
+pass of the same loop, which is how a running total or a "have I seen this one" is kept.
+
+Reach for it when a wire cannot get there: across a loop's body, into a branch that runs later,
+past a node that would otherwise carry a value it has no use for. **A wire is clearer whenever one
+will do** — it says on the canvas where the value came from, and a variable does not.
+
+Nothing wired in is refused rather than stored. Writing nothing would leave the previous value in
+place, and the next read would take a stale value for a fresh one.
 
 ```
-HTTP Request --json--> Set Variable "payload"   …later…   Get Variable "payload" --> Format
+Detect People --count--> Set Variable "seen"   …later…   Get Variable "seen" --> Compare
 ```"#,
         )
         .with_inputs(Ports::dynamic(named_port))
@@ -110,19 +118,24 @@ HTTP Request --json--> Set Variable "payload"   …later…   Get Variable "payl
 pub fn get_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
         .about(
-            r#"Reads a variable: either what **Set Variable** put there, or the value the graph declared it with.
+            r#"Reads a variable's value **as it stands now**.
 
-**This is how a fixed value enters a flow.** A message to send, an address, a threshold — declare
-the variable with that text as its value and read it here. The value then has a NAME and one place
-it lives, which is what makes it findable when somebody wants to change it.
+Whatever is in it at this moment: what **Set Variable** put there a step ago, what the last pass of
+a loop left, or the value the graph was declared with if nothing has changed it yet. Read on
+demand, wherever it is wired — so the same node inside a loop gives a different answer each time
+round, which is the point of it.
 
-Read on demand, wherever it is wired, so it works from inside a loop body or a branch a wire could
-not reach. A variable nothing declared and nothing set produces nothing rather than a made-up
-default: an invented zero is indistinguishable from a real one.
+That makes it two things at once. A value computed earlier and needed where a wire cannot reach —
+across a loop's body, or in a branch that runs later. And a value nothing overwrites, which is
+simply the case where the declared one is still there: a message, an address, a threshold, with a
+name and one findable place to change it.
+
+A variable nothing declared and nothing set produces nothing rather than a made-up default — an
+invented zero is indistinguishable from a real one.
 
 ```
-Get Variable "message" --> Send email.body        … a fixed message
-HTTP Request --json--> Set Variable "payload"     … and something computed, read later
+Detect count --> Set Variable "seen"   …later…   Get Variable "seen" --> Compare
+Get Variable "message" --> Send email.body       … nothing set it; the declared value stands
 ```"#,
         )
         .with_outputs(Ports::dynamic(named_port))
