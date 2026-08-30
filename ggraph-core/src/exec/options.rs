@@ -119,12 +119,23 @@ pub enum Checkpoint {
 }
 
 /// How to run.
-#[derive(Clone, Copy, Debug, Default)]
+/// No longer `Copy`: it carries the values a run starts with, and those are owned.
+#[derive(Clone, Debug, Default)]
 pub struct RunOptions {
     pub budget: Budget,
     pub checkpoint: Checkpoint,
     /// What to do with a node that is wired to nothing at all.
     pub isolated: Isolated,
+    /// Values every variable starts the run with.
+    ///
+    /// `Get Variable` refuses to invent a default when nothing has set one, and it is right to: a
+    /// zero it made up is indistinguishable from a zero somebody meant. But an INITIAL value is a
+    /// different thing — the author declared it, and seeding it once before anything runs is not
+    /// a guess.
+    ///
+    /// Passed in rather than read off the graph because variables are declared in the product's
+    /// own metadata; the engine has never seen them and should not learn to.
+    pub vars: crate::value::PortValues,
 }
 
 /// Whether a node with no edges whatsoever takes part in a run.

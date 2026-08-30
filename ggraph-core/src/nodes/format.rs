@@ -77,13 +77,17 @@ impl<H: Host> NodeRun<H> for Format {
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("format", "Format", "Text")
         .about(
-            r#"Builds a piece of text from a template.
+            r#"**Combines** values into a sentence.
 
-Every `{name}` in the template becomes an input port of that name — so the template decides the
-node's shape. This is how values become a sentence.
+Every `{name}` in the template becomes an input port of that name, so the template decides the
+node's shape. It is for putting things TOGETHER — a number and a label, a name and a date.
+
+A fixed message with nothing to fill in is not this node. Declare a variable with that text and
+read it with **Get Variable**: the message then has a name, sits where somebody can find and change
+it, and nobody has to notice that a template with no `{}` in it is a constant wearing a disguise.
 
 ```
-Cell value (model) --> Format ("Model: {model}") --text--> ReportParagraph
+Cell value (model) --> Format ("{model}: {price} euros") --text--> ReportParagraph
 ```"#,
         )
         .with_inputs(Ports::dynamic(inputs))

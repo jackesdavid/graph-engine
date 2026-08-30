@@ -97,7 +97,14 @@ fn run_inner<M: GraphMeta, H: Host<Meta = M>>(
 
     let mut st = State {
         checkpoint: opts.checkpoint,
-        vars: Default::default(),
+        // What the author declared, before anything runs. Not a fallback at read time — that
+        // would make an invented zero look like a real one — but an initial value, set once.
+        vars: std::sync::Arc::new(std::sync::Mutex::new(
+            opts.vars
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        )),
         outputs: Outputs::new(),
         ran: HashSet::new(),
         live_arms: HashSet::new(),

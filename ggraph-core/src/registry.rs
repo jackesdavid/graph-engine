@@ -329,9 +329,19 @@ pub(crate) fn starts<H: Host>(s: &NodeSpec<H>, cfg: &Json) -> bool {
     // And something comes out that was not put in. A node whose every output type is also one of
     // its input types RELAYS — `output` hands back what it was given, satisfied "something comes
     // out", and was offered as a place to begin.
-    let originates = outs
-        .iter()
-        .any(|o| o.ty != PortType::EXEC && !ins.iter().any(|i| i.ty == o.ty));
+    //
+    // Unless its outputs are CONFIGURED, in which case it has none until somebody points it at
+    // something, and we cannot say. `Get Variable` publishes a port named after the variable, so
+    // unconfigured it publishes nothing — and "nothing yet" was being read as "nothing ever".
+    // ...and takes nothing, which is what separates it from a node that mirrors. `output` has
+    // configured ports on BOTH sides and hands back what it was given; `Get Variable` has none
+    // coming in, so whatever it publishes it originated.
+    let dynamic_out = matches!(s.outputs, crate::spec::Ports::Dynamic(_))
+        && ins.iter().all(|p| p.ty == PortType::EXEC);
+    let originates = dynamic_out
+        || outs
+            .iter()
+            .any(|o| o.ty != PortType::EXEC && !ins.iter().any(|i| i.ty == o.ty));
 
     takeable && originates
 }

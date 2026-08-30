@@ -348,3 +348,50 @@ fn two_outputs_merge_into_one_answer() {
     let got = ggraph_core::exec::delivered(&b.graph, &outs);
     assert_eq!(got.len(), 2, "both branches are readable: {got:?}");
 }
+
+/// A value the author declared, in front of the graph before anything runs.
+///
+/// `Get Variable` refuses to invent a default when nothing set one — an invented zero reads
+/// exactly like a real one. An INITIAL value is a different thing, and without it a declared
+/// default was inert: an editor let you type one and nothing ever read it.
+#[test]
+fn a_run_can_start_with_the_values_the_author_declared() {
+    let mut b = Built::new("seeded");
+    let get = b.node(
+        "get_variable",
+        json!({ "variable": "message", "type": "text" }),
+    );
+    let end = b.node("output", json!({ "values": { "message": "text" } }));
+    b.wire(get, "message", end, "message");
+
+    let mut opts = RunOptions::default();
+    opts.vars.insert(
+        ggraph_core::PortName::new("message"),
+        ggraph_core::Value::text("A indexação terminou"),
+    );
+    let outs =
+        ggraph_core::run(&b.graph, &b.reg, &b.host, &Entry::default(), &opts).expect("it runs");
+
+    assert_eq!(
+        ggraph_core::exec::delivered(&b.graph, &outs)
+            .get(&ggraph_core::PortName::new("message"))
+            .and_then(|v| v.as_text())
+            .as_deref(),
+        Some("A indexação terminou"),
+    );
+}
+
+/// And with nothing seeded it still produces nothing, because that rule was right.
+#[test]
+fn an_unseeded_variable_still_produces_nothing() {
+    let mut b = Built::new("unseeded");
+    let get = b.node(
+        "get_variable",
+        json!({ "variable": "message", "type": "text" }),
+    );
+    let end = b.node("output", json!({ "values": { "message": "text" } }));
+    b.wire(get, "message", end, "message");
+
+    let outs = b.run().expect("it runs");
+    assert!(ggraph_core::exec::delivered(&b.graph, &outs).is_empty());
+}

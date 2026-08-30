@@ -110,13 +110,19 @@ HTTP Request --json--> Set Variable "payload"   …later…   Get Variable "payl
 pub fn get_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
         .about(
-            r#"Reads a value stored earlier by **Set Variable**.
+            r#"Reads a variable: either what **Set Variable** put there, or the value the graph declared it with.
 
-Read on demand, wherever it is wired, so it works from inside a loop body or a branch that a wire
-could not have reached.
+**This is how a fixed value enters a flow.** A message to send, an address, a threshold — declare
+the variable with that text as its value and read it here. The value then has a NAME and one place
+it lives, which is what makes it findable when somebody wants to change it.
+
+Read on demand, wherever it is wired, so it works from inside a loop body or a branch a wire could
+not reach. A variable nothing declared and nothing set produces nothing rather than a made-up
+default: an invented zero is indistinguishable from a real one.
 
 ```
-Get Variable "payload" --> Format --text--> Print
+Get Variable "message" --> Send email.body        … a fixed message
+HTTP Request --json--> Set Variable "payload"     … and something computed, read later
 ```"#,
         )
         .with_outputs(Ports::dynamic(named_port))

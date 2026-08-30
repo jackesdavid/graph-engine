@@ -695,6 +695,18 @@ mod tests {
         );
     }
 
+    /// A node whose ports come from its own settings has none at its default, so "something comes
+    /// out" was false and it was never offered — `Get Variable` publishes a port named after the
+    /// variable, and unconfigured it publishes nothing at all. Unknown is not the same as no.
+    #[test]
+    fn a_kind_whose_ports_are_configured_is_still_a_start() {
+        let r = reg();
+        assert!(
+            sources(&r).contains(&id("get_variable")),
+            "it produces whatever it was pointed at"
+        );
+    }
+
     /// A sink is not a start. `output` needs nothing before it — its ports are whatever it
     /// declares — so it satisfied the rule and was offered as a place to BEGIN, which a model
     /// duly did.
