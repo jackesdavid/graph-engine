@@ -194,3 +194,27 @@ fn every_kind_says_what_it_is_for() {
          Show what feeds it and what it feeds, in a ``` block."
     );
 }
+
+/// A description's FIRST LINE has to stand alone.
+///
+/// Every listing shows one line per kind — fifty full descriptions is more context than the
+/// catalogue itself — so a distinction made in the second paragraph is a distinction nobody reads.
+/// `Format` said "combines values into a sentence" and pointed at `Get Variable` for a fixed one;
+/// the pointer was in paragraph two, and a model asked to send a fixed message duly chose Format.
+#[test]
+fn the_first_line_of_a_description_stands_alone() {
+    let reg = registry();
+    let mut thin: Vec<(&str, usize)> = Vec::new();
+    for spec in reg.palette() {
+        let first = spec.about.trim().lines().next().unwrap_or("").trim();
+        // Short enough to be a label rather than a sentence. `Round` needs fewer words than
+        // `Chunk Search`; the bar is only that it says something.
+        if first.len() < 24 {
+            thin.push((spec.id.as_str(), first.len()));
+        }
+    }
+    assert!(
+        thin.is_empty(),
+        "these say too little in the one line most readers get: {thin:?}"
+    );
+}

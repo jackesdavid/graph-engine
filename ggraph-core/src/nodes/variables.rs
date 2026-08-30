@@ -118,7 +118,7 @@ Detect People --count--> Set Variable "seen"   …later…   Get Variable "seen"
 pub fn get_spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("get_variable", "Get Variable", "Variables")
         .about(
-            r#"Reads a variable's value **as it stands now**.
+            r#"Reads a variable's value **as it stands now** — including a fixed message the graph declared.
 
 Whatever is in it at this moment: what **Set Variable** put there a step ago, what the last pass of
 a loop left, or the value the graph was declared with if nothing has changed it yet. Read on

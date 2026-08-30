@@ -48,7 +48,7 @@ impl<H: Host> NodeRun<H> for Heading {
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_heading", "ReportHeading", "Report")
         .about(
-            r#"A heading in a report.
+            r#"A heading in a report — a line of text that titles what comes under it.
 
 ```
 Format --text--> ReportHeading --block--> ReportLayout.header

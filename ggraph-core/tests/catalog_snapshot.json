@@ -474,7 +474,7 @@
       "slug": "llm_extract"
     },
     {
-      "about": "**Combines** values into a sentence.\n\nEvery `{name}` in the template becomes an input port of that name, so the template decides the\nnode's shape. It is for putting things TOGETHER — a number and a label, a name and a date.\n\nA fixed message with nothing to fill in is not this node. Declare a variable with that text and\nread it with **Get Variable**: the message then has a name, sits where somebody can find and change\nit, and nobody has to notice that a template with no `{}` in it is a constant wearing a disguise.\n\n```\nCell value (model) --> Format (\"{model}: {price} euros\") --text--> ReportParagraph\n```",
+      "about": "**Combines** values into a sentence — two or more parts, not a fixed message.\n\nEvery `{name}` in the template becomes an input port of that name, so the template decides the\nnode's shape. It is for putting things TOGETHER — a number and a label, a name and a date.\n\nA fixed message with nothing to fill in is not this node. Declare a variable with that text and\nread it with **Get Variable**: the message then has a name, sits where somebody can find and change\nit, and nobody has to notice that a template with no `{}` in it is a constant wearing a disguise.\n\n```\nCell value (model) --> Format (\"{model}: {price} euros\") --text--> ReportParagraph\n```",
       "can_start": true,
       "category": "Text",
       "default_config": {
@@ -860,7 +860,7 @@
       "slug": "table_schema"
     },
     {
-      "about": "A heading in a report.\n\n```\nFormat --text--> ReportHeading --block--> ReportLayout.header\n```",
+      "about": "A heading in a report — a line of text that titles what comes under it.\n\n```\nFormat --text--> ReportHeading --block--> ReportLayout.header\n```",
       "can_start": true,
       "category": "Report",
       "default_config": {
@@ -1399,7 +1399,7 @@
       "slug": "table_set_cell"
     },
     {
-      "about": "Reads a variable's value **as it stands now**.\n\nWhatever is in it at this moment: what **Set Variable** put there a step ago, what the last pass of\na loop left, or the value the graph was declared with if nothing has changed it yet. Read on\ndemand, wherever it is wired — so the same node inside a loop gives a different answer each time\nround, which is the point of it.\n\nThat makes it two things at once. A value computed earlier and needed where a wire cannot reach —\nacross a loop's body, or in a branch that runs later. And a value nothing overwrites, which is\nsimply the case where the declared one is still there: a message, an address, a threshold, with a\nname and one findable place to change it.\n\nA variable nothing declared and nothing set produces nothing rather than a made-up default — an\ninvented zero is indistinguishable from a real one.\n\n```\nDetect count --> Set Variable \"seen\"   …later…   Get Variable \"seen\" --> Compare\nGet Variable \"message\" --> Send email.body       … nothing set it; the declared value stands\n```",
+      "about": "Reads a variable's value **as it stands now** — including a fixed message the graph declared.\n\nWhatever is in it at this moment: what **Set Variable** put there a step ago, what the last pass of\na loop left, or the value the graph was declared with if nothing has changed it yet. Read on\ndemand, wherever it is wired — so the same node inside a loop gives a different answer each time\nround, which is the point of it.\n\nThat makes it two things at once. A value computed earlier and needed where a wire cannot reach —\nacross a loop's body, or in a branch that runs later. And a value nothing overwrites, which is\nsimply the case where the declared one is still there: a message, an address, a threshold, with a\nname and one findable place to change it.\n\nA variable nothing declared and nothing set produces nothing rather than a made-up default — an\ninvented zero is indistinguishable from a real one.\n\n```\nDetect count --> Set Variable \"seen\"   …later…   Get Variable \"seen\" --> Compare\nGet Variable \"message\" --> Send email.body       … nothing set it; the declared value stands\n```",
       "can_start": true,
       "category": "Variables",
       "default_config": {

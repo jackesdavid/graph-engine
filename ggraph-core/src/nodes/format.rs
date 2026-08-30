@@ -77,7 +77,7 @@ impl<H: Host> NodeRun<H> for Format {
 pub fn spec<H: Host>(_services: &crate::nodes::services::Services) -> NodeSpec<H> {
     NodeSpec::pure("format", "Format", "Text")
         .about(
-            r#"**Combines** values into a sentence.
+            r#"**Combines** values into a sentence — two or more parts, not a fixed message.
 
 Every `{name}` in the template becomes an input port of that name, so the template decides the
 node's shape. It is for putting things TOGETHER — a number and a label, a name and a date.
