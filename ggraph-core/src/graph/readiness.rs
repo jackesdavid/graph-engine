@@ -44,25 +44,25 @@ pub struct Missing {
 
 impl std::fmt::Display for Missing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // `{:?}` on a PortName prints `PortName("x")` — Rust talking to itself. Shown that, a
+        // reader took a SETTING for a port and spent three attempts trying to wire to it.
+        let name = self.port.as_str();
         if self.wired_only {
             return write!(
                 f,
-                "node {} ({}) needs a wire into {:?} — no value typed there will do",
-                self.node, self.kind, self.port
+                "node {} ({}) needs a wire into `{name}` — no value typed there will do",
+                self.node, self.kind
             );
         }
         if self.is_setting {
             write!(
                 f,
-                "node {} ({}) has no {:?} set",
-                self.node, self.kind, self.port
+                "node {} ({}) has no `{name}` — it is a SETTING, so it goes in the node's config, \
+                 never on a wire",
+                self.node, self.kind
             )
         } else {
-            write!(
-                f,
-                "node {} ({}) needs {:?}",
-                self.node, self.kind, self.port
-            )
+            write!(f, "node {} ({}) needs `{name}`", self.node, self.kind)
         }
     }
 }
