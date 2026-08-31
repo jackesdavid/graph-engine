@@ -4,8 +4,12 @@
 //! Building a report from a graph.
 //!
 //! One node per component, and every one of them returns the same thing: a `block`. That single
-//! fact is what makes any arrangement reachable — a layout takes blocks and IS a block, so it takes
-//! layouts, and nesting needs no special case in any node.
+//! fact is what makes any arrangement reachable — a layout takes blocks, so it takes layouts, and
+//! nesting needs no special case in any node.
+//!
+//! What a layout GIVES is a `report_layout`, not a block, and only the renderer accepts one. That
+//! asymmetry is deliberate: it leaves exactly one path from a component to a drawn document, so
+//! neither a person nor a search has to choose between two ways of doing the same thing.
 //!
 //! # The ports are report types, not lists
 //!
@@ -53,6 +57,25 @@ use crate::value::Value;
 /// vocabulary among several a product may add, and reserving a slot in a closed enum for each would
 /// make the engine grow with its consumers.
 pub const BLOCK: PortType = PortType::new_static("block");
+
+/// An arrangement of blocks, ready to be drawn. Only [`report_layout`](layout) makes one, and it
+/// is named after the node so that a port carrying one says where it has to come from.
+///
+/// A separate type from [`BLOCK`], and the reason is that without it there were two ways to end a
+/// report and neither was more correct than the other. A table gives a `block`; a layout takes
+/// blocks and gives a `block`; and the renderer took a `block` — so `table → render` and
+/// `table → layout → render` were both legal, both buildable, and indistinguishable to anything
+/// choosing between them. A router ranked them equal, correctly, because nothing in the types said
+/// which was meant.
+///
+/// The prose already said it. `report_render`'s own description reads *"Give it ONE block — stack
+/// several with a ReportLayout first"*, and the layout's example draws the chain through itself.
+/// This is that sentence, in a form the search can read.
+///
+/// The cost is one node in every report, including a report of one table. That is the price of
+/// there being one path, and it buys the same thing `file_path` and `doc_hash` bought when they
+/// stopped being `text`: a chain that is legible because the types are specific.
+pub const REPORT_LAYOUT: PortType = PortType::new_static("report_layout");
 
 /// The slots a layout node declares, in order. Asked of the node rather than re-read from its
 /// config, because a preview that parsed it a second time would be a second answer to keep in step.

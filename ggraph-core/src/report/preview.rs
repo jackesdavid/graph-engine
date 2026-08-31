@@ -43,7 +43,7 @@ fn of<M: GraphMeta>(graph: &Graph<M>, node: u32, depth: usize) -> Block {
     }
 
     match n.kind.as_str() {
-        "report_render" => match wired(graph, node, "block") {
+        "report_render" => match wired(graph, node, "report_layout") {
             Some(src) => of(graph, src, depth + 1),
             None => placeholder("nothing wired"),
         },
@@ -145,7 +145,7 @@ mod tests {
                 { "id": 3, "kind": "report_heading", "x": 0, "y": 0, "config": { "text": "Título" } }
             ]),
             json!([
-                { "from": 2, "from_port": "block", "to": 1, "to_port": "block" },
+                { "from": 2, "from_port": "report_layout", "to": 1, "to_port": "report_layout" },
                 { "from": 3, "from_port": "block", "to": 2, "to_port": "left" }
             ]),
         );
@@ -167,7 +167,7 @@ mod tests {
                 { "id": 2, "kind": "report_layout", "x": 0, "y": 0,
                   "config": { "slots": [{"name":"cabeçalho"}] } }
             ]),
-            json!([{ "from": 2, "from_port": "block", "to": 1, "to_port": "block" }]),
+            json!([{ "from": 2, "from_port": "report_layout", "to": 1, "to_port": "report_layout" }]),
         );
         let Block::Layout { children, .. } = preview(&g, 1) else {
             panic!()

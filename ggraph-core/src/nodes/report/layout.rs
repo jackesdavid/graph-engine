@@ -3,9 +3,12 @@
 
 //! `report_layout` — blocks beside or below each other.
 //!
-//! The node the whole design rests on. It takes blocks and returns a block, so **it takes layouts**,
-//! and from that one fact any arrangement is reachable: a row of columns, a chart beside a table,
-//! a header above both.
+//! The node the whole design rests on. It takes blocks — and a layout is itself wirable into a
+//! slot — so from that one fact any arrangement is reachable: a row of columns, a chart beside a
+//! table, a header above both.
+//!
+//! What it GIVES is a `report_layout`, which only [`render`](super::render) accepts. So this is not
+//! merely a way to arrange a report; it is the way, and the types say so.
 //!
 //! # Slots are named, not counted
 //!
@@ -19,7 +22,7 @@
 //! Never two edges into one port — `gather` keeps the last and drops the rest without a word, so a
 //! fan-in port would lose components silently.
 
-use super::{from_value, to_value, BLOCK};
+use super::{from_value, to_value, BLOCK, REPORT_LAYOUT};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::port::Port;
@@ -27,7 +30,13 @@ use crate::spec::{Field, Fields, NodeCx, NodeError, NodeRun, NodeSpec, Ports, Ti
 use crate::value::PortValues;
 use serde_json::{json, Value as Json};
 
-static OUT: [Port; 1] = [Port::opt("block", BLOCK)];
+/// A `report`, not a `block`, and this is the only node that makes one.
+///
+/// It still TAKES blocks — a layout of layouts is how any arrangement is reached — but what leaves
+/// is the finished arrangement, and only the renderer accepts that. The asymmetry is the point: it
+/// is what makes the path through here the ONLY path to a drawn document.
+static OUT: [Port; 1] = [Port::opt("report_layout", REPORT_LAYOUT)
+    .about("The arrangement, ready to be drawn. ReportRender takes this and nothing else.")];
 
 /// The slots this layout has, in order.
 ///
@@ -91,7 +100,7 @@ impl<H: Host> NodeRun<H> for LayoutNode {
 
         let mut out = PortValues::new();
         out.insert(
-            PortName::new("block"),
+            PortName::new("report_layout"),
             to_value(&crate::report::Block::stack(layout_of(cx.config), children)),
         );
         Ok(out)
@@ -107,14 +116,13 @@ impl<H: Host> NodeRun<H> for LayoutNode {
 pub(super) fn spec<H: Host>() -> NodeSpec<H> {
     NodeSpec::pure("report_layout", "ReportLayout", "Report")
         .about(
-            r#"Puts blocks beside or below each other.
+            r#"Puts blocks beside or below each other, and is the only way into a **ReportRender**.
 
-It takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.
-Add a slot with `+`, name it, and it becomes a port.
+It takes blocks — including its own kind of output, which is how any arrangement is reached — and gives back the finished arrangement. Every report goes through one, even a report of a single table. Add a slot with `+`, name it, and it becomes a port.
 
 ```
 ReportHeading --block--> ReportLayout.header
-ReportTable ---block--> ReportLayout.body --block--> ReportRender
+ReportTable ---block--> ReportLayout.body --report_layout--> ReportRender
 ```"#,
         )
         .with_inputs(Ports::dynamic(ports))

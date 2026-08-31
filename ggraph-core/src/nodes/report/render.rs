@@ -10,7 +10,7 @@
 //!
 //! # It writes; it does not arrange
 //!
-//! One `block` in. It used to carry slots and the same four layout properties as
+//! One arrangement in. It used to carry slots and the same four layout properties as
 //! [`layout`](super::layout), which made it two nodes wearing one name — and any property added to
 //! a layout had to be added here too, or the two quietly disagreed. Stacking is what the layout
 //! node is for, and putting one in front costs a wire and says what it does.
@@ -20,7 +20,7 @@
 //! viewer that wants to draw it interactively. Same blocks, two audiences, and neither is a second
 //! renderer in Rust.
 
-use super::{from_value, BLOCK};
+use super::{from_value, REPORT_LAYOUT};
 use crate::host::Host;
 use crate::id::PortName;
 use crate::port::{Port, PortType};
@@ -38,8 +38,16 @@ static OUT: [Port; 2] = [
 ];
 
 /// The document, and the theme it is drawn with.
+///
+/// A `report_layout` and not a `block`, so a **ReportLayout** is the only thing that can be wired
+/// here.
+/// It used to take a block, which meant a table could reach the renderer directly AND through a
+/// layout — two paths to one document, neither more correct, and nothing in the types to say which
+/// was meant. The sentence below already said "stack several with a Layout first"; the type says it
+/// now, to anything that reads types rather than prose.
 static IN: [Port; 2] = [
-    Port::req("block", BLOCK).about("The document to draw. Stack several with a Layout first."),
+    Port::req("report_layout", REPORT_LAYOUT)
+        .about("The arrangement to draw, from a ReportLayout. Put every component through one."),
     Port::opt("theme", PortType::TEXT).about("CSS to use instead of the built-in stylesheet."),
 ];
 
@@ -54,7 +62,7 @@ impl<H: Host> NodeRun<H> for Render {
         }
 
         let root = cx
-            .input("block")
+            .input("report_layout")
             .and_then(from_value)
             .ok_or_else(|| NodeError::new("nothing to render"))?;
         let title = cx.cfg_str("title").unwrap_or("Report");
@@ -99,11 +107,12 @@ pub(super) fn spec<H: Host>() -> NodeSpec<H> {
         .about(
             r#"Turns a report into a finished document and writes it.
 
-Give it ONE block — stack several with a **ReportLayout** first. `file` is a handle to what was
-written, which is what **Send email** and **Save to disk** take.
+It takes a **ReportLayout** and nothing else — every component goes through one, even a report that is a single table. That is what makes the arrangement a thing somebody decided rather than a thing that happened.
+
+`file` is a handle to what was written, which is what **Send email** and **Save to disk** take.
 
 ```
-ReportLayout --block--> ReportRender --file--> Send email.attach
+ReportTable --block--> ReportLayout.body --report_layout--> ReportRender --file--> Send email.attach
 ```"#,
         )
         .with_inputs(Ports::Static(&IN))
@@ -121,12 +130,22 @@ ReportLayout --block--> ReportRender --file--> Send email.attach
 mod tests {
     use super::*;
 
-    /// One block in, and the layout properties are gone: they belonged to the layout node, and
+    /// One arrangement in, and the layout properties are gone: they belonged to the layout node, and
     /// carrying them here made any new one a thing to add in two places or quietly disagree about.
+    ///
+    /// The port is named and typed `report_layout`, so a component cannot reach the renderer
+    /// without passing through one. It was named `block` and typed `block`, and then a table could
+    /// arrive here directly or by way of a layout — two paths to one document, with nothing in the
+    /// types to say which was meant.
     #[test]
-    fn it_takes_a_document_and_a_theme() {
+    fn it_takes_an_arrangement_and_a_theme() {
         let names: Vec<&str> = IN.iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["block", "theme"]);
+        assert_eq!(names, vec!["report_layout", "theme"]);
+        assert_eq!(
+            IN[0].ty,
+            super::super::REPORT_LAYOUT,
+            "a layout, never a loose block"
+        );
     }
 
     /// Nothing to render is an error, not an empty document. A report nobody wired is a graph that

@@ -1025,7 +1025,8 @@
       "slug": "report_bar_chart"
     },
     {
-      "about": "Puts blocks beside or below each other.\n\nIt takes blocks and returns a block, so it takes layouts — which is how any arrangement is reached.\nAdd a slot with `+`, name it, and it becomes a port.\n\n```\nReportHeading --block--> ReportLayout.header\nReportTable ---block--> ReportLayout.body --block--> ReportRender\n```",
+      "about": "Puts blocks beside or below each other, and is the only way into a **ReportRender**.\n\nIt takes blocks — including its own kind of output, which is how any arrangement is reached — and gives back the finished arrangement. Every report goes through one, even a report of a single table. Add a slot with `+`, name it, and it becomes a port.\n\n```\nReportHeading --block--> ReportLayout.header\nReportTable ---block--> ReportLayout.body --report_layout--> ReportRender\n```",
+      "can_start": true,
       "category": "Report",
       "default_config": {
         "align": "stretch",
@@ -1115,16 +1116,17 @@
       "label": "ReportLayout",
       "outputs": [
         {
+          "about": "The arrangement, ready to be drawn. ReportRender takes this and nothing else.",
           "family": "unique",
-          "name": "block",
+          "name": "report_layout",
           "required": false,
-          "type": "block"
+          "type": "report_layout"
         }
       ],
       "slug": "report_layout"
     },
     {
-      "about": "Turns a report into a finished document and writes it.\n\nGive it ONE block — stack several with a **ReportLayout** first. `file` is a handle to what was\nwritten, which is what **Send email** and **Save to disk** take.\n\n```\nReportLayout --block--> ReportRender --file--> Send email.attach\n```",
+      "about": "Turns a report into a finished document and writes it.\n\nIt takes a **ReportLayout** and nothing else — every component goes through one, even a report that is a single table. That is what makes the arrangement a thing somebody decided rather than a thing that happened.\n\n`file` is a handle to what was written, which is what **Send email** and **Save to disk** take.\n\n```\nReportTable --block--> ReportLayout.body --report_layout--> ReportRender --file--> Send email.attach\n```",
       "category": "Report",
       "default_config": {
         "format": "html",
@@ -1156,11 +1158,11 @@
           "type": "exec"
         },
         {
-          "about": "The document to draw. Stack several with a Layout first.",
+          "about": "The arrangement to draw, from a ReportLayout. Put every component through one.",
           "family": "unique",
-          "name": "block",
+          "name": "report_layout",
           "required": true,
-          "type": "block"
+          "type": "report_layout"
         },
         {
           "about": "CSS to use instead of the built-in stylesheet.",
